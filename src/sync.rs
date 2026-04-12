@@ -7,7 +7,7 @@ pub fn materialize_claude_settings(policy_path: &Path) -> Value {
         "hooks": {
             "PreToolUse": [{
                 "matcher": { "tool_name": "Bash" },
-                "command": format!("xbreed guard claude-code --policy \"{}\"", policy_path.display()),
+                "command": format!("xbreed guard claude-code --policy '{}'", policy_path.display()),
                 "timeout_ms": 500
             }]
         }

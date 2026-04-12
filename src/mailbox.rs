@@ -37,14 +37,32 @@ pub fn write_event(team_dir: &Path, from: &str, event_type: &str, payload: &str)
 
 pub fn drain_events(team_dir: &Path) -> Result<Vec<Event>> {
     let path = mailbox_path(team_dir);
-    if !path.exists() {
-        return Ok(vec![]);
+    // Atomic drain: rename the mailbox file so new writers create a fresh
+    // file (O_CREAT in write_event), then read and delete the renamed copy.
+    //
+    // Race note: a writer that opened the old file BEFORE rename but writes
+    // AFTER we read will have its event deleted with the .drain file. This
+    // window is narrower than the old read+truncate race (which lost ALL
+    // concurrent writes between read and truncate). Acceptable for the
+    // best-effort mailbox use case.
+    let drain_path = path.with_extension(format!("drain.{}", std::process::id()));
+    // Recover a leaked .drain file from a prior failed drain (same PID is
+    // impossible, but a stale drain.<other-pid> can exist). We don't recover
+    // those — they're from a dead process and will be overwritten if the same
+    // PID is recycled. Acceptable for best-effort mailbox.
+    match std::fs::rename(&path, &drain_path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(e.into()),
     }
-    // Atomic drain: rename the mailbox file so no writer can append to it
-    // after we've claimed it, then read and delete the renamed copy.
-    let drain_path = path.with_extension("drain");
-    std::fs::rename(&path, &drain_path)?;
-    let contents = std::fs::read_to_string(&drain_path)?;
+    // Always clean up the drain file, even if read fails.
+    let contents = match std::fs::read_to_string(&drain_path) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = std::fs::remove_file(&drain_path);
+            return Err(e.into());
+        }
+    };
     let _ = std::fs::remove_file(&drain_path);
     let events = contents
         .lines()
