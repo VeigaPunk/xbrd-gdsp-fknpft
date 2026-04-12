@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -112,9 +112,21 @@ pub fn compact_events(
     let now_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
     let cutoff_ms = now_ms.saturating_sub(digest_older_than_secs * 1000);
 
-    let mut f = OpenOptions::new().read(true).write(true).open(&path)?;
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)?;
+    // Atomic compact: rename → read → process → write new file → delete old.
+    // Same pattern as drain_events to avoid the read+truncate race.
+    let compact_path = path.with_extension(format!("compact.{}", std::process::id()));
+    match std::fs::rename(&path, &compact_path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((0, 0)),
+        Err(e) => return Err(e.into()),
+    }
+    let contents = match std::fs::read_to_string(&compact_path) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = std::fs::remove_file(&compact_path);
+            return Err(e.into());
+        }
+    };
 
     let (mut kept, mut compactable): (Vec<Event>, Vec<Event>) = contents
         .lines()
@@ -150,10 +162,10 @@ pub fn compact_events(
         .iter()
         .map(|e| serde_json::to_string(e).unwrap() + "\n")
         .collect();
-    f.set_len(0)?;
-    use std::io::Seek;
-    f.seek(std::io::SeekFrom::Start(0))?;
+    // Write compacted events to a fresh mailbox file, then clean up.
+    let mut f = OpenOptions::new().create(true).write(true).truncate(true).open(&path)?;
     f.write_all(new_contents.as_bytes())?;
+    let _ = std::fs::remove_file(&compact_path);
 
     Ok((kept_count, compacted_count))
 }

@@ -320,7 +320,7 @@ fn is_auth_error(stderr: &[u8]) -> bool {
         || s.contains("set an Auth method")
 }
 
-pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout) -> Result<String> {
+pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout, effort: Option<&str>) -> Result<String> {
     if cli == "gemini" {
         let chain = gemini_auth_chain();
         if chain.is_empty() {
@@ -374,8 +374,20 @@ pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout) -> Result<String> {
     }
 
     let mut cmd = match cli {
-        "claude" => build_claude_ask_with_loadout(prompt, loadout),
-        "codex" => build_codex_ask_with_loadout(prompt, loadout),
+        "claude" => {
+            let mut c = build_claude_ask_with_loadout(prompt, loadout);
+            if let Some(e) = effort {
+                c.arg("--effort").arg(e);
+            }
+            c
+        }
+        "codex" => {
+            let mut c = build_codex_ask_with_loadout(prompt, loadout);
+            if let Some(e) = effort {
+                c.arg("-c").arg(format!("model_reasoning_effort={e}"));
+            }
+            c
+        }
         other => anyhow::bail!("unknown cli: {other} (expected claude|codex|gemini)"),
     };
     let output = cmd
@@ -497,7 +509,7 @@ mod tests {
     #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
-        let err = dispatch("grok", "hello", &l).unwrap_err();
+        let err = dispatch("unknown-cli", "hello", &l, None).unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
     }
 

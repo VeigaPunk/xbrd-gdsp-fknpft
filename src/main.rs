@@ -40,13 +40,13 @@ fn main() -> anyhow::Result<()> {
             let status = xbreed::launch::launch_claude(&model, &effort, &settings, &args)?;
             std::process::exit(status.code().unwrap_or(1));
         }
-        Commands::Ask { cli, prompt, with } => {
+        Commands::Ask { cli, prompt, with, effort } => {
             let loadout = if with.is_empty() {
                 xbreed::loadout::Loadout::empty()
             } else {
                 xbreed::loadout::Loadout::resolve(&with)?
             };
-            let out = xbreed::ask::dispatch(&cli, &prompt, &loadout)?;
+            let out = xbreed::ask::dispatch(&cli, &prompt, &loadout, effort.as_deref())?;
             print!("{out}");
             Ok(())
         }

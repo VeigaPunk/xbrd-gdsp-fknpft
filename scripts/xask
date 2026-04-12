@@ -93,7 +93,9 @@ case "$MODEL" in
       gemini_toggle_tree "True"
       trap 'gemini_toggle_tree "False"' EXIT
     fi
-    xbreed ask gemini --with "$SKILL" "$PROMPT"
+    EFFORT_FLAG=""
+    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
+    xbreed ask gemini --with "$SKILL" $EFFORT_FLAG "$PROMPT"
     ;;
   codex)
     if [ "$DIRECT" = true ]; then
@@ -106,16 +108,16 @@ case "$MODEL" in
         -c include_environment_context=false \
         -c "model_reasoning_effort=$CODEX_EFFORT" \
         "$PROMPT"
-    elif [ "$RICH" = true ]; then
-      # Rich mode: full CLI context via xbreed
-      xbreed ask codex --with "$SKILL" "$PROMPT"
     else
-      # Clean mode: via xbreed (godspeed loaded)
-      xbreed ask codex --with "$SKILL" "$PROMPT"
+      EFFORT_FLAG=""
+      [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
+      xbreed ask codex --with "$SKILL" $EFFORT_FLAG "$PROMPT"
     fi
     ;;
   claude)
-    xbreed ask claude --with "$SKILL" "$PROMPT"
+    EFFORT_FLAG=""
+    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
+    xbreed ask claude --with "$SKILL" $EFFORT_FLAG "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini, codex, or claude." >&2

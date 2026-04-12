@@ -41,6 +41,10 @@ pub enum Commands {
         /// Searched in ~/.agents/skills, ~/.claude/skills, ~/.config/xbreed/skills
         #[arg(short = 'w', long = "with", value_delimiter = ',')]
         with: Vec<String>,
+        /// Effort/reasoning level to pass to the target CLI.
+        /// Maps to: claude --effort, codex -c model_reasoning_effort=, gemini thinkingBudget (future)
+        #[arg(short = 'e', long = "effort")]
+        effort: Option<String>,
     },
     /// Initialize a team workspace
     Team {
