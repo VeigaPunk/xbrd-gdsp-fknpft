@@ -1,13 +1,13 @@
 ---
 name: xbreed-team
-description: Judge-orchestrated TEAM mode — creates a persistent native agent team with scout/reviewer/labrat teammates the user can chat with directly via Shift+Down. Lead is your current session, adopts the-judge persona. Triggered by /xbreed-team or /xbt.
+description: Judge-orchestrated TEAM mode — creates a persistent native agent team with cross-model delegation (gemini/codex via xask). Lead is your current session, adopts the-judge persona. Deliberative rounds with judge mediation. Triggered by /xbreed-team or /xbt.
 ---
 
-# /xbreed-team — Judge-Orchestrated Team Mode
+# /xbreed-team — Judge-Orchestrated Team Mode (Deliberative)
 
-This command initializes a **persistent native agent team** with YOUR current session as the team lead. You adopt the-judge persona and orchestrate specialist sub-roles (scout, reviewer, labrat) as **real teammates** — the user can interact with them directly via Shift+Down cycling, chat with each teammate's own pane, see their idle notifications, and steer them mid-investigation.
+This command initializes a **persistent native agent team** with YOUR current session as the team lead. You adopt the-judge persona and orchestrate specialist sub-roles (scout, reviewer, labrat) as **real teammates** with **cross-model delegation** — teammates invoke `xask gemini` / `xask codex` to bring external model perspectives into the draft.
 
-Unlike `/xbreed` (which runs the judge in-session as a single turn with one-shot `Agent` subagents), `/xbreed-team` builds a real squad that persists across turns. Use this command when the work benefits from multi-round debate, teammate chat, or parallel exploration you want to steer.
+Unlike `/xbreed` (solo one-shot subagents) or `/xgs` (godspeed Pareto all-Claude), `/xbreed-team` is the **deliberative** mode: slower, pondered, with the judge mediating cross-model views across multiple rounds.
 
 ## Step 1 — Load the judge persona
 
@@ -31,7 +31,7 @@ TeamCreate(
 )
 ```
 
-If `TeamCreate` fails because a team already exists for this session, STOP and tell the user: "A team is already active. Clean it up first (tell me 'clean up the team') or continue in that existing team."
+If `TeamCreate` fails because a team already exists for this session, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not block — do not ask the user.
 
 ## Step 3 — Parse the prompt
 
@@ -42,93 +42,108 @@ The user's prompt is:
 - If `{{prompt}}` is empty, the team was initialized without a specific task. Skip to Step 6 and wait for the user to direct the team with their next message.
 - Otherwise, treat `{{prompt}}` as the problem to judge / draft per the-judge protocol. Decide which sub-roles (if any) you need.
 
-## Step 3.5 — Godspeed mode branch (if prompt contains "godspeed")
+## Step 4 — Dispatch sub-roles AS TEAMMATES with xask gate
 
-If `{{prompt}}` contains the literal word **"godspeed"** (case-insensitive), enter godspeed mode per the `## Godspeed mode` section of `~/.claude/agents/the-judge.md`. This overrides the default Step 4/5 single-shot dispatch with a round-based Pareto walk.
-
-**Godspeed protocol in team substrate:**
-
-1. **Name the axes** — emit 3-5 axes (name + direction + observable) to the user as your first output. Incorporate any axes the user named explicitly in `{{prompt}}`; infer the rest from the problem.
-
-2. **Assign each axis to a specialist profile** using the axis -> profile mapping table in the-judge.md. Team size cap: <=4 teammates per round. For each axis, spawn the teammate via team-spawn (subagent_type + team_name + axis-suffixed name).
-
-3. **Round 1 — parallel propose + cross-critique.** Each teammate's task brief instructs it to:
-   - Propose ONE move on its axis (<=200 words) in the move shape from the-judge.md godspeed section
-   - DM its proposal to each peer by name (not broadcast) with a one-line critique after receiving theirs
-   - Mark its task completed after sending
-
-4. **Pareto filter + compile (judge).** Once all proposals and critiques are in (they arrive as new turns automatically), build the moves x axes matrix, reject any move with a regression, accept any strict improver, and compile the surviving set into a brief ROUND N summary (plain text, not a full DRAFT).
-
-5. **Exit check.** If frontier reached (zero survivors / duplicates / 4 rounds / user halt), emit the final DRAFT per the-judge.md drafting protocol with an added `AXES FINAL STATE` section. Do NOT cleanup. If frontier not reached, dispatch round N+1 using the current frontier as baseline.
-
-6. **Continuation** — user may send another "godspeed" message to relax a constraint or add an axis. Resume from the current frontier; no new TeamCreate needed.
-
-**Caps:** <=4 rounds, <=4 teammates per round, <=200-word proposals per teammate. Lift only on explicit user direction.
-
-## Step 4 — Dispatch sub-roles AS TEAMMATES (not one-shot subagents)
-
-When you decide a sub-role is needed, spawn it as a **persistent team member** via the team-spawn path. User-scope agent definitions resolve correctly in team context:
+When you decide a sub-role is needed, spawn it as a **persistent team member**:
 
 ```
 Agent(
   subagent_type="scout" | "reviewer" | "labrat",
   team_name="<the team you just created>",
-  name="<unique teammate name>",    # e.g. "scout-1", "reviewer-1", "labrat-1"
-  model="sonnet" | "haiku",          # optional; sonnet for scout/reviewer, haiku for labrat
-  prompt="<task brief for the teammate>"
+  name="<unique teammate name>",
+  model="sonnet" | "haiku",
+  prompt="<task brief with mandatory xask gate>"
 )
 ```
 
 These are **real teammates** — they persist, can be chatted with via Shift+Down, will DM back via SendMessage, go idle between turns, and follow shutdown protocol.
 
-**DO NOT** fall back to `Agent(subagent_type="general-purpose", ...)` with inlined persona. That's the cheap one-shot path for `/xbreed` solo mode; it defeats the team experience the user explicitly asked for.
+**DO NOT** fall back to `Agent(subagent_type="general-purpose", ...)` with inlined persona.
 
-**Create a TaskCreate task per sub-role before or immediately after spawning** so they have a deliverable anchor they can claim via TaskUpdate and mark completed when done.
+**Create a TaskCreate task per sub-role before or immediately after spawning.**
 
-**Sub-role pick guide (from the-judge.md):**
-- **scout** — "what exists in the outside world that affects this draft": libraries, release notes, prior art, doc sites. Biased toward `xbreed ask gemini --with <skill>` delegation.
-- **reviewer** — "is this diff / draft actually correct": surgical code review, read-only. Biased toward `xbreed ask codex`.
-- **labrat** — "does this one risky branch actually work": cheap single-shot probe, expendable. Biased toward `xbreed ask gemini`. Haiku model for disposability.
+### Sub-role pick guide with xask gate
 
-**Budget:** default to 2-3 teammates for most prompts. Scale up only if the problem has 4+ genuinely independent sub-questions. Don't spawn teammates you have no specific task for.
+Every teammate brief MUST include the structural xask gate as the FIRST instruction. The gate has four layers:
 
-## Step 5 — Work the draft
+**Layer 1 — Gate (structural):**
 
-As teammates report back (their SendMessage replies arrive as new user-message turns), aggregate findings into a DRAFT following the-judge.md protocol:
+- **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
 
-- DRAFT title
-- AXES JUDGED
-- SCORES (if judging multiple candidates)
-- SYNTHESIS (best-of-each)
-- IMPLEMENTATION SKETCH (files + code + tests + sequencing — concrete or cut)
-- OPEN QUESTIONS FOR SUB-ROLES (only if more dispatches needed)
+**Layer 2 — Raw-quote gate (mandatory for all xask-gated roles):**
 
-If a teammate's finding opens a new question worth probing, you may spawn an additional sub-role mid-draft. Iterate until the draft is ready to ship.
+> "After running xask, paste at least one verbatim passage from xask stdout inside `<raw_output>` tags before your analysis. The passage must be a literal substring of xask output — not a paraphrase. Empty `<raw_output>` = invalid proposal. Scope: CLI output only."
 
-## Step 6 — Keep iterating (godspeed) or hold (non-godspeed)
+**Layer 3 — Fallback tiers:**
 
-**In godspeed mode:** After delivering a round's results, immediately assess: did any axis improve? If yes, dispatch the next round. Do not pause to ask "what next?" or prompt cleanup. The user interrupts when they want to steer. Keep the Pareto walk moving until the frontier stops or 4 rounds hit.
+> "If xask returns dry or errors: note `[xask dry — in-session fallback]` on the finding, continue in-session. Do not deadlock."
 
-**Outside godspeed:** Leave the team alive after the initial draft. The user may Shift+Down into a teammate's pane, ask follow-ups, or spawn additional sub-roles. The team persists until the user explicitly asks for cleanup.
+- scout/reviewer: xask failure -> DM judge with `BLOCKED: xask [reason]`, then continue in-session with `[xask dry]` marker
+- labrat: xask failure -> emit `obs: xask BLOCKED [reason]` as the finding, despawn. Failure IS the result.
+
+**Layer 4 — Confidence rule:**
+
+> "`[xask dry]` marks source provenance, not quality. Judge assesses confidence case-by-case."
+
+**Epistemic role constraint (all xask-gated briefs):**
+
+> "Your proposal must include AT MOST one non-obvious claim and AT MOST one rejected alternative. If no well-grounded non-obvious finding exists, say so — do not fabricate."
+
+**Divergence flagging (companion mandate for all briefs):**
+
+> "If your finding contradicts a peer's reported finding, flag it explicitly before your summary: `CONFLICT: [claim] — my position: [X] — peer position: [Y]`"
+
+**Judge weighting rule:** When aggregating, weight xask quotes that contradict the agent's own conclusion more heavily than confirming quotes — contradicting quotes are higher-signal.
+
+### Budget
+
+Default to 2-3 teammates for most prompts. Scale up only if the problem has 4+ genuinely independent sub-questions. Don't spawn teammates you have no specific task for.
+
+## Step 5 — Deliberative rounds (judge-driven iteration)
+
+As teammates report back (their SendMessage replies arrive as new user-message turns), the judge **mediates**:
+
+1. **Aggregate** initial findings toward a DRAFT.
+2. **Challenge** specific findings via targeted SendMessage follow-ups to individual teammates. Push back on weak claims, probe gaps, ask for deeper investigation.
+3. **Teammates refine** and re-report.
+4. **Judge re-aggregates** with refined findings.
+5. **Populate CONFLICTS block** if cross-model divergence found (gemini vs. codex contradictions on the same claim).
+6. **Repeat 2-5** until the judge is satisfied with the DRAFT quality.
+
+**Soft ceiling: 5 deliberative rounds.** After 5 rounds with no DRAFT progress, the judge MUST emit a CONFLICTS-only output and halt, naming what remains unresolved. Judge can override the ceiling but must state why.
+
+**This is NOT godspeed.** Deliberative rounds are sequential depth (judge challenges, teammates refine). For parallel Pareto width, use `/xgs`.
+
+## Step 6 — Hold and iterate
+
+Leave the team alive after the initial draft. The user may:
+- Shift+Down into a teammate's pane and steer it directly
+- Ask follow-up questions that route back through the judge
+- Spawn additional sub-roles for related sub-questions
+- Send a message to a specific teammate by name
+
+The team persists until the user explicitly asks for cleanup.
 
 ## Cleanup protocol (when the user says "clean up the team" / "dismiss the squad" / similar)
 
 Only when the user explicitly asks for cleanup:
 
-1. List active teammates (check TaskList or reference the team config at `~/.claude/teams/<team-name>/config.json`).
+1. List active teammates.
 2. Send `SendMessage({to: <name>, message: {type: "shutdown_request", reason: "work complete"}})` to each teammate.
-3. Wait for all `shutdown_approved` responses (they arrive as new turns automatically).
-4. Call `TeamDelete` (no args — the team is determined from session context).
+3. Wait for all `shutdown_approved` responses.
+4. Call `TeamDelete`.
 5. Confirm cleanup succeeded.
 
-If `TeamDelete` fails with "active members," at least one teammate hasn't processed its shutdown yet — wait another turn and retry. Do not force-delete.
+If `TeamDelete` fails with "active members," wait another turn and retry. Do not force-delete.
 
 ## Step 7 — Emit a brief status after initialization
 
-End your initialization turn with a short status message to the user (not via SendMessage — plain text output to the main session):
+End your initialization turn with a short status message:
 
 - Team name created
 - Which sub-roles were spawned (if any) and what task each was given
 - Whether you started drafting already or are waiting on teammate replies
 
-Do not narrate your internal thinking, do not emit the DRAFT block yet if teammates are still working — the DRAFT comes in a later turn once findings are in. In godspeed mode, once findings arrive, immediately compile and dispatch the next round if the frontier is still moving.
+Do not narrate internal thinking. Do not emit the DRAFT block yet if teammates are still working — the DRAFT comes in a later turn once findings are in.

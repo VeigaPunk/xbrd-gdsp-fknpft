@@ -48,7 +48,12 @@ fi
 
 # Build prompt from template
 if [ -f "$TEMPLATE" ]; then
-  PROMPT=$(awk -v q="$QUERY" -v c="$CONTEXT" -v s="$SCOPE" '{
+  # Escape & and \ in replacement strings to prevent awk gsub from
+  # interpreting & as "matched text" and \ as escape sequences.
+  QUERY_SAFE=$(printf '%s' "$QUERY" | sed 's/[&\\]/\\&/g')
+  CONTEXT_SAFE=$(printf '%s' "$CONTEXT" | sed 's/[&\\]/\\&/g')
+  SCOPE_SAFE=$(printf '%s' "$SCOPE" | sed 's/[&\\]/\\&/g')
+  PROMPT=$(awk -v q="$QUERY_SAFE" -v c="$CONTEXT_SAFE" -v s="$SCOPE_SAFE" '{
     gsub(/\{\{QUERY\}\}/, q)
     gsub(/\{\{CONTEXT\}\}/, c)
     gsub(/\{\{SCOPE_BOUNDARY\}\}/, s)
@@ -73,29 +78,50 @@ if [ "$DEBUG" = true ]; then
   exit 0
 fi
 
-# --- Gemini rich mode: toggle dir tree ON, dispatch, restore OFF ---
-gemini_toggle_tree() {
-  local state="$1"  # true or false
+# --- Gemini rich mode: PID-namespaced settings copy to avoid race ---
+# Concurrent xask --rich calls no longer stomp each other's state.
+# Instead of mutating the shared settings.json, we copy it to a temp file,
+# mutate the copy, point HOME at the temp dir, and clean up on exit.
+RICH_TMPDIR=""
+gemini_rich_setup() {
+  RICH_TMPDIR=$(mktemp -d "/tmp/xask-rich-$$-XXXXXX")
+  mkdir -p "$RICH_TMPDIR/.gemini"
   if [ -f "$GEMINI_SETTINGS_FILE" ]; then
-    python3 -c "
-import json
-with open('$GEMINI_SETTINGS_FILE') as f: d = json.load(f)
-d.setdefault('context', {})['includeDirectoryTree'] = $state
-with open('$GEMINI_SETTINGS_FILE', 'w') as f: json.dump(d, f, indent=2)
-" 2>/dev/null
+    cp "$GEMINI_SETTINGS_FILE" "$RICH_TMPDIR/.gemini/settings.json"
+  else
+    echo '{}' > "$RICH_TMPDIR/.gemini/settings.json"
   fi
+  # Copy OAuth creds so auth still works from the temp HOME
+  if [ -f "$HOME/.gemini/oauth_creds.json" ]; then
+    cp "$HOME/.gemini/oauth_creds.json" "$RICH_TMPDIR/.gemini/oauth_creds.json"
+  fi
+  # Preserve named OAuth profiles so gemini_profiles_root() resolves correctly
+  if [ -d "$HOME/.config/xbreed/gemini-profiles" ]; then
+    mkdir -p "$RICH_TMPDIR/.config/xbreed"
+    ln -s "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
+  fi
+  python3 -c "
+import json, sys
+with open('$RICH_TMPDIR/.gemini/settings.json') as f: d = json.load(f)
+d.setdefault('context', {})['includeDirectoryTree'] = True
+with open('$RICH_TMPDIR/.gemini/settings.json', 'w') as f: json.dump(d, f, indent=2)
+" || { echo "xask: failed to set up rich mode" >&2; rm -rf "$RICH_TMPDIR"; return 1; }
+}
+gemini_rich_cleanup() {
+  [ -n "$RICH_TMPDIR" ] && rm -rf "$RICH_TMPDIR"
 }
 
 # Dispatch — contamination-aware per model
 case "$MODEL" in
   gemini)
     if [ "$RICH" = true ]; then
-      gemini_toggle_tree "True"
-      trap 'gemini_toggle_tree "False"' EXIT
+      gemini_rich_setup || exit 1
+      trap 'gemini_rich_cleanup' EXIT
+      export HOME="$RICH_TMPDIR"
     fi
     EFFORT_FLAG=""
     [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-    xbreed ask gemini --with "$SKILL" $EFFORT_FLAG "$PROMPT"
+    xbreed ask gemini --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     ;;
   codex)
     if [ "$DIRECT" = true ]; then
@@ -111,13 +137,13 @@ case "$MODEL" in
     else
       EFFORT_FLAG=""
       [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-      xbreed ask codex --with "$SKILL" $EFFORT_FLAG "$PROMPT"
+      xbreed ask codex --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     fi
     ;;
   claude)
     EFFORT_FLAG=""
     [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-    xbreed ask claude --with "$SKILL" $EFFORT_FLAG "$PROMPT"
+    xbreed ask claude --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini, codex, or claude." >&2

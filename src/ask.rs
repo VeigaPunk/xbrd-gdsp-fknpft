@@ -99,7 +99,10 @@ pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command
     c
 }
 
-pub fn build_codex_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command {
+/// Build a codex Command with loadout injection. NOTE: does NOT append the
+/// prompt — caller must append it AFTER any `-c` flags (effort, etc.) since
+/// `codex exec` treats the prompt as a trailing positional arg.
+pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec");
     if !loadout.is_empty() {
@@ -109,7 +112,6 @@ pub fn build_codex_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command 
             .expect("serde_json::to_string of a String never fails");
         c.arg("-c").arg(format!("developer_instructions={toml_quoted}"));
     }
-    c.arg(prompt);
     c
 }
 
@@ -322,6 +324,9 @@ fn is_auth_error(stderr: &[u8]) -> bool {
 
 pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout, effort: Option<&str>) -> Result<String> {
     if cli == "gemini" {
+        if effort.is_some() {
+            eprintln!("warning: --effort is ignored for gemini (no native flag; use thinkingBudget in prompt template instead)");
+        }
         let chain = gemini_auth_chain();
         if chain.is_empty() {
             anyhow::bail!(
@@ -382,10 +387,13 @@ pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout, effort: Option<&str>
             c
         }
         "codex" => {
-            let mut c = build_codex_ask_with_loadout(prompt, loadout);
+            let mut c = build_codex_ask_with_loadout(loadout);
             if let Some(e) = effort {
                 c.arg("-c").arg(format!("model_reasoning_effort={e}"));
             }
+            // Prompt MUST be the last positional arg for codex exec —
+            // all -c flags must come before it.
+            c.arg(prompt);
             c
         }
         other => anyhow::bail!("unknown cli: {other} (expected claude|codex|gemini)"),
@@ -453,7 +461,8 @@ mod tests {
 
     #[test]
     fn codex_ask_empty_loadout_matches_v0_1_behavior() {
-        let c = build_codex_ask_with_loadout("hello", &Loadout::empty());
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty());
+        c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
         assert_eq!(cmd_args(&c), vec!["exec", "hello"]);
     }
@@ -480,7 +489,8 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let c = build_codex_ask_with_loadout("hello", &l);
+        let mut c = build_codex_ask_with_loadout(&l);
+        c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
         assert_eq!(args[1], "-c");

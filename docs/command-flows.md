@@ -9,7 +9,7 @@ xbreed has two layers of commands:
 | Layer | Commands | Runs as |
 |-------|----------|---------|
 | **Binary** (`xbreed`) | `guard`, `sync`, `claude`, `ask`, `team` | Rust CLI subprocess |
-| **Skills** (inside Claude Code) | `/xbreed` (`/xb`), `/xbreed-team` (`/xbt`) | Prompt injection in active session |
+| **Skills** (inside Claude Code) | `/xbreed`, `/xbt`, `/xgs`, `/xbgst` | Prompt injection in active session |
 
 The binary commands launch or configure CLI tools. The skills orchestrate
 multi-agent workflows inside a running Claude Code session.
@@ -85,18 +85,26 @@ flowchart TD
     E -->|codex| G["codex exec \n-c developer_instructions=<loadout> \n<prompt>"]
     E -->|gemini| H[Gemini auth cascade]
 
-    H --> I{try auth chain in order}
-    I --> J["1. OAuth profile: primary"]
-    I --> K["2. OAuth profile: fallback"]
-    I --> L["3. OAuth default ~/.gemini/"]
-    I --> M["4. API key from .env.local"]
-    I --> N["5. Fallback API key"]
-
-    J & K & L & M & N --> O{success?}
-    O -->|yes| P[stdout: response]
-    O -->|429/401| Q[try next auth level]
-    O -->|other error| R[bail immediately]
-    Q --> I
+    H --> I["1. OAuth profile: primary"]
+    I --> Ia{success?}
+    Ia -->|yes| P[stdout: response]
+    Ia -->|"429/401/403/PERMISSION_DENIED"| J["2. OAuth profile: fallback"]
+    Ia -->|other error| R[bail immediately]
+    J --> Ja{success?}
+    Ja -->|yes| P
+    Ja -->|"429/401/403/PERMISSION_DENIED"| K["3. OAuth default ~/.gemini/"]
+    Ja -->|other error| R
+    K --> Ka{success?}
+    Ka -->|yes| P
+    Ka -->|"429/401/403/PERMISSION_DENIED"| L["4. API key from .env.local"]
+    Ka -->|other error| R
+    L --> La{success?}
+    La -->|yes| P
+    La -->|"429/401/403/PERMISSION_DENIED"| M["5. Fallback API key"]
+    La -->|other error| R
+    M --> Ma{success?}
+    Ma -->|yes| P
+    Ma -->|no| R
 
     F --> P
     G --> P
@@ -110,9 +118,11 @@ flowchart TD
 | codex | Developer instructions (TOML) | `-c developer_instructions=` |
 | gemini | Prompt prepend (no native flag) | Loadout + `\n---\n` + prompt |
 
-**Gemini auth cascade** (v0.3.5): tries up to 5 auth methods in order.
-Cascades only on 429 (quota) or 401/403 (auth) errors. Non-retriable errors
-bail immediately without wasting remaining auth levels.
+**Gemini auth cascade** (v0.3.5): tries up to 5 auth methods **sequentially**
+(not in parallel). Each attempt blocks on `cmd.output()` before the next starts.
+Cascades on: 429 (quota), 401, 403, PERMISSION_DENIED, UNAUTHENTICATED,
+API_KEY_INVALID. Non-retriable errors bail immediately per-attempt without
+trying remaining auth levels. Empirical timing: OAuth ~14s, API key ~5-7s.
 
 ---
 
@@ -154,83 +164,187 @@ content is loaded into the conversation.
 
 ### `/xbreed <prompt>` (alias: `/xb`)
 
-Solo judge pipeline. Single-turn, no persistent team.
+Solo judge pipeline with cross-model delegation. Single-turn, no persistent team.
 
 ```mermaid
 flowchart TD
     A["/xbreed <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
     B --> C[Adopt judge persona]
-    C --> D{prompt contains 'godspeed'?}
-
-    D -->|no| E[Judge directly]
-    E --> F{need sub-roles?}
-    F -->|yes| G["dispatch up to 3 Agent() calls \n(scout, reviewer, labrat)"]
-    F -->|no| H[DRAFT output]
-    G --> I[aggregate findings]
-    I --> H
-
-    D -->|yes| J[Godspeed Pareto walk]
-    J --> K[Name 3-5 axes]
-    K --> L["Round N: spawn <=4 Agent() \nwith inlined personas"]
-    L --> M[Pareto filter: keep strict improvers]
-    M --> N{frontier still moving?}
-    N -->|yes, round < 4| L
-    N -->|no or round = 4| O["DRAFT with AXES FINAL STATE"]
+    C --> E{need sub-roles?}
+    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask codex, labrat→xask gemini)"]
+    E -->|no| G[DRAFT output]
+    F --> H["xask gate: first tool call = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
+    H --> I[aggregate findings]
+    I --> J{"cross-model conflict?"}
+    J -->|yes| K["populate CONFLICTS block \n(model labels)"]
+    J -->|no| G
+    K --> G
 ```
 
 **Key difference from /xbt:** uses one-shot `Agent(subagent_type="general-purpose")`
 with inlined personas. No persistent team, no teammate chat, no SendMessage
 cross-critique. Everything happens within the judge's single turn.
 
+**xask gate:** every sub-role brief requires `xask gemini`/`xask codex` as the
+first tool call. Raw-quote gate requires verbatim CLI output in `<raw_output>` tags.
+
 **Dispatch rule:** prefers team-spawn path if already on a team. Falls back to
-`general-purpose` with inlined persona body in solo mode (architectural quirk:
-user-scope agent names only resolve inside team context).
+`general-purpose` with inlined persona body in solo mode.
+
+For godspeed Pareto mode, use `/xgs` (all-Claude) or `/xbgst` (cross-model).
 
 ---
 
 ### `/xbreed-team <prompt>` (alias: `/xbt`)
 
-Judge-orchestrated persistent team. Multi-turn, real teammates.
+Judge-orchestrated deliberative team with cross-model delegation. Multi-turn, real teammates.
 
 ```mermaid
 flowchart TD
     A["/xbt <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
     B --> C[Adopt judge persona]
     C --> D["TeamCreate(team_name=...)"]
-    D --> E{prompt contains 'godspeed'?}
-
-    E -->|no| F[Parse prompt, pick sub-roles]
-    F --> G["Spawn 2-3 teammates \n(scout, reviewer, labrat) \nvia Agent() with team_name"]
-    G --> H[Create TaskCreate per teammate]
+    D --> F[Parse prompt, pick sub-roles]
+    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask codex, labrat→xask gemini)"]
+    G --> Gx["xask gate: first tool = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
+    Gx --> H[Create TaskCreate per teammate]
     H --> I[Wait for SendMessage replies]
-    I --> J[Aggregate into DRAFT]
-    J --> K[Team stays alive]
+    I --> J{"Judge mediates: \nchallenge findings? \ncross-model conflict?"}
+    J -->|"challenge"| Jc["SendMessage follow-up \nto specific teammate"]
+    Jc --> Jd[Teammate refines + re-reports]
+    Jd --> J
+    J -->|"conflict"| Jf["Populate CONFLICTS block \n(model: gemini vs model: codex)"]
+    Jf --> K
+    J -->|"satisfied"| K[Aggregate into DRAFT]
+    K --> L["Team stays alive \n(soft ceiling: 5 deliberative rounds)"]
 
-    E -->|yes| L[Godspeed team walk]
-    L --> M[Name 3-5 axes]
-    M --> N["Assign axes to specialist profiles"]
-    N --> O["Spawn <=4 teammates per round"]
-    O --> P["Round N: each proposes ONE move \n(<=200 words)"]
-    P --> Q[Cross-critique via DMs]
-    Q --> R["Pareto filter (judge)"]
-    R --> S{frontier still moving?}
-    S -->|yes, round < 4| O
-    S -->|no or round = 4| T["DRAFT with AXES FINAL STATE"]
-    T --> K
-
-    K --> U["Team persists \nUser can: \n- Shift+Down to cycle teammates \n- Chat with any teammate \n- Send follow-up to judge \n- 'clean up the team' to teardown"]
+    L --> U["Team persists \nUser can: \n- Shift+Down to cycle teammates \n- Chat with any teammate \n- Send follow-up to judge \n- 'clean up the team' to teardown"]
 ```
 
-**Key differences from /xbreed:**
+For godspeed Pareto mode, use `/xgs` (all-Claude) or `/xbgst` (cross-model).
 
-| | `/xbreed` (solo) | `/xbt` (team) |
-|---|---|---|
-| **Substrate** | One-shot `Agent()` calls | Persistent `TeamCreate` + teammates |
-| **Communication** | Results return to judge only | Teammates DM each other directly |
-| **User interaction** | Judge session only | Shift+Down into any teammate |
-| **Persistence** | Single turn, then done | Lives until user says "clean up" |
-| **Cross-critique** | Judge does it in-session | Teammates DM critiques to peers |
-| **Godspeed rounds** | Agent() batches per round | Real teammate spawns per round |
+**Key differences across commands:**
+
+| | `/xbreed` | `/xbt` | `/xgs` | `/xbgst` |
+|---|---|---|---|---|
+| **Substrate** | One-shot Agent() | Persistent team | Persistent team | Persistent team |
+| **Cross-model (xask)** | Yes | Yes | No (all-Claude) | Yes |
+| **Iteration** | Single turn | Deliberative (5 cap) | Pareto walk (4 rounds) | Pareto walk (4 rounds) |
+| **Cross-critique** | In-session | Teammate DMs | Teammate DMs | Teammate DMs |
+| **Speed** | Fast | Slow, pondered | Fast | Medium |
+
+---
+
+### `/xgs <prompt>` — Godspeed Pareto (all-Claude)
+
+Fast team mode. No cross-model delegation. Teammates use CC native tools.
+
+```mermaid
+flowchart TD
+    A["/xgs <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
+    B --> C[Adopt judge persona]
+    C --> D["TeamCreate(team_name=...)"]
+    D --> E["Phase 0: Name 3-5 axes \n(direction + observable)"]
+    E --> F["Phase 1: Assign deterministic \nteammate names per axis"]
+    F --> G["Phase 2: Spawn all teammates \nwith full peer roster \n(no xask gate — all-Claude)"]
+    G --> H["Phase 3: Round N \neach proposes ONE move (<=200 words)"]
+    H --> I[Cross-critique via peer DMs]
+    I --> J["Pareto filter (judge): \naccept strict improvers \nreject regressions"]
+    J --> K{frontier still moving?}
+    K -->|"yes, round < 4"| H
+    K -->|"no or round = 4"| L["DRAFT with AXES FINAL STATE \n+ CONFLICTS (teammate labels)"]
+    L --> M[Team stays alive]
+```
+
+**4-phase spawn protocol:** axes must be named before teammate names are assigned,
+and all names must be committed before any spawn. This prevents the peer-roster
+ordering bug where early teammates lack peer names for cross-critique DMs.
+
+---
+
+### `/xbgst <prompt>` — Godspeed Pareto + Cross-Model Delegation
+
+The full crossbreed. Godspeed Pareto walk with xask cross-model delegation.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant J as Judge (Opus)
+    participant T as Teammates (N)
+    participant X as xask CLI
+    participant G as Gemini CLI
+    participant C as Codex CLI
+
+    U->>J: /xbgst <prompt>
+    Note right of J: Phase 0: Name axes
+
+    J->>J: Phase 1: Assign teammate names
+    Note right of J: All names committed before spawn
+
+    par Phase 2: Spawn all teammates
+        J->>T: scout brief (axis + xask gemini gate)
+        J->>T: reviewer brief (axis + xask codex gate)
+        J->>T: labrat brief (axis + xask gemini gate)
+        J->>T: connector brief (axis + xask gemini gate)
+    end
+
+    par Phase 3a: Cross-model delegation (~14s gemini, ~6s codex)
+        T->>X: xask gemini '<question>'
+        X->>G: gemini -m gemini-3.1-pro-preview -p '<prompt>'
+        Note right of G: Auth cascade: OAuth first → API key fallback
+        G-->>X: response
+        X-->>T: stdout (for <raw_output> tags)
+        T->>X: xask codex '<question>'
+        X->>C: codex exec '<prompt>'
+        C-->>X: response
+        X-->>T: stdout (for <raw_output> tags)
+    end
+
+    Note right of T: Epistemic role: at most 1 non-obvious claim
+
+    par Phase 3b: Cross-critique DMs
+        T->>T: scout DMs reviewer (one-line critique)
+        T->>T: reviewer DMs scout (one-line critique)
+        T->>T: labrat DMs all peers
+    end
+
+    T->>J: SendMessage: proposals + <raw_output> + CONFLICT flags
+
+    J->>J: Pareto filter: accept strict improvers
+
+    alt Highest-divergence unchallenged claim
+        J->>X: Falsification probe (one xask, opposing model, ~7s)
+        X-->>J: result
+    end
+
+    alt Frontier still moving (round < 4)
+        J->>T: Round N+1 dispatch (current frontier as baseline)
+    else Frontier reached or round = 4
+        J->>U: DRAFT + AXES FINAL STATE + CONFLICTS (model labels)
+    end
+```
+
+**Timing annotations** (from empirical labrat probes, 2026-04-12):
+
+| Phase | Wall time | Bottleneck |
+|-------|-----------|------------|
+| Teammate spawn (4x parallel) | ~3s | CC agent initialization |
+| xask gemini (per call) | ~14s | Gemini CLI + OAuth cascade |
+| xask codex (per call) | ~6s | Codex exec |
+| xask claude (per call) | ~7s | Claude -p |
+| xbreed ask gemini --with godspeed | ~13s | Loadout resolution + dispatch |
+| Cross-critique DMs | ~2-5s | Turn-boundary polling |
+| Pareto filter (judge) | ~1-3s | In-session, no I/O |
+| Falsification probe (optional) | ~7s | Single targeted xask |
+
+**CONFLICTS block** uses model labels (not teammate labels):
+```
+CONFLICTS:
+  - claim: <contested fact>
+    model: gemini (via <teammate>) — <position>
+    model: codex (via <teammate>) — <position>
+    judge_resolution: <chosen + rationale>
+```
 
 ---
 
@@ -247,10 +361,12 @@ flowchart TD
     end
 
     subgraph "Claude Code session"
-        xb["/xbreed (solo judge)"]
-        xbt["/xbt (team judge)"]
+        xb["/xbreed (solo + xask)"]
+        xbt["/xbt (deliberative + xask)"]
+        xgs["/xgs (godspeed, all-Claude)"]
+        xbgst["/xbgst (godspeed + xask)"]
         agents["~/.claude/agents/*.md \n(8 agent definitions)"]
-        skills["templates/skills/ \n(4 skills)"]
+        skills["templates/skills/ \n(6 skills)"]
     end
 
     subgraph "External CLIs"
@@ -265,12 +381,16 @@ flowchart TD
 
     xb -->|"Agent() one-shot"| cc
     xbt -->|"TeamCreate + Agent()"| cc
-    xb & xbt -->|reads personas| agents
-    xb & xbt -->|loads| skills
+    xgs -->|"TeamCreate + Agent()"| cc
+    xbgst -->|"TeamCreate + Agent()"| cc
+    xb & xbt & xgs & xbgst -->|reads personas| agents
+    xb & xbt & xgs & xbgst -->|loads| skills
 
-    xb -->|"xbreed ask (delegation)"| ask
-    xbt -->|"xbreed ask (delegation)"| ask
-    team_cmd -->|"mailbox side-channel"| xbt
+    xb -->|"xask (cross-model)"| ask
+    xbt -->|"xask (cross-model)"| ask
+    xbgst -->|"xask (cross-model)"| ask
+    xgs -.->|"no xask (all-Claude)"| cc
+    team_cmd -->|"mailbox side-channel"| xbt & xbgst
 ```
 
 ---
@@ -285,5 +405,7 @@ flowchart TD
 | `xbreed ask <cli>` | Headless one-shot to any CLI | No |
 | `xbreed team init` | Scaffold team infra | Creates one |
 | `xbreed team mailbox` | Fast teammate signal channel | Uses existing |
-| `/xbreed` (`/xb`) | Solo judge pipeline | No (uses Agent()) |
-| `/xbreed-team` (`/xbt`) | Persistent judge + team | Yes (TeamCreate) |
+| `/xbreed` (`/xb`) | Solo judge + xask delegation | No (uses Agent()) |
+| `/xbreed-team` (`/xbt`) | Deliberative team + xask | Yes (TeamCreate) |
+| `/xgs` | Godspeed Pareto, all-Claude | Yes (TeamCreate) |
+| `/xbgst` | Godspeed Pareto + xask | Yes (TeamCreate) |

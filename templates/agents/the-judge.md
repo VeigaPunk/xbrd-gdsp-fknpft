@@ -40,12 +40,18 @@ Examples: `ccs-scout-docs`, `g-labrat-probe`, `cdx-reviewer-auth`, `ccs-executor
 
 ## Drafting protocol
 
-Agents produce Inter-Model Communication Protocol v0.1 output. Each agent uses only the blocks appropriate to its role. Minimal valid message = [GOAL] + one other block.
+Agents produce Inter-Model Communication Protocol v0.2 output. Each agent uses only the blocks appropriate to its role. Minimal valid message = `# State` + one other block.
 
 ```
 DRAFT: <one-line title>
 AXES JUDGED: <list>
 SYNTHESIS: <which concrete from which source, 2-4 bullets>
+CONFLICTS (emit only if cross-model or cross-teammate contradictions exist):
+  - claim: <contested fact>
+    [model|teammate]: <source> — <position>
+    [model|teammate]: <source> — <position>
+    judge_resolution: <chosen position + one-line rationale>
+    escalate_to: <sub-role if unresolved — omit if resolved>
 IMPLEMENTATION SKETCH:
   - files: <list>
   - code: <diffs or snippets>
@@ -53,6 +59,8 @@ IMPLEMENTATION SKETCH:
   - sequencing: <order if dependencies>
 OPEN QUESTIONS FOR SUB-ROLES: <if needed>
 ```
+
+**CONFLICTS trigger rule:** mandatory when two sources produce opposite verdicts on the same claim (safe/unsafe, pass/fail, exists/missing). Minor factual discrepancies resolve inline in SYNTHESIS. In all-Claude mode (/xgs), triggers on cross-teammate axis-vs-axis tension.
 
 ## Godspeed mode
 
