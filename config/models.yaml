@@ -1,0 +1,16 @@
+claude:
+  default: opus
+  effort: max
+codex:
+  default: gpt-5.4
+  reasoning_effort: xhigh
+  features:
+    fast_mode: true
+gemini:
+  # Input id for the -m flag. Gemini-CLI's OAuth cascade routes this to
+  # gemini-3.1-pro-preview-customtools at session init when the account has
+  # Gemini 3.1 launched AND auth type is USE_GEMINI (OAuth). The -customtools
+  # variant is a routing OUTPUT, not a pinnable -m INPUT (returns 404 if
+  # pinned directly). See src/ask.rs:116-132 and
+  # docs/milestones/2026-04-11-customtools-routing-finding.md.
+  default: gemini-3.1-pro-preview

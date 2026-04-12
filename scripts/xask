@@ -1,0 +1,124 @@
+#!/bin/bash
+# xask — contamination-aware template dispatch for cross-model orchestration
+# Usage: xask [--debug] [--scope <boundary>] [--rich] [--direct] [--effort <level>] <model> "<query>" ["<context>"] ["<skill>"]
+#
+# Default: CLEAN dispatch — suppresses CLI auto-injection for epistemic equivalence.
+# --rich: FULL context — temporarily restores Gemini dir tree for interactive use.
+# --direct: Codex direct exec fallback — bypasses xbreed, uses codex exec with -c flags.
+# --effort: Reasoning effort level. Maps per-model: claude→--effort, codex→-c model_reasoning_effort, gemini→thinkingBudget profile.
+#
+# Examples:
+#   xask gemini "What patterns exist?"                    # clean, godspeed loaded
+#   xask --scope "src/ask.rs" gemini "Review this"        # scoped clean dispatch
+#   xask --rich gemini "Explore the codebase"             # full context, dir tree ON
+#   xask --direct codex "Fix this bug"                    # direct codex exec, max suppression
+#   xask claude "Analyze this" "prior findings"           # claude (no CLI injection)
+
+GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
+
+# Handle flags
+DEBUG=false
+SCOPE="entire project"
+RICH=false
+DIRECT=false
+EFFORT=""
+while [[ "$1" == --* ]]; do
+  case "$1" in
+    --debug) DEBUG=true; shift ;;
+    --scope) SCOPE="$2"; shift 2 ;;
+    --rich) RICH=true; shift ;;
+    --direct) DIRECT=true; shift ;;
+    --effort) EFFORT="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+MODEL="$1"
+QUERY="$2"
+CONTEXT="${3:-No prior context.}"
+SKILL="${4:-godspeed}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
+TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
+
+if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
+  echo "Usage: xask [--debug] [--scope <boundary>] [--rich] [--direct] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
+  exit 1
+fi
+
+# Build prompt from template
+if [ -f "$TEMPLATE" ]; then
+  PROMPT=$(awk -v q="$QUERY" -v c="$CONTEXT" -v s="$SCOPE" '{
+    gsub(/\{\{QUERY\}\}/, q)
+    gsub(/\{\{CONTEXT\}\}/, c)
+    gsub(/\{\{SCOPE_BOUNDARY\}\}/, s)
+    print
+  }' "$TEMPLATE")
+else
+  PROMPT="$QUERY"
+fi
+
+# Debug mode
+if [ "$DEBUG" = true ]; then
+  echo "=== XASK DEBUG ==="
+  echo "MODEL: $MODEL"
+  echo "MODE: $([ "$RICH" = true ] && echo RICH || echo CLEAN)$([ "$DIRECT" = true ] && echo '+DIRECT')"
+  echo "SCOPE: $SCOPE"
+  echo "SKILL: $SKILL"
+  echo "TEMPLATE: $TEMPLATE"
+  echo "CONSTRUCTED PROMPT ($(echo "$PROMPT" | wc -c) bytes):"
+  echo "---"
+  echo "$PROMPT"
+  echo "---"
+  exit 0
+fi
+
+# --- Gemini rich mode: toggle dir tree ON, dispatch, restore OFF ---
+gemini_toggle_tree() {
+  local state="$1"  # true or false
+  if [ -f "$GEMINI_SETTINGS_FILE" ]; then
+    python3 -c "
+import json
+with open('$GEMINI_SETTINGS_FILE') as f: d = json.load(f)
+d.setdefault('context', {})['includeDirectoryTree'] = $state
+with open('$GEMINI_SETTINGS_FILE', 'w') as f: json.dump(d, f, indent=2)
+" 2>/dev/null
+  fi
+}
+
+# Dispatch — contamination-aware per model
+case "$MODEL" in
+  gemini)
+    if [ "$RICH" = true ]; then
+      gemini_toggle_tree "True"
+      trap 'gemini_toggle_tree "False"' EXIT
+    fi
+    xbreed ask gemini --with "$SKILL" "$PROMPT"
+    ;;
+  codex)
+    if [ "$DIRECT" = true ]; then
+      # Direct exec: bypass xbreed, max suppression + effort control
+      CODEX_EFFORT="${EFFORT:-none}"
+      codex exec \
+        --skip-git-repo-check \
+        -c include_permissions_instructions=false \
+        -c include_apps_instructions=false \
+        -c include_environment_context=false \
+        -c "model_reasoning_effort=$CODEX_EFFORT" \
+        "$PROMPT"
+    elif [ "$RICH" = true ]; then
+      # Rich mode: full CLI context via xbreed
+      xbreed ask codex --with "$SKILL" "$PROMPT"
+    else
+      # Clean mode: via xbreed (godspeed loaded)
+      xbreed ask codex --with "$SKILL" "$PROMPT"
+    fi
+    ;;
+  claude)
+    xbreed ask claude --with "$SKILL" "$PROMPT"
+    ;;
+  *)
+    echo "Unknown model: $MODEL. Use gemini, codex, or claude." >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,5 @@
+# Suppress noisy dirs from Gemini's auto-injected context
+target/
+.git/
+node_modules/
+*.lock

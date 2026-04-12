@@ -1,0 +1,35 @@
+version: 1
+mode: deny_list_only
+
+pinned_for:
+  claude-code: "2.1.101"
+  codex: "0.119.0-alpha.27"
+  gemini: "0.38.0-preview.0"
+
+deny_bash_patterns:
+  # filesystem nukes
+  - '\brm\s+-rf\s+/(\s|$)'
+  - '\brm\s+-rf\s+~(\s|$)'
+  - '\brm\s+-rf\s+\$HOME(\s|$)'
+  - '\bdd\s+.*\bof=/dev/(sd|nvme|mmcblk|hd)'
+  - '\bmkfs\.'
+  - '\b(shred|wipe)\b.*\s/'
+  - ':\(\)\s*\{\s*:\|:&\s*\};:'
+  # pipe-to-shell
+  - '\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh|ksh|fish)\b'
+  # privilege escalation surprises
+  - '^\s*sudo\s+rm\b'
+  - '^\s*sudo\s+dd\b'
+  - '\bchmod\s+-R\s+777\s+/'
+  # silent credential exfil signatures
+  - '\b(cat|tar|zip)\b.*\b(\.ssh/id_|\.aws/credentials|\.config/gh|\.netrc)\b.*\|\s*(curl|nc|wget)'
+  # nuke-the-repo
+  - '\bgh\s+repo\s+delete\b'
+  - '\bgit\s+push\s+.*--force(-with-lease)?.*\s(main|master)(\s|$)'
+
+prompt_bash_patterns:
+  - '\bgit\s+push\s+.*--force\b'
+  - '\bgh\s+repo\s+(rename|edit|archive)\b'
+
+deny_tools: []
+prompt_tools: []

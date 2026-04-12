@@ -1,0 +1,13 @@
+/target
+**/*.rs.bk
+*.swp
+.DS_Store
+
+# Local secrets — API keys, credentials. Never commit.
+.env.local
+.env.*.local
+
+# xbreed runtime state — ephemeral per-project state dir used by
+# `xbreed team init` and `xbreed team mailbox`. Contains mailbox
+# events and beads DB; never belongs in version control.
+.xbreed/
