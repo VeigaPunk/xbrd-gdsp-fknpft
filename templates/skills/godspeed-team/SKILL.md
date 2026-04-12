@@ -231,7 +231,9 @@ The `--inject` flag outputs Claude Code's `hookSpecificOutput.additionalContext`
 
 - **3-5 teammates max per flat dispatch.** Token costs scale linearly. Focused beats scattered.
 - **Single-turn dispatch per phase.** Batch hard. Do not serialize what can run in parallel.
-- **Stop when the frontier stops moving.** No definition of done — the frontier reveals itself by ceasing to evolve.
+- **Stop when the frontier stops moving.** No definition of done — the frontier reveals itself by ceasing to evolve. Do not stop to ask permission between rounds.
+- **Iterate autonomously.** After each round, if any axis improved, dispatch the next round immediately. The user interrupts when they want to steer — that is their control, not your prompts.
+- **Cross-model labrat swarms for validation.** After significant changes, fire `xask gemini` and `xask codex` probes in parallel to validate. Encourage sub-leads to do the same.
 - **Inherit godspeed posture recursively.** Every delegation to `codex`/`gemini` passes `--with godspeed`.
 - **Naming convention is mandatory.** Enforces visibility in logs and dispatch graphs.
 - **Briefs direct source reads.** Any sub-lead brief MUST name the specific files to read before proposing. Load-bearing safety net against fabricated APIs.

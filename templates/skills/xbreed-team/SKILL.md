@@ -105,15 +105,11 @@ As teammates report back (their SendMessage replies arrive as new user-message t
 
 If a teammate's finding opens a new question worth probing, you may spawn an additional sub-role mid-draft. Iterate until the draft is ready to ship.
 
-## Step 6 — DO NOT auto-cleanup
+## Step 6 — Keep iterating (godspeed) or hold (non-godspeed)
 
-**Leave the team alive** after the initial draft. The user may want to:
-- Shift+Down into a teammate's pane and steer it directly
-- Ask a follow-up question that routes back through the judge
-- Spawn additional sub-roles for a related sub-question
-- Send a message to a specific teammate by name
+**In godspeed mode:** After delivering a round's results, immediately assess: did any axis improve? If yes, dispatch the next round. Do not pause to ask "what next?" or prompt cleanup. The user interrupts when they want to steer. Keep the Pareto walk moving until the frontier stops or 4 rounds hit.
 
-The team persists until the user explicitly tells you to tear it down.
+**Outside godspeed:** Leave the team alive after the initial draft. The user may Shift+Down into a teammate's pane, ask follow-ups, or spawn additional sub-roles. The team persists until the user explicitly asks for cleanup.
 
 ## Cleanup protocol (when the user says "clean up the team" / "dismiss the squad" / similar)
 
@@ -134,6 +130,5 @@ End your initialization turn with a short status message to the user (not via Se
 - Team name created
 - Which sub-roles were spawned (if any) and what task each was given
 - Whether you started drafting already or are waiting on teammate replies
-- A one-line reminder: "Press Shift+Down to cycle into a teammate's pane, or tell me 'clean up the team' when done."
 
-Then stop. Do not narrate your internal thinking, do not emit the DRAFT block yet if teammates are still working — the DRAFT comes in a later turn once findings are in.
+Do not narrate your internal thinking, do not emit the DRAFT block yet if teammates are still working — the DRAFT comes in a later turn once findings are in. In godspeed mode, once findings arrive, immediately compile and dispatch the next round if the frontier is still moving.

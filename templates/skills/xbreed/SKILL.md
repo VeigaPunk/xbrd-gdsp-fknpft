@@ -58,3 +58,5 @@ Dispatch rule:
 ## Step 4 — Output
 
 Emit your DRAFT in the shape defined in `~/.claude/agents/the-judge.md`. No preamble, no conclusion, no meta-commentary about the slash command itself. Concrete or cut.
+
+In godspeed mode: if the Pareto walk still has room to improve after the DRAFT, dispatch the next round immediately. Do not prompt for next steps. The user interrupts when they want to steer.

@@ -66,7 +66,11 @@ xask gemini "Orchestrate 10 parallel labrat probes on: <hypothesis>. Vary the an
 ```
 This is a 1-call, 10-probe fan-out inside Gemini's context. Can refire up to 2 additional times (30 max probes). Use when any agent needs empirical grounding without spawning Claude sessions.
 
-**Round phases:** PROPOSE (parallel) → CROSS-CRITIQUE (DMs or in-judge) → PARETO FILTER (judge) → COMPILE (round summary). Exit → final DRAFT with AXES FINAL STATE section.
+**Round phases:** PROPOSE (parallel) → CROSS-CRITIQUE (DMs or in-judge) → PARETO FILTER (judge) → COMPILE (round summary). If any axis improved, dispatch next round immediately — do not pause to ask. Exit → final DRAFT with AXES FINAL STATE section.
+
+**Autonomous iteration:** In godspeed, you keep iterating until the frontier stops moving (no axis improved in the last round) or 4 rounds hit. Do not prompt for cleanup, next steps, or confirmation between rounds. The user can always interrupt — that is their control mechanism, not your prompts.
+
+**Cross-model validation:** Use `xbreed ask codex` and `xbreed ask gemini --with godspeed` as cheap labrat probes to validate your own work. Fire them in parallel after significant changes. Encourage sub-leads to do the same — any agent can invoke `xask <model>` to get a second opinion.
 
 ## Handoff (recursive sub-lead dispatch)
 
