@@ -40,7 +40,12 @@ fn main() -> anyhow::Result<()> {
             let status = xbreed::launch::launch_claude(&model, &effort, &settings, &args)?;
             std::process::exit(status.code().unwrap_or(1));
         }
-        Commands::Ask { cli, prompt, with, effort } => {
+        Commands::Ask {
+            cli,
+            prompt,
+            with,
+            effort,
+        } => {
             let loadout = if with.is_empty() {
                 xbreed::loadout::Loadout::empty()
             } else {
@@ -55,7 +60,11 @@ fn main() -> anyhow::Result<()> {
             TeamAction::Mailbox { subaction } => {
                 let cwd = std::env::current_dir()?;
                 match subaction {
-                    MailboxAction::Write { from, kind, payload } => {
+                    MailboxAction::Write {
+                        from,
+                        kind,
+                        payload,
+                    } => {
                         xbreed::mailbox::write_event(&cwd, &from, &kind, &payload)?;
                         Ok(())
                     }
@@ -68,7 +77,10 @@ fn main() -> anyhow::Result<()> {
                         }
                         Ok(())
                     }
-                    MailboxAction::Compact { keep_types, digest_older_than } => {
+                    MailboxAction::Compact {
+                        keep_types,
+                        digest_older_than,
+                    } => {
                         let (kept, compacted) =
                             xbreed::mailbox::compact_events(&cwd, &keep_types, digest_older_than)?;
                         println!("kept {kept}, compacted {compacted}");

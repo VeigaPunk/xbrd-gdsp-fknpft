@@ -14,7 +14,6 @@ pub struct GeminiKeys {
     pub fallback: Option<String>,
 }
 
-
 /// Reads `.env.local` from cwd.
 pub fn load_gemini_keys() -> GeminiKeys {
     load_gemini_keys_from(Path::new(".env.local"))
@@ -105,7 +104,8 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
         // with \n / \" / \\ escapes) is also a valid TOML basic string.
         let toml_quoted = serde_json::to_string(&loadout.to_concat())
             .expect("serde_json::to_string of a String never fails");
-        c.arg("-c").arg(format!("developer_instructions={toml_quoted}"));
+        c.arg("-c")
+            .arg(format!("developer_instructions={toml_quoted}"));
     }
     c
 }
@@ -253,7 +253,10 @@ pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth
     } else {
         format!("{}\n\n---\n\n{}", loadout.to_concat(), prompt)
     };
-    c.arg("-m").arg(GEMINI_DEFAULT_MODEL).arg("-p").arg(final_prompt);
+    c.arg("-m")
+        .arg(GEMINI_DEFAULT_MODEL)
+        .arg("-p")
+        .arg(final_prompt);
 
     match auth {
         GeminiAuth::OAuthProfile(name) => {
@@ -270,7 +273,6 @@ pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth
     }
     c
 }
-
 
 /// Tightened quota detector. Matches specific, unambiguous rate-limit signals.
 fn is_quota_error(stderr: &[u8]) -> bool {
@@ -298,7 +300,12 @@ fn is_auth_error(stderr: &[u8]) -> bool {
         || s.contains("set an Auth method")
 }
 
-pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout, effort: Option<&str>) -> Result<String> {
+pub fn dispatch(
+    cli: &str,
+    prompt: &str,
+    loadout: &Loadout,
+    effort: Option<&str>,
+) -> Result<String> {
     if cli == "gemini" {
         if effort.is_some() {
             eprintln!("warning: --effort is ignored for gemini (no native flag; use thinkingBudget in prompt template instead)");
@@ -319,9 +326,9 @@ pub fn dispatch(cli: &str, prompt: &str, loadout: &Loadout, effort: Option<&str>
 
         for auth in &chain {
             let mut cmd = build_gemini_with_auth(prompt, loadout, auth);
-            let output = cmd
-                .output()
-                .map_err(|e| anyhow::anyhow!("failed to execute gemini (auth={}): {e}", auth.label()))?;
+            let output = cmd.output().map_err(|e| {
+                anyhow::anyhow!("failed to execute gemini (auth={}): {e}", auth.label())
+            })?;
             if output.status.success() {
                 return Ok(String::from_utf8_lossy(&output.stdout).to_string());
             }
@@ -402,7 +409,9 @@ mod tests {
     use super::*;
 
     fn cmd_args(c: &Command) -> Vec<String> {
-        c.get_args().map(|a| a.to_string_lossy().to_string()).collect()
+        c.get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect()
     }
 
     fn loadout_with(body: &str) -> Loadout {
@@ -479,7 +488,8 @@ mod tests {
 
     #[test]
     fn load_gemini_keys_simple() {
-        let (_tmp, p) = write_env("GEMINI_API_KEY=primary-key\nGEMINI_API_KEY_FALLBACK=fallback-key\n");
+        let (_tmp, p) =
+            write_env("GEMINI_API_KEY=primary-key\nGEMINI_API_KEY_FALLBACK=fallback-key\n");
         let keys = load_gemini_keys_from(&p);
         assert_eq!(keys.primary.as_deref(), Some("primary-key"));
         assert_eq!(keys.fallback.as_deref(), Some("fallback-key"));
@@ -487,7 +497,8 @@ mod tests {
 
     #[test]
     fn load_gemini_keys_handles_crlf_bom_quotes_and_trailing_ws() {
-        let content = "\u{FEFF}GEMINI_API_KEY=\"primary-key\"  \r\nGEMINI_API_KEY_FALLBACK=fallback-key \r\n";
+        let content =
+            "\u{FEFF}GEMINI_API_KEY=\"primary-key\"  \r\nGEMINI_API_KEY_FALLBACK=fallback-key \r\n";
         let (_tmp, p) = write_env(content);
         let keys = load_gemini_keys_from(&p);
         assert_eq!(keys.primary.as_deref(), Some("primary-key"));
@@ -509,7 +520,10 @@ mod tests {
         );
         let keys = load_gemini_keys_from(&p);
         assert_eq!(keys.primary.as_deref(), Some("primary"));
-        assert_eq!(keys.fallback.as_deref(), Some("fallback#no-space-preserved"));
+        assert_eq!(
+            keys.fallback.as_deref(),
+            Some("fallback#no-space-preserved")
+        );
     }
 
     #[test]
@@ -538,7 +552,9 @@ mod tests {
 
     #[test]
     fn is_quota_error_matches_specific_signals_only() {
-        assert!(super::is_quota_error(b"error: RESOURCE_EXHAUSTED quota exceeded"));
+        assert!(super::is_quota_error(
+            b"error: RESOURCE_EXHAUSTED quota exceeded"
+        ));
         assert!(super::is_quota_error(b"HTTP 429 Too Many Requests"));
         assert!(super::is_quota_error(b"status: 429"));
         assert!(super::is_quota_error(b"code: 429"));
@@ -553,7 +569,9 @@ mod tests {
         assert!(super::is_auth_error(b"HTTP 401 Unauthorized"));
         assert!(super::is_auth_error(b"403 Forbidden"));
         assert!(super::is_auth_error(b"PERMISSION_DENIED"));
-        assert!(super::is_auth_error(b"API key not valid. Please pass a valid API key."));
+        assert!(super::is_auth_error(
+            b"API key not valid. Please pass a valid API key."
+        ));
         assert!(super::is_auth_error(b"API_KEY_INVALID"));
         assert!(super::is_auth_error(b"UNAUTHENTICATED"));
         assert!(super::is_auth_error(b"authentication failed"));
@@ -581,7 +599,10 @@ mod tests {
 
     #[test]
     fn gemini_auth_label_formats() {
-        assert_eq!(GeminiAuth::OAuthProfile("alice".into()).label(), "oauth:alice");
+        assert_eq!(
+            GeminiAuth::OAuthProfile("alice".into()).label(),
+            "oauth:alice"
+        );
         assert_eq!(GeminiAuth::OAuthDefault.label(), "oauth:default");
         assert_eq!(GeminiAuth::ApiKey("sk-abc".into()).label(), "api-key");
     }
@@ -639,7 +660,10 @@ mod tests {
             k == std::ffi::OsStr::new("GEMINI_API_KEY")
                 && v == Some(std::ffi::OsStr::new("test-key-xyz"))
         });
-        assert!(has_key, "ApiKey auth must set GEMINI_API_KEY on the Command");
+        assert!(
+            has_key,
+            "ApiKey auth must set GEMINI_API_KEY on the Command"
+        );
         // ApiKey should NOT touch HOME
         let touches_home = cmd
             .get_envs()

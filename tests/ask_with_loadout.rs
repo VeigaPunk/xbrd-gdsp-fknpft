@@ -182,7 +182,10 @@ fn ask_with_missing_skill_errors_cleanly() {
     assert!(stderr.contains("skill not found"));
     assert!(stderr.contains("nonexistent"));
     // And the stub must NOT have been called.
-    assert!(!log.exists(), "stub should not run when loadout resolution fails");
+    assert!(
+        !log.exists(),
+        "stub should not run when loadout resolution fails"
+    );
 }
 
 #[test]

@@ -52,8 +52,14 @@ mod tests {
         let inner = entry["hooks"].as_array().unwrap();
         assert_eq!(inner.len(), 1);
         assert_eq!(inner[0]["type"], "command");
-        assert!(inner[0]["command"].as_str().unwrap().contains("xbreed guard claude-code"));
-        assert!(inner[0]["command"].as_str().unwrap().contains("/x/policy.yaml"));
+        assert!(inner[0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("xbreed guard claude-code"));
+        assert!(inner[0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("/x/policy.yaml"));
         assert_eq!(inner[0]["timeout_ms"], 2000);
     }
 

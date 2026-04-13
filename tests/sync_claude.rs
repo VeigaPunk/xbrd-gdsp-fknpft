@@ -10,8 +10,10 @@ fn sync_writes_claude_settings_json() {
 
     let status = Command::new(env!("CARGO_BIN_EXE_xbreed"))
         .arg("sync")
-        .arg("--policy").arg(&policy)
-        .arg("--out").arg(&out)
+        .arg("--policy")
+        .arg(&policy)
+        .arg("--out")
+        .arg(&out)
         .status()
         .unwrap();
     assert!(status.success());

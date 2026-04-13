@@ -64,8 +64,8 @@ impl Models {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn loads_minimal_policy() {
@@ -80,11 +80,15 @@ mod tests {
     #[test]
     fn loads_full_policy_with_patterns() {
         let mut f = NamedTempFile::new().unwrap();
-        writeln!(f, r#"version: 1
+        writeln!(
+            f,
+            r#"version: 1
 mode: deny_list_only
 deny_bash_patterns:
   - 'rm -rf /'
-deny_tools: []"#).unwrap();
+deny_tools: []"#
+        )
+        .unwrap();
         let p = Policy::load(f.path()).unwrap();
         assert_eq!(p.deny_bash_patterns, vec!["rm -rf /".to_string()]);
     }
@@ -95,13 +99,18 @@ deny_tools: []"#).unwrap();
         writeln!(f, "deny_bash_patterns:\n  - 'rm -rf /'").unwrap();
         // Missing required `version` and `mode`.
         let result = Policy::load(f.path());
-        assert!(result.is_err(), "expected load to fail when version/mode are missing");
+        assert!(
+            result.is_err(),
+            "expected load to fail when version/mode are missing"
+        );
     }
 
     #[test]
     fn loads_models_yaml() {
         let mut f = NamedTempFile::new().unwrap();
-        writeln!(f, r#"claude:
+        writeln!(
+            f,
+            r#"claude:
   default: opus
   effort: max
 codex:
@@ -110,7 +119,9 @@ codex:
   features:
     fast_mode: true
 gemini:
-  default: gemini-3.1-pro-preview"#).unwrap();
+  default: gemini-3.1-pro-preview"#
+        )
+        .unwrap();
         let m = Models::load(f.path()).unwrap();
         assert_eq!(m.claude.default, "opus");
         assert_eq!(m.codex.default, "gpt-5.4");

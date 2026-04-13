@@ -2,7 +2,11 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "xbreed", version, about = "Multi-model meta-launcher with shared safety policy")]
+#[command(
+    name = "xbreed",
+    version,
+    about = "Multi-model meta-launcher with shared safety policy"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -86,7 +90,11 @@ pub enum MailboxAction {
     /// Compact the mailbox: fold low-signal events into a digest
     Compact {
         /// Event types to keep verbatim (heuristic attention proxy)
-        #[arg(long, value_delimiter = ',', default_value = "concern,diff,discovery,shutdown-ack")]
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "concern,diff,discovery,shutdown-ack"
+        )]
         keep_types: Vec<String>,
         /// Fold events older than this many seconds into the digest
         #[arg(long, default_value = "60")]

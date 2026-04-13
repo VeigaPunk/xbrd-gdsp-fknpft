@@ -19,10 +19,16 @@ pub struct DecisionOut {
 
 impl DecisionOut {
     pub fn allow() -> Self {
-        Self { decision: Decision::Allow, reason: None }
+        Self {
+            decision: Decision::Allow,
+            reason: None,
+        }
     }
     pub fn deny(reason: impl Into<String>) -> Self {
-        Self { decision: Decision::Deny, reason: Some(reason.into()) }
+        Self {
+            decision: Decision::Deny,
+            reason: Some(reason.into()),
+        }
     }
 }
 
@@ -36,7 +42,10 @@ pub struct Engine {
 impl Engine {
     pub fn from_policy(p: &Policy) -> Result<Self> {
         if p.mode != "deny_list_only" && p.mode != "allow_list" {
-            anyhow::bail!("unknown policy mode: '{}' (expected 'deny_list_only' or 'allow_list')", p.mode);
+            anyhow::bail!(
+                "unknown policy mode: '{}' (expected 'deny_list_only' or 'allow_list')",
+                p.mode
+            );
         }
         Ok(Engine {
             mode: p.mode.clone(),
@@ -51,7 +60,9 @@ impl Engine {
         if self.mode == "allow_list" {
             let allowed = self.allow_tools.iter().any(|t| t == tool);
             if !allowed {
-                return DecisionOut::deny(format!("tool {tool} not in allow_tools (mode: allow_list)"));
+                return DecisionOut::deny(format!(
+                    "tool {tool} not in allow_tools (mode: allow_list)"
+                ));
             }
             // Allowed tools still go through bash pattern checks below.
         }
@@ -137,8 +148,14 @@ mod tests {
     fn empty_policy_allows_everything() {
         let p = empty_policy();
         let engine = Engine::from_policy(&p).unwrap();
-        assert_eq!(engine.evaluate("Bash", &["ls".to_string()]).decision, Decision::Allow);
-        assert_eq!(engine.evaluate("Read", &["file.txt".to_string()]).decision, Decision::Allow);
+        assert_eq!(
+            engine.evaluate("Bash", &["ls".to_string()]).decision,
+            Decision::Allow
+        );
+        assert_eq!(
+            engine.evaluate("Read", &["file.txt".to_string()]).decision,
+            Decision::Allow
+        );
     }
 
     fn policy_with_deny_bash(patterns: Vec<&str>) -> Policy {
@@ -235,7 +252,10 @@ mod tests {
         let engine = Engine::from_policy(&p).unwrap();
         assert_eq!(engine.evaluate("Read", &[]).decision, Decision::Allow);
         assert_eq!(engine.evaluate("Write", &[]).decision, Decision::Deny);
-        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Allow);
+        assert_eq!(
+            engine.evaluate("Bash", &["ls".into()]).decision,
+            Decision::Allow
+        );
     }
 
     #[test]
@@ -244,7 +264,10 @@ mod tests {
         p.mode = "allow_list".to_string();
         let engine = Engine::from_policy(&p).unwrap();
         assert_eq!(engine.evaluate("Read", &[]).decision, Decision::Deny);
-        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Deny);
+        assert_eq!(
+            engine.evaluate("Bash", &["ls".into()]).decision,
+            Decision::Deny
+        );
     }
 
     #[test]
@@ -254,7 +277,10 @@ mod tests {
         p.allow_tools = vec!["Bash".into()];
         p.deny_bash_patterns = vec![r"\brm\s+-rf\s+/".into()];
         let engine = Engine::from_policy(&p).unwrap();
-        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Allow);
+        assert_eq!(
+            engine.evaluate("Bash", &["ls".into()]).decision,
+            Decision::Allow
+        );
         assert_eq!(
             engine.evaluate("Bash", &["rm -rf /".into()]).decision,
             Decision::Deny
@@ -280,6 +306,9 @@ mod tests {
         let mut f = tempfile::NamedTempFile::new().unwrap();
         writeln!(f, "not: valid: yaml: {{{{").unwrap();
         let result = crate::config::Policy::load(f.path());
-        assert!(result.is_err(), "malformed policy.yaml must fail, not silently allow");
+        assert!(
+            result.is_err(),
+            "malformed policy.yaml must fail, not silently allow"
+        );
     }
 }

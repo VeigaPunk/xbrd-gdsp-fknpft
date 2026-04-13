@@ -14,7 +14,10 @@ pub struct Event {
 }
 
 fn mailbox_path(team_dir: &Path) -> std::path::PathBuf {
-    team_dir.join(".xbreed").join("mailbox").join("events.ndjson")
+    team_dir
+        .join(".xbreed")
+        .join("mailbox")
+        .join("events.ndjson")
 }
 
 pub fn write_event(team_dir: &Path, from: &str, event_type: &str, payload: &str) -> Result<()> {
@@ -155,15 +158,18 @@ pub fn compact_events(
         for e in &compactable {
             *counts.entry(e.event_type.as_str()).or_insert(0) += 1;
         }
-        let mut kind_counts: Vec<String> =
-            counts.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let mut kind_counts: Vec<String> = counts.iter().map(|(k, v)| format!("{k}={v}")).collect();
         kind_counts.sort();
         let digest = Event {
             timestamp_ms: now_ms,
             from: "xbreed-compactor".to_string(),
             event_type: "digest".to_string(),
             // heuristic attention proxy: keep_types list drives what survives verbatim
-            payload: format!("compacted {} events: {{{}}}", compacted_count, kind_counts.join(", ")),
+            payload: format!(
+                "compacted {} events: {{{}}}",
+                compacted_count,
+                kind_counts.join(", ")
+            ),
         };
         compactable.clear();
         kept.insert(0, digest);
@@ -175,7 +181,11 @@ pub fn compact_events(
         .map(|e| serde_json::to_string(e).unwrap() + "\n")
         .collect();
     // Write compacted events to a fresh mailbox file, then clean up.
-    let mut f = OpenOptions::new().create(true).write(true).truncate(true).open(&path)?;
+    let mut f = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&path)?;
     f.write_all(new_contents.as_bytes())?;
     let _ = std::fs::remove_file(&compact_path);
 
@@ -212,7 +222,9 @@ mod tests {
         let json = format_hook_injection(&[]);
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v["hookSpecificOutput"]["hookEventName"], "UserPromptSubmit");
-        let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+        let ctx = v["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .unwrap();
         assert!(ctx.contains("xbreed mailbox drained"));
         assert!(ctx.contains("(no mailbox events)"));
     }
@@ -229,7 +241,11 @@ mod tests {
         };
         let mut line = serde_json::to_string(&event).unwrap();
         line.push('\n');
-        let mut f = OpenOptions::new().create(true).append(true).open(&path).unwrap();
+        let mut f = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .unwrap();
         f.write_all(line.as_bytes()).unwrap();
     }
 
@@ -246,7 +262,10 @@ mod tests {
         assert_eq!(kept, 3, "2 concerns + 1 digest");
         let events = drain_events(dir.path()).unwrap();
         assert!(events.iter().any(|e| e.event_type == "digest"));
-        assert_eq!(events.iter().filter(|e| e.event_type == "concern").count(), 2);
+        assert_eq!(
+            events.iter().filter(|e| e.event_type == "concern").count(),
+            2
+        );
     }
 
     #[test]
@@ -282,7 +301,9 @@ mod tests {
         ];
         let json = format_hook_injection(&events);
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        let ctx = v["hookSpecificOutput"]["additionalContext"].as_str().unwrap();
+        let ctx = v["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .unwrap();
         assert!(ctx.contains("[1000ms] shutdown-ack from=critic payload=ok"));
         assert!(ctx.contains("[2000ms] alive from=builder payload=working"));
     }

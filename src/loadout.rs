@@ -11,7 +11,9 @@ pub struct Loadout {
 impl Loadout {
     /// Empty loadout — injection into a CLI should be a no-op.
     pub fn empty() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     /// Resolve skill names using the default search path:
@@ -160,11 +162,8 @@ mod tests {
         write_skill(&dir, "alpha", "A-body");
         write_skill(&dir, "beta", "B-body");
 
-        let l = Loadout::resolve_with_paths(
-            &["beta".to_string(), "alpha".to_string()],
-            &[dir],
-        )
-        .unwrap();
+        let l = Loadout::resolve_with_paths(&["beta".to_string(), "alpha".to_string()], &[dir])
+            .unwrap();
 
         let c = l.to_concat();
         let beta_idx = c.find("## beta").unwrap();
@@ -181,11 +180,7 @@ mod tests {
         write_skill(&dir_a, "godspeed", "FROM A");
         write_skill(&dir_b, "godspeed", "FROM B");
 
-        let l = Loadout::resolve_with_paths(
-            &["godspeed".to_string()],
-            &[dir_a, dir_b],
-        )
-        .unwrap();
+        let l = Loadout::resolve_with_paths(&["godspeed".to_string()], &[dir_a, dir_b]).unwrap();
         let c = l.to_concat();
         assert!(c.contains("FROM A"));
         assert!(!c.contains("FROM B"));
