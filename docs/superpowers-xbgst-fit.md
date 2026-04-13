@@ -72,4 +72,6 @@ Skip 10 Superpowers skills, grouped by reason:
 | empirical-probe | ✅ | labrat's falsification preserved as "selective gate" |
 | cross-axis-callsites | ◻️ | matrix emitted but connector's top pick was Pareto-rejected |
 
-**Round 2 adds (2026-04-13, commit 12578bf):** `the-judge.md` Pareto-filter description gains explicit evidence-gate step; `xbreed-shared.md` moved into repo + scope-tagged to Pareto modes only (informational in /xbt, /xbreed); distiller spawn template gains byte-for-byte `evidence:` constraint. Round 3 dispatched on the commit itself; see commit trailer.
+**Round 2 adds (2026-04-13, commit 9dfc7d9):** `the-judge.md` Pareto-filter description gains explicit evidence-gate step; `xbreed-shared.md` moved into repo + distiller spawn template gains byte-for-byte `evidence:` constraint; strict exit condition + anti-premature-halt rule installed; docs body reconciled.
+
+**Round 3 adds (2026-04-13):** `scripts/install-commands.sh` for fresh-clone portability; `xbreed-shared.md` Pareto schema gains missing scope tag (dropped by a lost Round-2 edit) + `deletion` axis_family row so `simplifier` stops misclassifying as non-executable `complexity`; Exit Condition gains materiality rule (axis-observable change, not prose delta) to kill paraphrase-round thrash; `xbgst.md` Step 4+5 duplication of exit semantics replaced by pointer into the SSoT.

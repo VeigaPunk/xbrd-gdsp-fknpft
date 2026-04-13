@@ -112,22 +112,13 @@ CONFLICTS (emit only if cross-model contradictions exist):
 
 **Judge weighting:** Weight xask quotes that contradict agent's conclusion more heavily than confirming quotes.
 
-**Exit condition (strict):** the frontier has stopped moving **iff Round N produced zero axis improvements vs Round N-1** (every surviving move is a duplicate of a prior-round survivor, or the filter accepted nothing new). "Distiller reports no open questions" is NOT the exit condition — a clean synthesis still typically moves axes relative to the pre-walk baseline. By definition Round 1 moves axes off baseline, so **Round 2 always runs** unless capped.
-
-Otherwise: Round N+1. Final DRAFT with AXES FINAL STATE emits only on strict exit or round cap.
+**Exit condition:** see the **Exit Condition (strict)** section in `xbreed-shared.md` — including the materiality rule (axis-observable change, not prose delta) and the anti-premature-halt steps. Round 1 by construction moves axes off baseline, so Round 2 always runs unless capped.
 
 ## Step 5 — Keep iterating
 
 Do not pause. Do not ask. User interrupts to steer. Keep iterating.
 
-Caps: <=4 rounds, <=12 teammates, <=200-word proposals.
-
-**Anti-premature-halt rule.** After each round, before declaring frontier-stable, the judge MUST:
-1. Compare Round N survivors against Round N-1 survivors (or pre-walk baseline for Round 1).
-2. If any axis improved, dispatch Round N+1 immediately — do not emit final DRAFT, do not ask the user.
-3. If truly zero improvement, emit final DRAFT.
-
-Round 1 → Round 2 transition is NOT optional. Round 1 by construction improves axes off baseline; jumping to cleanup after Round 1 violates the protocol.
+Caps: <=4 rounds, <=12 teammates, <=200-word proposals. Exit semantics live in `xbreed-shared.md`.
 
 ## Step 6 — Auto-cleanup after frontier
 

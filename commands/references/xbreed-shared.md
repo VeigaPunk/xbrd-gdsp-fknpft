@@ -53,7 +53,7 @@ Include in every teammate brief:
 
 **This table is the single source of truth for agent routing.** AGENTS.md and the-judge.md carry read-only copies for discoverability. On any edit here, update those two.
 
-Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`.
+Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`.
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
@@ -99,6 +99,8 @@ Agent(
 
 ## Pareto Filter Evidence Schema
 
+> **Scope:** Enforced in `/xgs` and `/xbgst` (Pareto-walk modes). Informational in `/xbt` (deliberative) and `/xbreed` / `/xb` (solo pipeline) — judge mediates directly, no drop gate runs. Distiller passthrough still fires, so the field travels intact if present.
+
 The Pareto filter reads a structured `evidence:` field on every proposed move. Moves without required evidence are **dropped, not scored** — the verification discipline is enforced by the filter, not by the agent's willingness to comply.
 
 **Schema (task-aware by role):**
@@ -108,6 +110,7 @@ The Pareto filter reads a structured `evidence:` field on every proposed move. M
 | `execution` (executor) | failing-test output + passing-test output (red-before-green); OR diff + rationale if no harness |
 | `correctness` (reviewer), `test-validation` (mutation-tester), `security` (sentinel) | verbatim xask output OR test/lint stdout + exit code |
 | `empirical` (labrat) | probe HYPOTHESIS/METHOD/RESULT triple |
+| `deletion` (simplifier) | diff of removed symbols + test pass/fail output (pre- and post-removal) |
 | `research` (scout), `cross-axis` (connector), `synthesis` (distiller), `orchestration`, `adversarial-design` (critic), `complexity`, `reverse-engineering` | `evidence: none — <axis reason>` (non-executable) |
 
 **Exempt-role allowlist is a closed enum keyed on `axis_family`**, not free-text self-classification. Any new role must land with a schema update to this table or ship with executable evidence. Distiller passes the field through verbatim.
@@ -145,6 +148,8 @@ DESPAWN: <agent-name> — signal delivered. Send me shutdown_request.
 ## Exit Condition (strict, applies to xgs/xbgst/xbt)
 
 The frontier has stopped moving **iff Round N produced zero axis improvements vs Round N-1** (all survivors duplicate prior-round survivors, or filter accepted nothing new). "Distiller reports no open questions" is NOT the exit condition — clean synthesis still typically moves axes off the pre-walk baseline.
+
+**Materiality rule.** A surviving move counts as an improvement only if at least one axis observable (the triplet defined in Phase 0: name + direction + observable) has changed state vs Round N-1. Proposal-prose difference alone does not qualify — paraphrased findings against unchanged observables are not improvements.
 
 **Anti-premature-halt rule.** After each round, before declaring frontier-stable, judge MUST:
 1. Compare Round N survivors to Round N-1 survivors (or pre-walk baseline for Round 1).
