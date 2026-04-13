@@ -84,7 +84,7 @@ Every teammate brief MUST include the structural xask gate as the FIRST instruct
 
 - **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
 
 **Layer 2 — Raw-quote gate (mandatory for all xask-gated roles):**
 

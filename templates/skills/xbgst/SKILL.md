@@ -50,7 +50,7 @@ For each axis, assign a name using the-judge.md naming convention: `{prefix}-{ro
 Axis -> profile mapping (from the-judge.md dispatch table):
 - Research, prior art, outside-world -> `scout` (sonnet) — delegates to `xask gemini`
 - Correctness, bugs, code review -> `reviewer` (sonnet) — delegates to `xask codex`
-- Empirical probes, dry-runs -> `labrat` (haiku) — delegates to `xask gemini`
+- Empirical probes, dry-runs -> `labrat` (sonnet) — delegates to `xask --spark codex`
 - Code execution, implementation -> `executor` (sonnet) — uses CC native tools
 - Cross-axis patterns, breadth -> `connector` (sonnet) — delegates to `xask gemini`
 - Findings synthesis, dedup -> `distiller` (sonnet) — in-session text synthesis (no xask)
@@ -75,7 +75,7 @@ Each brief includes:
 
 - **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your probe hypothesis for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **connector** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your cross-axis pattern question>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **executor/simplifier/distiller**: No xask gate. These use CC native tools or in-session synthesis.
 

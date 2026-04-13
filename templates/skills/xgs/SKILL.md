@@ -55,7 +55,7 @@ For each axis, assign a teammate name using the naming convention from the-judge
 Axis -> profile mapping (from the-judge.md dispatch table):
 - Research, prior art, outside-world -> `scout` (sonnet)
 - Correctness, bugs, code review -> `reviewer` (sonnet)
-- Empirical probes, dry-runs -> `labrat` (haiku)
+- Empirical probes, dry-runs -> `labrat` (sonnet) — `xask --spark codex`
 - Code execution, implementation -> `executor` (sonnet)
 - Cross-axis patterns, breadth -> `connector` (sonnet)
 - Findings synthesis, dedup -> `distiller` (sonnet)

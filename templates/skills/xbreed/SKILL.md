@@ -49,7 +49,7 @@ Every sub-role brief MUST include the structural xask gate as the FIRST instruct
 
 - **scout**: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **reviewer**: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat**: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **labrat**: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
 
 Raw-quote gate: `"After running xask, paste at least one verbatim passage from xask stdout inside <raw_output> tags before your analysis. Empty <raw_output> = invalid."`
 

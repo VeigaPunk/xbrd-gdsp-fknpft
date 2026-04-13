@@ -49,7 +49,7 @@ For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names befor
 Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details):
 - Research, prior art → `scout` (sonnet) — `xask --effort medium gemini`
 - Correctness, bugs → `reviewer` (sonnet) — `xask --effort xhigh codex`
-- Empirical probes → `labrat` (sonnet) — `xask gemini`
+- Empirical probes → `labrat` (sonnet) — `xask --spark codex`
 - Code execution → `executor` (sonnet) — CC native
 - Cross-axis patterns → `connector` (sonnet) — `xask --effort medium gemini`
 - Synthesis, dedup → `distiller` (sonnet) — in-session
