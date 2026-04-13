@@ -1,7 +1,7 @@
 ---
 description: Godspeed Pareto + cross-model delegation — combines /xgs speed with /xbt depth. Teammates invoke xask gemini/codex at godspeed pace.
 argument-hint: <prompt for the judge>
-allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch]
+allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, TaskOutput, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xbgst — Godspeed Pareto + Cross-Model Delegation
@@ -40,22 +40,22 @@ If empty, wait for user direction. Otherwise, proceed to four-phase godspeed wit
 
 ### Phase 0 — Name the axes
 
-Emit 3-5 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
 
 ### Phase 1 — Assign deterministic teammate names
 
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
-Axis -> profile mapping:
-- Research, prior art -> `scout` (sonnet) — `xask gemini`
-- Correctness, bugs -> `reviewer` (sonnet) — `xask codex`
-- Empirical probes -> `labrat` (haiku) — `xask gemini`
-- Code execution -> `executor` (sonnet) — CC native
-- Cross-axis patterns -> `connector` (sonnet) — `xask gemini`
-- Synthesis, dedup -> `distiller` (sonnet) — in-session
-- Complexity reduction -> `simplifier` (sonnet) — CC native
+Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details):
+- Research, prior art → `scout` (sonnet) — `xask --effort medium gemini`
+- Correctness, bugs → `reviewer` (sonnet) — `xask --effort xhigh codex`
+- Empirical probes → `labrat` (sonnet) — `xask gemini`
+- Code execution → `executor` (sonnet) — CC native
+- Cross-axis patterns → `connector` (sonnet) — `xask --effort medium gemini`
+- Synthesis, dedup → `distiller` (sonnet) — in-session
+- Complexity reduction → `simplifier` (sonnet) — CC native
 
-Cap: <=4 teammates per round.
+Cap: <=12 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
@@ -68,30 +68,15 @@ Each brief includes:
 6. After proposing, DM each peer with one-line critique
 7. Mark task completed
 
-#### xask gate by role
+#### xask gate, epistemic constraints
 
-**Layer 1 — Gate (structural):**
-- scout: `"Your FIRST tool call MUST be Bash: xask gemini '<question>'. No other tool before xask returns."`
-- reviewer: `"Your FIRST tool call MUST be Bash: xask codex '<question>'. No other tool before xask returns."`
-- labrat: `"Your FIRST tool call MUST be Bash: xask gemini '<hypothesis>'. No other tool before xask returns."`
-- connector: `"Your FIRST tool call MUST be Bash: xask gemini '<pattern question>'. No other tool before xask returns."`
-- executor/simplifier/distiller: No xask gate.
-
-**Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
-
-**Layer 3 — Fallback:** `[xask dry — in-session fallback]` marker, continue. No deadlock.
-
-**Layer 4 — Confidence:** `[xask dry]` = provenance marker, not quality demotion.
-
-**Epistemic role:** `"AT MOST one non-obvious claim + AT MOST one rejected alternative. Do not fabricate."`
-
-**Divergence mandate:** `"CONFLICT: [claim] — my position: [X] — peer: [Y]"`
+Read `~/.claude/commands/references/xbreed-shared.md` for the full 4-layer xask gate (per-role), epistemic constraints, and divergence mandate. Apply them to every teammate brief.
 
 Create TaskCreate per teammate.
 
 ### Phase 3 — Rounds begin
 
-**Distiller synthesis:** Once all teammates have proposed AND cross-critique DMs have landed, spawn the distiller:
+**Distiller synthesis:** Once all teammates have spawned, spawn the distiller:
 
 ```
 Agent(
@@ -99,7 +84,7 @@ Agent(
   team_name="<team>",
   name="ccs-distiller",
   model="sonnet",
-  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. SendMessage your synthesis to the judge (team lead) when done. |godspeed"
 )
 ```
 
@@ -125,18 +110,10 @@ CONFLICTS (emit only if cross-model contradictions exist):
 
 ## Step 5 — Keep iterating
 
-Do not pause. Do not ask. User interrupts to steer.
-Caps: <=4 rounds, <=4 teammates, <=200-word proposals.
-
-## Step 6 — Hold after frontier
-
-Team stays alive for follow-ups.
-
-## Cleanup
-
-On explicit request: shutdown all -> TeamDelete -> confirm.
+Do not pause. Do not ask. User interrupts to steer. Keep iterating
+Caps: <=4 rounds, <=12 teammates, <=200-word proposals.
 
 ## Step 7 — Status after init
 
-Emit: team name, axes, teammates + xask targets, waiting on Round 1.
+Emit: team name, axes, teammates + xask targets, waiting on Round N.
 Immediately compile and dispatch when findings arrive.

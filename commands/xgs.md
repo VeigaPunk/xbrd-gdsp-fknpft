@@ -1,7 +1,7 @@
 ---
 description: Godspeed Pareto orchestrator — all-Claude team with axis-scored parallel proposals, cross-critique DMs, and Pareto filtering. Fast mode, no cross-model delegation.
 argument-hint: <prompt for the judge>
-allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch]
+allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xgs — Godspeed Pareto Orchestrator
@@ -38,22 +38,22 @@ If empty, wait for user direction. Otherwise, proceed to four-phase godspeed.
 
 ### Phase 0 — Name the axes
 
-Emit 3-5 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
 
 ### Phase 1 — Assign deterministic teammate names
 
 For each axis, assign a name using the-judge.md naming convention: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
-Axis -> profile mapping:
-- Research, prior art -> `scout` (sonnet)
-- Correctness, bugs -> `reviewer` (sonnet)
-- Empirical probes -> `labrat` (haiku)
-- Code execution -> `executor` (sonnet)
-- Cross-axis patterns -> `connector` (sonnet)
-- Synthesis, dedup -> `distiller` (sonnet)
-- Complexity reduction -> `simplifier` (sonnet)
+Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details):
+- Research, prior art → `scout` (sonnet)
+- Correctness, bugs → `reviewer` (sonnet)
+- Empirical probes → `labrat` (sonnet)
+- Code execution → `executor` (sonnet)
+- Cross-axis patterns → `connector` (sonnet)
+- Synthesis, dedup → `distiller` (sonnet)
+- Complexity reduction → `simplifier` (sonnet)
 
-Cap: <=4 teammates per round.
+Cap: <=12 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster
 
@@ -67,7 +67,7 @@ Each brief includes:
 
 **No xask gate.** Teammates use CC native tools. This is the all-Claude fast path.
 
-Divergence mandate: `"If your finding contradicts a peer's, flag: CONFLICT: [claim] — my position: [X] — peer: [Y]"`
+Epistemic constraints and divergence mandate: see `~/.claude/commands/references/xbreed-shared.md`.
 
 Create TaskCreate per teammate.
 
@@ -107,7 +107,7 @@ CONFLICTS (emit only if cross-teammate contradictions exist):
 
 After each round, immediately assess and dispatch next round if frontier still moving. Do not pause. Do not ask. The user interrupts when they want to steer.
 
-**Caps:** <=4 rounds, <=4 teammates, <=200-word proposals. Lift only on user direction.
+**Caps:** <=4 rounds, <=12 teammates, <=200-word proposals. Lift only on user direction.
 
 ## Step 6 — Hold after frontier
 

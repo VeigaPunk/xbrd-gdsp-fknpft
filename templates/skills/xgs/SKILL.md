@@ -41,7 +41,7 @@ The user's prompt is:
 
 ### Phase 0 — Name the axes
 
-Emit 3-5 axes to the user as your first output. Each axis has:
+Emit up to 8 axes to the user as your first output. Each axis has:
 - **Name** — what's being optimized
 - **Direction** — ↑ maximize or ↓ minimize
 - **Observable** — how you'll know it improved
@@ -61,7 +61,7 @@ Axis -> profile mapping (from the-judge.md dispatch table):
 - Findings synthesis, dedup -> `distiller` (sonnet)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet)
 
-Team size cap: <=4 teammates per round.
+Team size cap: <=12 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster
 
@@ -122,7 +122,7 @@ Trigger: opposite verdicts on same claim, OR one teammate's move regresses anoth
 
 After delivering a round's results, immediately assess: did any axis improve? If yes, dispatch the next round. Do not pause to ask "what next?" or prompt cleanup. The user interrupts when they want to steer. Keep the Pareto walk moving until the frontier stops or 4 rounds hit.
 
-**Caps:** <=4 rounds, <=4 teammates per round, <=200-word proposals per teammate. Lift only on explicit user direction.
+**Caps:** <=4 rounds, <=12 teammates per round, <=200-word proposals per teammate. Lift only on explicit user direction.
 
 ## Step 6 — Hold after frontier
 

@@ -1,6 +1,7 @@
 ---
 name: connector
 description: Cross-axis pattern matcher. Sees the whole table, calls out unusual connections and second-order effects. Breadth over depth. Delegates to Gemini for multimodal/long-context, Claude for reasoning.
+axis_family: cross-axis
 model: sonnet
 ---
 

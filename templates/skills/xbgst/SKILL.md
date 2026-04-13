@@ -41,7 +41,7 @@ If empty, wait for user direction. Otherwise, proceed to four-phase godspeed wit
 
 ### Phase 0 — Name the axes
 
-Emit 3-5 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
 
 ### Phase 1 — Assign deterministic teammate names
 
@@ -56,7 +56,7 @@ Axis -> profile mapping (from the-judge.md dispatch table):
 - Findings synthesis, dedup -> `distiller` (sonnet) — in-session text synthesis (no xask)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet) — uses CC native tools
 
-Cap: <=4 teammates per round.
+Cap: <=12 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
@@ -146,7 +146,7 @@ Trigger: opposite verdicts on same claim from different models.
 
 After each round, immediately assess and dispatch next round if frontier still moving. Do not pause. Do not ask. The user interrupts when they want to steer.
 
-**Caps:** <=4 rounds, <=4 teammates per round, <=200-word proposals. Lift only on user direction.
+**Caps:** <=4 rounds, <=12 teammates per round, <=200-word proposals. Lift only on user direction.
 
 ## Step 6 — Hold after frontier
 

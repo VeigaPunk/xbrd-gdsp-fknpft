@@ -1,7 +1,7 @@
 ---
 description: Judge-orchestrated pipeline — solo mode with cross-model delegation (xask), dispatches scout/reviewer/labrat, drafts an implementation
 argument-hint: <prompt for the judge>
-allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, WebFetch, WebSearch]
+allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xbreed — Judge-Orchestrated Pipeline (Solo)
@@ -42,27 +42,13 @@ Dispatch rule:
    )
    ```
 
-### xask gate (mandatory for all dispatches)
+### xask gate, epistemic constraints, and dispatch details
 
-Every sub-role brief MUST include the structural xask gate as the FIRST instruction:
-
-- **scout**: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **reviewer**: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat**: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
-
-Raw-quote gate: `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid."`
-
-Fallback: if xask returns dry or errors, teammate notes `[xask dry — in-session fallback]` and continues. Do not deadlock.
-
-Epistemic role: `"AT MOST one non-obvious claim + AT MOST one rejected alternative. Do not fabricate."`
-
-Divergence mandate: `"If your finding contradicts a peer's, flag: CONFLICT: [claim] — my position: [X] — peer: [Y]"`
-
-Judge weighting: weight xask quotes contradicting agent's conclusion more heavily than confirming quotes.
+Read `~/.claude/commands/references/xbreed-shared.md` for the full xask gate (4 layers), epistemic constraints, axis→profile mapping, and naming convention. Apply them to every sub-role dispatch.
 
 ### Budget
 
-Max 3 total sub-role dispatches unless the prompt lifts the cap.
+Max 8 total sub-role dispatches unless the prompt lowers the cap.
 
 ## Step 4 — Output
 

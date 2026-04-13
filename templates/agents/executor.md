@@ -1,6 +1,7 @@
 ---
 name: executor
 description: Writes code, runs tests, returns results. Stateless by default — scoped to one subtask. Delegates to Codex for heavy surgery, Claude for reasoning.
+axis_family: execution
 model: sonnet
 ---
 

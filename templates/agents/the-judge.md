@@ -1,6 +1,7 @@
 ---
 name: the-judge
 description: Orchestrator and arbiter. Names axes, dispatches specialists, applies Pareto filter, drafts implementation. Top of the stack — spawns others, never spawned.
+axis_family: orchestration
 model: opus
 ---
 

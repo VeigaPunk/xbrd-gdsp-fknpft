@@ -1,7 +1,7 @@
 ---
 description: Judge-orchestrated TEAM mode — cross-model delegation (gemini/codex via xask), deliberative rounds with judge mediation. Slower, pondered.
 argument-hint: <prompt for the judge, or leave blank to init an empty squad>
-allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch]
+allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, TaskOutput, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xbreed-team — Judge-Orchestrated Team Mode (Deliberative)
@@ -51,7 +51,7 @@ Agent(
   subagent_type="scout" | "reviewer" | "labrat",
   team_name="<the team you just created>",
   name="<unique teammate name>",
-  model="sonnet" | "haiku",
+  model="sonnet",
   prompt="<task brief with mandatory xask gate and peer roster>"
 )
 ```
@@ -76,46 +76,19 @@ If `$ARGUMENTS` contains "godspeed", append this block to EVERY teammate's brief
 
 > **GODSPEED MODE (inherited from judge):** You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls.
 
-### Sub-role pick guide with xask gate
+### xask gate, epistemic constraints, and axis→profile mapping
 
-Every teammate brief MUST include the structural xask gate as the FIRST instruction. The gate has four layers:
-
-**Layer 1 — Gate (structural):**
-
-- **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
-
-**Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
-
-**Layer 3 — Fallback tiers:**
-
-> "If xask returns dry or errors: note `[xask dry — in-session fallback]` on the finding, continue in-session. Do not deadlock."
-
-- scout/reviewer: xask failure -> DM judge with `BLOCKED: xask [reason]`, then continue in-session with `[xask dry]` marker
-- labrat: xask failure -> emit `obs: xask BLOCKED [reason]` as the finding, despawn. Failure IS the result.
-
-**Layer 4 — Confidence rule:**
-
-> "`[xask dry]` marks source provenance, not quality. Judge assesses confidence case-by-case."
-
-**Epistemic role constraint:** `"AT MOST one non-obvious claim + AT MOST one rejected alternative. Do not fabricate — return nothing if no well-grounded finding exists."`
-
-**Divergence flagging (companion mandate for all briefs):**
-
-> "If your finding contradicts a peer's reported finding, flag it explicitly before your summary: `CONFLICT: [claim] — my position: [X] — peer position: [Y]`"
-
-**Judge weighting:** Weight xask quotes that contradict the agent's conclusion more heavily than confirming quotes — contradicting quotes are higher-signal.
+Read `~/.claude/commands/references/xbreed-shared.md` for the full 4-layer xask gate (per-role), epistemic constraints, divergence mandate, judge weighting, and axis→profile mapping. Apply them to every teammate brief.
 
 ### Budget
 
-Default to 2-3 teammates for most prompts. Scale up only if the problem has 4+ genuinely independent sub-questions.
+Scale up to 12 teammates when the problem has many independent sub-questions.
 
 ## Step 5 — Distiller synthesis + deliberative rounds
 
 ### Phase A — Distiller aggregation
 
-Once all teammates have reported back AND peer cross-critique DMs have landed, spawn the **distiller**:
+Once all teammates have spawned, spawn the **distiller** with | godspeed:
 
 ```
 Agent(
@@ -123,12 +96,12 @@ Agent(
   team_name="<team>",
   name="ccs-distiller",
   model="sonnet",
-  prompt="You are the distiller. Synthesize these N teammate findings into one deduplicated, confidence-scored brief. <paste all teammate reports + peer DM critiques>. Return format: State block with deduplicated claims, Unknowns block with contradictions, duplicate count. SendMessage your synthesis to the judge (team lead) when done."
+  prompt="You are the distiller. Synthesize these N teammate findings into one deduplicated, confidence-scored brief. <paste all teammate reports + peer DM SendMessage cross-critiques>. Return format: State block with deduplicated claims, Unknowns block with contradictions, duplicate count. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```
 
 The distiller:
-- Reads all teammate reports + peer cross-critiques (pasted by the judge)
+- Reads all teammate reports + peer DM SendMessage cross-critiques
 - Deduplicates overlapping findings
 - Flags contradictions (CONFLICT blocks) for the judge
 - Assigns confidence scores (high/medium/low/unverified)
@@ -145,22 +118,12 @@ Using the distiller's synthesis, the judge **mediates**:
 5. **Populate CONFLICTS block** if cross-model divergence found (gemini vs. codex contradictions on the same claim).
 6. **Repeat 2-5** until the judge is satisfied with the DRAFT quality.
 
-**Soft ceiling: 5 deliberative rounds.** After 5 rounds with no DRAFT progress, emit a CONFLICTS-only output and halt, naming unresolved items. Judge can override but must state why.
+**Soft ceiling: 4 deliberative rounds** (aligned with judge godspeed limit). After 4 rounds with no DRAFT progress, emit a CONFLICTS-only output and halt, naming unresolved items. Judge can override but must state why.
 
 **This is NOT godspeed.** Deliberative rounds are sequential depth (judge challenges, teammates refine). For parallel Pareto width, use `/xgs`.
 
-## Step 6 — Hold and iterate
-
-Leave the team alive after the initial draft. The user may:
-- Shift+Down into a teammate's pane and steer it directly
-- Ask follow-up questions that route back through the judge
-- Spawn additional sub-roles for related sub-questions
-
-The team persists until the user explicitly asks for cleanup.
 
 ## Cleanup protocol
-
-Only when the user explicitly asks:
 
 1. List active teammates.
 2. Send `SendMessage({to: <name>, message: {type: "shutdown_request", reason: "work complete"}})` to each.
