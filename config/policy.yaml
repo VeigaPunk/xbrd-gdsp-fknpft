@@ -1,11 +1,6 @@
 version: 1
 mode: deny_list_only
 
-pinned_for:
-  claude-code: "2.1.101"
-  codex: "0.119.0-alpha.27"
-  gemini: "0.38.0-preview.0"
-
 deny_bash_patterns:
   # filesystem nukes
   - '\brm\s+-rf\s+/(\s|$)'
@@ -27,9 +22,11 @@ deny_bash_patterns:
   - '\bgh\s+repo\s+delete\b'
   - '\bgit\s+push\s+.*--force(-with-lease)?.*\s(main|master)(\s|$)'
 
-prompt_bash_patterns:
-  - '\bgit\s+push\s+.*--force\b'
-  - '\bgh\s+repo\s+(rename|edit|archive)\b'
-
 deny_tools: []
-prompt_tools: []
+
+# allow_tools: used when mode is "allow_list" — only listed tools are permitted.
+# allow_tools:
+#   - Read
+#   - Bash
+#   - Grep
+#   - Glob

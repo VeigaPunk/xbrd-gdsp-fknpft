@@ -6,11 +6,11 @@ pub fn materialize_claude_settings(policy_path: &Path) -> Value {
     let mut settings = json!({
         "hooks": {
             "PreToolUse": [{
-                "matcher": "Bash",
+                "matcher": "*",
                 "hooks": [{
                     "type": "command",
-                    "command": format!("xbreed guard claude-code --policy '{}'", policy_path.display()),
-                    "timeout_ms": 500
+                    "command": format!("xbreed guard claude-code --policy '{}'", policy_path.display().to_string().replace('\'', "'\\''")),
+                    "timeout_ms": 2000
                 }]
             }]
         }
@@ -48,13 +48,13 @@ mod tests {
         let pre = hooks.get("PreToolUse").unwrap().as_array().unwrap();
         assert_eq!(pre.len(), 1);
         let entry = &pre[0];
-        assert_eq!(entry["matcher"], "Bash");
+        assert_eq!(entry["matcher"], "*", "wildcard matcher fires on all tools");
         let inner = entry["hooks"].as_array().unwrap();
         assert_eq!(inner.len(), 1);
         assert_eq!(inner[0]["type"], "command");
         assert!(inner[0]["command"].as_str().unwrap().contains("xbreed guard claude-code"));
         assert!(inner[0]["command"].as_str().unwrap().contains("/x/policy.yaml"));
-        assert_eq!(inner[0]["timeout_ms"], 500);
+        assert_eq!(inner[0]["timeout_ms"], 2000);
     }
 
     #[test]

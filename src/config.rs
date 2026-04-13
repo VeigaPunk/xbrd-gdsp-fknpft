@@ -8,15 +8,11 @@ pub struct Policy {
     pub version: u32,
     pub mode: String,
     #[serde(default)]
-    pub pinned_for: HashMap<String, String>,
-    #[serde(default)]
     pub deny_bash_patterns: Vec<String>,
-    #[serde(default)]
-    pub prompt_bash_patterns: Vec<String>,
     #[serde(default)]
     pub deny_tools: Vec<String>,
     #[serde(default)]
-    pub prompt_tools: Vec<String>,
+    pub allow_tools: Vec<String>,
 }
 
 impl Policy {
@@ -88,13 +84,9 @@ mod tests {
 mode: deny_list_only
 deny_bash_patterns:
   - 'rm -rf /'
-prompt_bash_patterns:
-  - 'git push --force'
-deny_tools: []
-prompt_tools: []"#).unwrap();
+deny_tools: []"#).unwrap();
         let p = Policy::load(f.path()).unwrap();
         assert_eq!(p.deny_bash_patterns, vec!["rm -rf /".to_string()]);
-        assert_eq!(p.prompt_bash_patterns, vec!["git push --force".to_string()]);
     }
 
     #[test]

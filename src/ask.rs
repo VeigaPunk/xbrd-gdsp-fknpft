@@ -14,11 +14,6 @@ pub struct GeminiKeys {
     pub fallback: Option<String>,
 }
 
-impl GeminiKeys {
-    pub fn has_any(&self) -> bool {
-        self.primary.is_some() || self.fallback.is_some()
-    }
-}
 
 /// Reads `.env.local` from cwd.
 pub fn load_gemini_keys() -> GeminiKeys {
@@ -133,25 +128,6 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
 /// (still functional, loses the tool-selection optimizations). No xbreed
 /// change needed to reach customtools.
 pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
-
-pub fn build_gemini_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command {
-    build_gemini_ask_with_key(prompt, loadout, None)
-}
-
-pub fn build_gemini_ask_with_key(prompt: &str, loadout: &Loadout, key: Option<&str>) -> Command {
-    let mut c = Command::new("gemini");
-    let final_prompt = if loadout.is_empty() {
-        prompt.to_string()
-    } else {
-        format!("{}\n\n---\n\n{}", loadout.to_concat(), prompt)
-    };
-    c.arg("-m").arg(GEMINI_DEFAULT_MODEL).arg("-p").arg(final_prompt);
-    if let Some(k) = key {
-        c.env("GEMINI_API_KEY", k);
-    }
-    c
-}
-
 
 // ========================================================================
 // v0.3.5 — Gemini auth cascade with multi-profile OAuth
@@ -468,13 +444,6 @@ mod tests {
     }
 
     #[test]
-    fn gemini_ask_empty_loadout_pins_default_model() {
-        let c = build_gemini_ask_with_loadout("hello", &Loadout::empty());
-        assert_eq!(c.get_program().to_string_lossy(), "gemini");
-        assert_eq!(cmd_args(&c), vec!["-m", GEMINI_DEFAULT_MODEL, "-p", "hello"]);
-    }
-
-    #[test]
     fn claude_ask_with_loadout_adds_append_system_prompt() {
         let l = loadout_with("BE FAST");
         let c = build_claude_ask_with_loadout("hello", &l);
@@ -502,21 +471,6 @@ mod tests {
     }
 
     #[test]
-    fn gemini_ask_with_loadout_prepends_to_prompt_and_pins_model() {
-        let l = loadout_with("BE FAST");
-        let c = build_gemini_ask_with_loadout("hello", &l);
-        let args = cmd_args(&c);
-        assert_eq!(args[0], "-m");
-        assert_eq!(args[1], GEMINI_DEFAULT_MODEL);
-        assert_eq!(args[2], "-p");
-        let combined = &args[3];
-        assert!(combined.contains("BE FAST"));
-        assert!(combined.contains("## testskill"));
-        assert!(combined.ends_with("hello"));
-        assert!(combined.contains("\n---\n"));
-    }
-
-    #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
         let err = dispatch("unknown-cli", "hello", &l, None).unwrap_err();
@@ -529,12 +483,6 @@ mod tests {
         let keys = load_gemini_keys_from(&p);
         assert_eq!(keys.primary.as_deref(), Some("primary-key"));
         assert_eq!(keys.fallback.as_deref(), Some("fallback-key"));
-
-        let loadout = Loadout::empty();
-        let cmd = build_gemini_ask_with_key("hello", &loadout, keys.primary.as_deref());
-        let env_vars: Vec<_> = cmd.get_envs().collect();
-        assert!(env_vars.iter().any(|(k, v)| k == &std::ffi::OsStr::new("GEMINI_API_KEY")
-            && v == &Some(std::ffi::OsStr::new("primary-key"))));
     }
 
     #[test]
@@ -586,7 +534,6 @@ mod tests {
     fn load_gemini_keys_missing_file_returns_default() {
         let keys = load_gemini_keys_from(std::path::Path::new("/nonexistent-file-abc-123"));
         assert_eq!(keys, GeminiKeys::default());
-        assert!(!keys.has_any());
     }
 
     #[test]

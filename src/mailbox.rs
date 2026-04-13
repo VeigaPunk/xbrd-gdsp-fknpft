@@ -67,7 +67,13 @@ pub fn drain_events(team_dir: &Path) -> Result<Vec<Event>> {
     let events = contents
         .lines()
         .filter(|l| !l.trim().is_empty())
-        .filter_map(|l| serde_json::from_str(l).ok())
+        .filter_map(|l| match serde_json::from_str(l) {
+            Ok(e) => Some(e),
+            Err(err) => {
+                eprintln!("xbreed mailbox: skipping malformed line: {err}");
+                None
+            }
+        })
         .collect();
     Ok(events)
 }
@@ -131,7 +137,13 @@ pub fn compact_events(
     let (mut kept, mut compactable): (Vec<Event>, Vec<Event>) = contents
         .lines()
         .filter(|l| !l.trim().is_empty())
-        .filter_map(|l| serde_json::from_str(l).ok())
+        .filter_map(|l| match serde_json::from_str(l) {
+            Ok(e) => Some(e),
+            Err(err) => {
+                eprintln!("xbreed mailbox: skipping malformed line during compact: {err}");
+                None
+            }
+        })
         .partition(|e: &Event| {
             // keep verbatim if type is in keep_types OR newer than cutoff
             keep_types.iter().any(|t| t == &e.event_type) || e.timestamp_ms >= cutoff_ms

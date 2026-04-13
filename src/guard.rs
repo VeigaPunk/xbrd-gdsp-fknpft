@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 pub enum Decision {
     Allow,
     Deny,
-    Prompt,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -16,55 +15,54 @@ pub struct DecisionOut {
     pub decision: Decision,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub question: Option<String>,
 }
 
 impl DecisionOut {
     pub fn allow() -> Self {
-        Self { decision: Decision::Allow, reason: None, question: None }
+        Self { decision: Decision::Allow, reason: None }
     }
     pub fn deny(reason: impl Into<String>) -> Self {
-        Self { decision: Decision::Deny, reason: Some(reason.into()), question: None }
-    }
-    pub fn prompt(question: impl Into<String>) -> Self {
-        Self { decision: Decision::Prompt, reason: None, question: Some(question.into()) }
+        Self { decision: Decision::Deny, reason: Some(reason.into()) }
     }
 }
 
 pub struct Engine {
+    mode: String,
     deny_bash: RegexSet,
-    prompt_bash: RegexSet,
     deny_tools: Vec<String>,
-    prompt_tools: Vec<String>,
+    allow_tools: Vec<String>,
 }
 
 impl Engine {
     pub fn from_policy(p: &Policy) -> Result<Self> {
+        if p.mode != "deny_list_only" && p.mode != "allow_list" {
+            anyhow::bail!("unknown policy mode: '{}' (expected 'deny_list_only' or 'allow_list')", p.mode);
+        }
         Ok(Engine {
+            mode: p.mode.clone(),
             deny_bash: RegexSet::new(&p.deny_bash_patterns)?,
-            prompt_bash: RegexSet::new(&p.prompt_bash_patterns)?,
             deny_tools: p.deny_tools.clone(),
-            prompt_tools: p.prompt_tools.clone(),
+            allow_tools: p.allow_tools.clone(),
         })
     }
 
     pub fn evaluate(&self, tool: &str, args: &[String]) -> DecisionOut {
-        // tool-level gates
+        // Allow-list mode: default deny unless tool is explicitly allowed.
+        if self.mode == "allow_list" {
+            let allowed = self.allow_tools.iter().any(|t| t == tool);
+            if !allowed {
+                return DecisionOut::deny(format!("tool {tool} not in allow_tools (mode: allow_list)"));
+            }
+            // Allowed tools still go through bash pattern checks below.
+        }
+        // Deny-list gates (run in both modes)
         if self.deny_tools.iter().any(|t| t == tool) {
             return DecisionOut::deny(format!("tool {tool} is in deny_tools"));
         }
-        if self.prompt_tools.iter().any(|t| t == tool) {
-            return DecisionOut::prompt(format!("Allow tool {tool}?"));
-        }
-        // bash-level gates only apply when tool is Bash
         if tool == "Bash" {
             let cmdline = args.join(" ");
             if self.deny_bash.is_match(&cmdline) {
                 return DecisionOut::deny(format!("matches deny_bash_patterns: {cmdline}"));
-            }
-            if self.prompt_bash.is_match(&cmdline) {
-                return DecisionOut::prompt(format!("Allow: {cmdline}?"));
             }
         }
         DecisionOut::allow()
@@ -88,17 +86,26 @@ pub struct GuardInput {
 
 pub fn evaluate_from_json(input_json: &str, policy: &Policy) -> Result<String> {
     let input: GuardInput = serde_json::from_str(input_json)?;
-    let engine = Engine::from_policy(policy)?;
-    let args = if input.tool_name == "Bash" {
-        vec![input.tool_input.command.clone()]
-    } else {
-        vec![]
-    };
-    let mut out = engine.evaluate(&input.tool_name, &args);
-    // headless trust: no TTY → allow on prompt (v0.1 always treats as headless)
-    if out.decision == Decision::Prompt {
-        out = DecisionOut::allow();
+    // Fast path: non-Bash tools only need deny_tools + allow_tools check (Vec scan).
+    // Skip the expensive RegexSet compile for deny_bash_patterns.
+    if input.tool_name != "Bash" {
+        let out = if policy.mode == "allow_list"
+            && !policy.allow_tools.iter().any(|t| t == &input.tool_name)
+        {
+            DecisionOut::deny(format!(
+                "tool {} not in allow_tools (mode: allow_list)",
+                input.tool_name
+            ))
+        } else if policy.deny_tools.iter().any(|t| t == &input.tool_name) {
+            DecisionOut::deny(format!("tool {} is in deny_tools", input.tool_name))
+        } else {
+            DecisionOut::allow()
+        };
+        return Ok(serde_json::to_string(&out)?);
     }
+    let engine = Engine::from_policy(policy)?;
+    let args = vec![input.tool_input.command.clone()];
+    let out = engine.evaluate(&input.tool_name, &args);
     Ok(serde_json::to_string(&out)?)
 }
 
@@ -120,11 +127,9 @@ mod tests {
         Policy {
             version: 1,
             mode: "deny_list_only".to_string(),
-            pinned_for: Default::default(),
             deny_bash_patterns: vec![],
-            prompt_bash_patterns: vec![],
             deny_tools: vec![],
-            prompt_tools: vec![],
+            allow_tools: vec![],
         }
     }
 
@@ -139,12 +144,6 @@ mod tests {
     fn policy_with_deny_bash(patterns: Vec<&str>) -> Policy {
         let mut p = empty_policy();
         p.deny_bash_patterns = patterns.into_iter().map(String::from).collect();
-        p
-    }
-
-    fn policy_with_prompt_bash(patterns: Vec<&str>) -> Policy {
-        let mut p = empty_policy();
-        p.prompt_bash_patterns = patterns.into_iter().map(String::from).collect();
         p
     }
 
@@ -166,25 +165,6 @@ mod tests {
     }
 
     #[test]
-    fn prompt_bash_pattern_prompts_on_match() {
-        let p = policy_with_prompt_bash(vec![r"\bgit\s+push\s+.*--force"]);
-        let engine = Engine::from_policy(&p).unwrap();
-        let d = engine.evaluate("Bash", &["git".into(), "push".into(), "--force".into()]);
-        assert_eq!(d.decision, Decision::Prompt);
-        assert!(d.question.is_some());
-    }
-
-    #[test]
-    fn deny_beats_prompt_on_same_command() {
-        let mut p = empty_policy();
-        p.deny_bash_patterns = vec![r"\brm\b".into()];
-        p.prompt_bash_patterns = vec![r"\brm\b".into()];
-        let engine = Engine::from_policy(&p).unwrap();
-        let d = engine.evaluate("Bash", &["rm".into(), "foo".into()]);
-        assert_eq!(d.decision, Decision::Deny);
-    }
-
-    #[test]
     fn non_bash_tool_ignores_bash_patterns() {
         let p = policy_with_deny_bash(vec![r"rm"]);
         let engine = Engine::from_policy(&p).unwrap();
@@ -199,15 +179,6 @@ mod tests {
         let engine = Engine::from_policy(&p).unwrap();
         let d = engine.evaluate("WebFetch", &[]);
         assert_eq!(d.decision, Decision::Deny);
-    }
-
-    #[test]
-    fn prompt_tools_asks_for_named_tool() {
-        let mut p = empty_policy();
-        p.prompt_tools = vec!["Edit".into()];
-        let engine = Engine::from_policy(&p).unwrap();
-        let d = engine.evaluate("Edit", &[]);
-        assert_eq!(d.decision, Decision::Prompt);
     }
 
     #[test]
@@ -238,15 +209,6 @@ mod tests {
     }
 
     #[test]
-    fn evaluate_from_json_prompt_downgraded_to_allow_in_headless() {
-        let mut p = empty_policy();
-        p.prompt_bash_patterns = vec![r"\bgit push --force\b".into()];
-        let input = r#"{"session_id":"s","transcript_path":"/tmp/t","cwd":"/tmp","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git push --force"}}"#;
-        let out = evaluate_from_json(input, &p).unwrap();
-        assert!(out.contains(r#""decision":"allow""#));
-    }
-
-    #[test]
     fn evaluate_from_json_accepts_real_claude_code_shape() {
         let mut p = empty_policy();
         p.deny_bash_patterns = vec![r"\brm\s+-rf\s+/".into()];
@@ -263,5 +225,61 @@ mod tests {
         }"#;
         let out = evaluate_from_json(input, &p).unwrap();
         assert!(out.contains(r#""decision":"deny""#));
+    }
+
+    #[test]
+    fn allow_list_mode_denies_unlisted_tool() {
+        let mut p = empty_policy();
+        p.mode = "allow_list".to_string();
+        p.allow_tools = vec!["Read".into(), "Bash".into()];
+        let engine = Engine::from_policy(&p).unwrap();
+        assert_eq!(engine.evaluate("Read", &[]).decision, Decision::Allow);
+        assert_eq!(engine.evaluate("Write", &[]).decision, Decision::Deny);
+        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Allow);
+    }
+
+    #[test]
+    fn allow_list_empty_denies_everything() {
+        let mut p = empty_policy();
+        p.mode = "allow_list".to_string();
+        let engine = Engine::from_policy(&p).unwrap();
+        assert_eq!(engine.evaluate("Read", &[]).decision, Decision::Deny);
+        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Deny);
+    }
+
+    #[test]
+    fn allow_list_still_enforces_deny_bash() {
+        let mut p = empty_policy();
+        p.mode = "allow_list".to_string();
+        p.allow_tools = vec!["Bash".into()];
+        p.deny_bash_patterns = vec![r"\brm\s+-rf\s+/".into()];
+        let engine = Engine::from_policy(&p).unwrap();
+        assert_eq!(engine.evaluate("Bash", &["ls".into()]).decision, Decision::Allow);
+        assert_eq!(
+            engine.evaluate("Bash", &["rm -rf /".into()]).decision,
+            Decision::Deny
+        );
+    }
+
+    #[test]
+    fn non_bash_fast_path_respects_allow_list() {
+        let mut p = empty_policy();
+        p.mode = "allow_list".to_string();
+        p.allow_tools = vec!["Read".into()];
+        let input = r#"{"tool_name":"Write","tool_input":{}}"#;
+        let out = evaluate_from_json(input, &p).unwrap();
+        assert!(out.contains(r#""decision":"deny""#));
+        let input2 = r#"{"tool_name":"Read","tool_input":{}}"#;
+        let out2 = evaluate_from_json(input2, &p).unwrap();
+        assert!(out2.contains(r#""decision":"allow""#));
+    }
+
+    #[test]
+    fn malformed_policy_yaml_fails_closed() {
+        use std::io::Write;
+        let mut f = tempfile::NamedTempFile::new().unwrap();
+        writeln!(f, "not: valid: yaml: {{{{").unwrap();
+        let result = crate::config::Policy::load(f.path());
+        assert!(result.is_err(), "malformed policy.yaml must fail, not silently allow");
     }
 }
