@@ -109,13 +109,11 @@ After each round, immediately assess and dispatch next round if frontier still m
 
 **Caps:** <=4 rounds, <=12 teammates, <=200-word proposals. Lift only on user direction.
 
-## Step 6 — Hold after frontier
+## Step 6 — Auto-cleanup after frontier
 
-Team stays alive. User may Shift+Down, send "godspeed" to resume with new axis, or ask follow-ups.
+When the frontier stops moving (zero survivors / duplicates / 4 rounds / user halt): emit the final DRAFT, then immediately shutdown all teammates via `SendMessage shutdown_request` in parallel, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask for permission — the team has served its purpose, kill it.
 
-## Cleanup
-
-On explicit user request only: shutdown all teammates -> TeamDelete -> confirm.
+If the user wants a new axis, they invoke `/xgs` again; spawning is cheap.
 
 ## Step 7 — Status after init
 

@@ -110,7 +110,9 @@ codex exec \
   "$PROMPT"
 ```
 
-Note: `include_*` key names are sourced from Codex help text examples; the binary does not expose a config schema. Unknown keys are silently ignored (TOML parser falls back to raw string). Confirm validity against current binary before relying on these for suppression.
+**VERIFIED 2026-04-13 (codex-cli 0.120.0)** via `codex debug prompt-input` diff: all three flags work as documented. Baseline prompt: 25,599 tokens with full `<permissions instructions>`, `<apps_instructions>`, `<environment_context>` blocks. Suppressed: 22,226 tokens (−3,373), all three blocks literally absent. Confirmation: `codex debug prompt-input -c include_permissions_instructions=false "test"` shows no permissions block in the rendered model-visible prompt.
+
+**Residual contamination (not suppressible):** `<skills_instructions>` and `<plugins_instructions>` blocks persist regardless of flags. No `include_skills_instructions` or `include_plugins_instructions` key exists in v0.120.0. `--direct` mode therefore leaks the skills list and plugin list. For true clean dispatch, unregister non-essential skills/plugins in `~/.codex/config.toml`.
 
 ### Default approval and sandbox
 
@@ -163,6 +165,7 @@ Templates at `~/projects/the-crossbreeder/templates/dispatch/{gemini,codex}.md` 
 
 ## Open issues
 
-1. **Codex `-c include_*` keys unverified** — the binary has no string matches for `include_permissions_instructions`. Test with `codex exec -c include_permissions_instructions=false --debug "echo test"` to confirm suppression.
-2. **JIT GEMINI.md injection** — no disable flag for runtime-touch injection. Monitor context size with `--debug` in Gemini.
-3. **xbreed gemini profiles** — if `~/.config/xbreed/gemini-profiles/primary/` is created in the future, the profile's `~/.gemini/settings.json` must also have `includeDirectoryTree: false` for clean dispatch to work.
+1. ~~**Codex `-c include_*` keys unverified**~~ — **RESOLVED 2026-04-13**: verified working via `codex debug prompt-input` diff (see Codex CLI section above).
+2. **Codex skills/plugins instructions not suppressible** — no `include_skills_instructions=false` flag exists. Residual ~500-token contamination per dispatch. Workaround: unregister unused skills/plugins in `~/.codex/config.toml`.
+3. **JIT GEMINI.md injection** — no disable flag for runtime-touch injection. Monitor context size with `--debug` in Gemini.
+4. **xbreed gemini profiles** — if `~/.config/xbreed/gemini-profiles/primary/` is created in the future, the profile's `~/.gemini/settings.json` must also have `includeDirectoryTree: false` for clean dispatch to work.

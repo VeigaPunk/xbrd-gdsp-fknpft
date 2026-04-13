@@ -113,6 +113,10 @@ CONFLICTS (emit only if cross-model contradictions exist):
 Do not pause. Do not ask. User interrupts to steer. Keep iterating
 Caps: <=4 rounds, <=12 teammates, <=200-word proposals.
 
+## Step 6 — Auto-cleanup after frontier
+
+When the frontier stops moving (zero survivors / duplicates / 4 rounds / user halt): emit final DRAFT, then immediately shutdown all teammates in parallel via `SendMessage shutdown_request`, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask — kill it. User re-invokes `/xbgst` if they want a new axis.
+
 ## Step 7 — Status after init
 
 Emit: team name, axes, teammates + xask targets, waiting on Round N.

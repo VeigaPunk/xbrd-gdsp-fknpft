@@ -123,13 +123,11 @@ Using the distiller's synthesis, the judge **mediates**:
 **This is NOT godspeed.** Deliberative rounds are sequential depth (judge challenges, teammates refine). For parallel Pareto width, use `/xgs`.
 
 
-## Cleanup protocol
+## Auto-cleanup after DRAFT
 
-1. List active teammates.
-2. Send `SendMessage({to: <name>, message: {type: "shutdown_request", reason: "work complete"}})` to each.
-3. Wait for `shutdown_approved` responses.
-4. Call `TeamDelete`.
-5. Confirm.
+Once the final DRAFT is emitted (frontier reached / 4 rounds / halt): immediately shutdown all teammates in parallel via `SendMessage shutdown_request`, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask the user — the team served its purpose, kill it.
+
+If the user wants to continue on a new axis, they invoke `/xbt` again; spawning is cheap.
 
 ## Step 7 — Emit a brief status after initialization
 
