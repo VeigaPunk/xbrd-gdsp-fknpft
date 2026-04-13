@@ -16,14 +16,17 @@ pub fn materialize_claude_settings(policy_path: &Path) -> Value {
         }
     });
 
-    if std::env::var("TMUX").is_ok() {
-        settings["env"] = json!({
-            "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-        });
-        settings["preferences"] = json!({
-            "teammateMode": "tmux"
-        });
-    }
+    // xbreed is built around multi-teammate orchestration with live peer DMs;
+    // those DMs only work when each teammate runs as its own CC session (tmux
+    // pane or iTerm2 native pane). `teammateMode: "auto"` picks `in-process`,
+    // which reduces teammates to fire-and-forget subagents — SendMessage to a
+    // peer that already returned is a silent no-op, breaking cross-DM critique.
+    // Always emit the flags so the setup is independent of whether `$TMUX` was
+    // set at sync time.
+    settings["env"] = json!({
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    });
+    settings["teammateMode"] = json!("tmux");
 
     settings
 }
@@ -64,22 +67,17 @@ mod tests {
     }
 
     #[test]
-    fn materialize_includes_tmux_settings_when_tmux_set() {
-        // SAFETY: test runs single-threaded (--test-threads=1)
-        unsafe { std::env::set_var("TMUX", "/tmp/tmux-1000/default,12345,0") };
+    fn materialize_always_emits_tmux_teammate_mode() {
         let v = materialize_claude_settings(&PathBuf::from("/x/policy.yaml"));
-        unsafe { std::env::remove_var("TMUX") };
         assert_eq!(v["env"]["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"], "1");
-        assert_eq!(v["preferences"]["teammateMode"], "tmux");
-    }
-
-    #[test]
-    fn materialize_excludes_tmux_settings_when_tmux_unset() {
-        // SAFETY: test runs single-threaded (--test-threads=1)
-        unsafe { std::env::remove_var("TMUX") };
-        let v = materialize_claude_settings(&PathBuf::from("/x/policy.yaml"));
-        assert!(v.get("env").is_none());
-        assert!(v.get("preferences").is_none());
+        assert_eq!(
+            v["teammateMode"], "tmux",
+            "teammateMode is a top-level setting — CC reads it via J8().teammateMode, not from a `preferences` sub-object"
+        );
+        assert!(
+            v.get("preferences").is_none(),
+            "no `preferences` wrapper — CC's settings schema does not nest teammateMode"
+        );
     }
 
     #[test]
