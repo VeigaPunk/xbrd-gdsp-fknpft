@@ -99,7 +99,7 @@ Every teammate brief MUST include the structural xask gate as the FIRST instruct
 
 ### Budget
 
-Default to 2-3 teammates for most prompts. Scale up only if the problem has 4+ genuinely independent sub-questions. Don't spawn teammates you have no specific task for.
+Default to 2-3 teammates for most prompts. Scale up (to 6 max) only if the problem has 4+ genuinely independent sub-questions. Don't spawn teammates you have no specific task for.
 
 ## Step 5 — Deliberative rounds (judge-driven iteration)
 

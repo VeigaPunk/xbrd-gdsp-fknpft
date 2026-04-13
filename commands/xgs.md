@@ -53,7 +53,7 @@ Axis -> profile mapping:
 - Synthesis, dedup -> `distiller` (sonnet)
 - Complexity reduction -> `simplifier` (sonnet)
 
-Cap: <=4 teammates per round.
+Cap: <=6 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster
 
@@ -92,7 +92,7 @@ CONFLICTS (emit only if cross-teammate contradictions exist):
 
 After each round, immediately assess and dispatch next round if frontier still moving. Do not pause. Do not ask. The user interrupts when they want to steer.
 
-**Caps:** <=4 rounds, <=4 teammates, <=200-word proposals. Lift only on user direction.
+**Caps:** <=4 rounds, <=6 teammates, <=200-word proposals. Lift only on user direction.
 
 ## Step 6 — Hold after frontier
 

@@ -55,7 +55,7 @@ Axis -> profile mapping:
 - Synthesis, dedup -> `distiller` (sonnet) — in-session
 - Complexity reduction -> `simplifier` (sonnet) — CC native
 
-Cap: <=4 teammates per round.
+Cap: <=6 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
@@ -111,7 +111,7 @@ CONFLICTS (emit only if cross-model contradictions exist):
 ## Step 5 — Keep iterating
 
 Do not pause. Do not ask. User interrupts to steer.
-Caps: <=4 rounds, <=4 teammates, <=200-word proposals.
+Caps: <=4 rounds, <=6 teammates, <=200-word proposals.
 
 ## Step 6 — Hold after frontier
 

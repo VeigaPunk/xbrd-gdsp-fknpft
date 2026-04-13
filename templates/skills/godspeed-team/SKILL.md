@@ -1,6 +1,6 @@
 ---
 name: godspeed-team
-description: Godspeed Pareto walk at team scale — spawn 3-5 perspective subagents, let the frontier walk, report variants without picking a winner. Inherits the godspeed skill — its posture applies in every phase. Triggered by "xbreed", "team", "xbreed team", "godspeed team", "godspeed-team", "--with godspeed-team", or any task naming multiple conflicting optimization axes. The keyword triggers fire anywhere in user input, including at end-of-sentence and in passing — mirror godspeed's trigger semantics exactly.
+description: Godspeed Pareto walk at team scale — spawn 3-6 perspective subagents, let the frontier walk, report variants without picking a winner. Inherits the godspeed skill — its posture applies in every phase. Triggered by "xbreed", "team", "xbreed team", "godspeed team", "godspeed-team", "--with godspeed-team", or any task naming multiple conflicting optimization axes. The keyword triggers fire anywhere in user input, including at end-of-sentence and in passing — mirror godspeed's trigger semantics exactly.
 ---
 
 # Godspeed Team Mode
@@ -9,7 +9,7 @@ You are a Godspeed team lead. This skill inherits the `godspeed` skill — its f
 
 1. **Name the axes.** 2-3 conflicting dimensions, one sentence each. No clarifying questions — vagueness is search signal.
 
-2. **Spawn 3-5 perspective teammates in one turn.** Pick from the shape of the task:
+2. **Spawn 3-6 perspective teammates in one turn.** Pick from the shape of the task:
    - `connector` — cross-axis structural analysis
    - `reviewer` — adversarial, read-only, never implements
    - `executor` — fastest-path working stubs
@@ -52,7 +52,7 @@ You are a Godspeed team lead. This skill inherits the `godspeed` skill — its f
 Two user-facing keywords bind directly to dispatch shapes:
 
 - **"xbreed"** — the user says this when they want you to dispatch via `xbreed ask gemini --with godspeed,godspeed-team "<loose brief>"`. Gemini is the DEFAULT CLI under the xbreed trigger (1M ctx + silent customtools routing via OAuth cascade). Use this shape whenever the user's message contains "xbreed" as an invocation keyword, unless they explicitly name a different CLI (e.g. "xbreed codex ...").
-- **"team"** — the user says this when they want you to orchestrate 3–5 subagents that all act as sub-leads with godspeed posture. Not just one sub-lead — a fan-out. Each teammate inherits godspeed (`--with godspeed,godspeed-team` in their loadout if dispatched via xbreed; godspeed-inheritance note in their brief if dispatched via native `Agent()`).
+- **"team"** — the user says this when they want you to orchestrate 3–6 subagents that all act as sub-leads with godspeed posture. Not just one sub-lead — a fan-out. Each teammate inherits godspeed (`--with godspeed,godspeed-team` in their loadout if dispatched via xbreed; godspeed-inheritance note in their brief if dispatched via native `Agent()`).
 
 When both triggers appear ("xbreed team"), fan out multiple `xbreed ask gemini` sub-leads in one turn, each with its own axis slice, all loaded with godspeed + godspeed-team. This is the deepest form of the recursive hierarchy.
 
@@ -178,7 +178,7 @@ any downstream dispatches. No clarifying questions — vagueness is search signa
 - Stateless shell dispatch aligns with xbreed's core identity
 
 **When to use recursive hierarchy vs flat dispatch:**
-- **Flat** (3-5 native `Agent()` teammates in one turn): task is well-bounded, axes are known, claude-only is fine. Each teammate contributes one variant. Main lead merges.
+- **Flat** (3-6 native `Agent()` teammates in one turn): task is well-bounded, axes are known, claude-only is fine. Each teammate contributes one variant. Main lead merges.
 - **Recursive hierarchy** (one `xbreed ask gemini` sub-lead with labrat license): task structure is unknown — you need the sub-level to *discover* the right axes before exploring them. Use `sl-<axis>-01` + labrats when naming the axes is itself hard.
 
 Rule of thumb: if you can write 2-3 axes in one sentence each, use flat dispatch. If naming the axes is the hard part, use recursive hierarchy.
@@ -229,7 +229,7 @@ The `--inject` flag outputs Claude Code's `hookSpecificOutput.additionalContext`
 
 ## Constraints
 
-- **3-5 teammates max per flat dispatch.** Token costs scale linearly. Focused beats scattered.
+- **3-6 teammates max per flat dispatch.** Token costs scale linearly. Focused beats scattered.
 - **Single-turn dispatch per phase.** Batch hard. Do not serialize what can run in parallel.
 - **Stop when the frontier stops moving.** No definition of done — the frontier reveals itself by ceasing to evolve. Do not stop to ask permission between rounds.
 - **Iterate autonomously.** After each round, if any axis improved, dispatch the next round immediately. The user interrupts when they want to steer — that is their control, not your prompts.
