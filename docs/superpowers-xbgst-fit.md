@@ -2,6 +2,8 @@
 
 > Produced via `/xbgst` Round 1 — team `superpowers-fit-gst-1744545000`.
 > 6 axes, 6 teammates (3 gemini / 3 codex / mix), 1 distiller, Pareto-filtered.
+>
+> **Round 2 (2026-04-13, team `sp-xbgst-impl-1744545600`):** M1-M5 re-synthesised with 4 teammates + distiller. All five moves survive with amendments — evidence schema shipped as atomic bundle with distiller passthrough + closed-enum exempt allowlist; M2 reformulated to test-output pair (no SHA ceremony) with executor.md rewrite as prerequisite pair; M4 demoted from "canonical" to "reference" to preserve xbreed-shared.md SSoT; M5 taxonomy split into three buckets (10 cuts, not 11).
 
 ## AXES JUDGED
 integration-surface · correctness-fit · complexity-subset · adversarial-breakage · empirical-probe · cross-axis-callsites
@@ -32,7 +34,13 @@ The fit is **structural, not instructional.** Superpowers contributes *principle
 **Change:** Cite `superpowers:dispatching-parallel-agents` in `xbreed-shared.md` Phase 2 as the canonical pattern for crafted-brief + isolated-context + concurrent-dispatch. This is already what /xbgst does; naming it reduces drift and gives teammates a shared mental model.
 
 ### M5 · Explicit cut-list · [moderate]
-Skip everything else: `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`, `requesting/receiving-code-review`, `using-git-worktrees`, `using-superpowers`, `systematic-debugging`, `writing-skills`. Each addresses either pre-`/xbgst` ceremony or post-`/xbgst` cleanup — neither phase exists inside the runtime loop. YAGNI.
+Skip 10 Superpowers skills, grouped by reason:
+
+- **Serialization-incompatible** (serial human-gate checkpoints contradict godspeed): `systematic-debugging`, `executing-plans`, `receiving-code-review`.
+- **Lifecycle-position** (pre-`/xbgst` ceremony or post-`/xbgst` cleanup — neither phase exists inside the runtime loop): `writing-plans`, `finishing-a-development-branch`, `requesting-code-review`, `using-git-worktrees`, `using-superpowers`.
+- **Domain/superseded** (addressed by /xbgst's own primitives): `subagent-driven-development`, `writing-skills`.
+
+`test-driven-development` is kept selectively via M2 (red-before-green encoded in executor-lane evidence). YAGNI everywhere else.
 
 ## CONFLICTS
 

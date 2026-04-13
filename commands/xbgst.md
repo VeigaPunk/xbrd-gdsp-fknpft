@@ -36,6 +36,8 @@ $ARGUMENTS
 
 If empty, wait for user direction. Otherwise, proceed to four-phase godspeed with xask.
 
+**Pre-flight expectation:** `/xbgst` runs on an already-scoped prompt. If the user's intent is unclear, design-shaped, or pre-specification, point them to the Superpowers `brainstorming` skill first — that HARD-GATE produces the approved spec that becomes `/xbgst`'s input. Inside the walk, clarifying questions are suppressed (godspeed); ambiguity must be resolved upstream. This is guidance, not a prerequisite — the judge may still proceed on a rough prompt when the axes are self-evident.
+
 ## Step 4 — Four-phase godspeed protocol (with xask gate)
 
 ### Phase 0 — Name the axes
@@ -64,9 +66,11 @@ Each brief includes:
 2. Axis assignment
 3. **Godspeed mode** (always — /xbgst is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
 4. **Structural xask gate** (per-role, three layers)
-5. Task: propose ONE move (<=200 words)
+5. Task: propose ONE move (<=200 words) **with a structured `evidence:` field** (see Evidence Schema in `xbreed-shared.md`)
 6. After proposing, DM each peer with one-line critique
 7. Mark task completed
+
+**Executor lane — `|godspeed-impl` suffix variant:** when spawning `executor` teammates, append `|godspeed-impl` instead of plain `|godspeed`. Adds to the godspeed directive: *"A move is a complete red-before-green cycle — `evidence:` must include failing-test output AND passing-test output (two test runs, no commit SHAs). If no test harness exists in the scope, attach diff + rationale as evidence. Non-executable axes are not eligible for the executor lane."* All other roles inherit plain `|godspeed`; TDD ordering is out-of-scope for research/critique lanes by domain, not waived.
 
 #### xask gate, epistemic constraints
 
@@ -89,6 +93,8 @@ Agent(
 ```
 
 **Pareto filter (on distiller output):** Accept strict improvers, reject regressions. Compile ROUND N summary.
+
+Every surviving move must carry a structured `evidence:` field matching the **Pareto Filter Evidence Schema** in `xbreed-shared.md`. Moves lacking the required form (e.g., executor-lane proposal with no failing/passing test output) are **dropped, not scored**. Distiller passes the field through verbatim — do not prose-absorb. Non-executable axes use the negative convention: `evidence: none — <axis reason>`.
 
 **Re-distill each round:** For rounds 2+, send updated proposals to the distiller via SendMessage. Only re-spawn if shut down.
 
