@@ -71,7 +71,7 @@ OPEN QUESTIONS FOR SUB-ROLES: <if needed>
 
 ## Godspeed mode
 
-When the prompt contains "godspeed": name axes (up to 8, each with direction + observable), dispatch up to 12 specialists per round, run Pareto filter (accept moves that improve ≥1 axis and regress none), compile round summary, exit when frontier stops moving or 4 rounds reached.
+When the prompt contains "godspeed": name axes (up to 8, each with direction + observable), dispatch up to 12 specialists per round, run Pareto filter (evidence gate first: drop moves missing required `evidence:` per `axis_family` — see xbreed-shared.md Pareto Filter Evidence Schema; then accept remaining moves that improve ≥1 axis and regress none), compile round summary, exit only when Round N produced zero axis improvements vs Round N-1 or 4 rounds reached (see Exit Condition in xbreed-shared.md).
 
 **Labrat swarm:** up to 12 labrats in parallel for broad empirical probes. Fire-and-forget — no TaskCreate, they report via SendMessage + DESPAWN signal.
 

@@ -16,22 +16,22 @@ The fit is **structural, not instructional.** Superpowers contributes *principle
 
 ## SYNTHESIS — five surviving moves
 
-### M1 · Evidence-field Pareto gate · [high confidence, 5-source convergence]
+### M1 · Evidence-field Pareto gate (atomic bundle) · [high confidence, Round 2 amended]
 **Source principle:** `verification-before-completion`
-**Change:** Phase 3 Pareto filter schema requires an `evidence:` field on every proposed move. Empty is allowed only for non-executable axes (docs, coordination, research). For executor / simplifier / mutation-tester moves, evidence = fresh verification output (test suite exit code, diff, SHA pair). Moves without required evidence are **dropped, not scored** — the verification discipline is enforced by the filter, not by the agent's willingness to comply.
-**Why selective, not blanket:** Labrat falsified the universal framing — exit 0 ≠ semantic completeness, and docs/coordination tasks have no runnable command. The schema is task-aware.
+**Change:** Phase 3 Pareto filter schema requires an `evidence:` field on every proposed move. For executor / mutation-tester / sentinel / reviewer moves, evidence = fresh verification output (test stdout + exit code, diff, xask output). For non-executable axes (scout, connector, synthesis, orchestration, adversarial-design, complexity, reverse-engineering) the allowed form is `evidence: none — <axis reason>`. Moves without required evidence are **dropped, not scored**. The closed-enum exempt allowlist keys on `axis_family`; free-text self-classification is rejected.
+**Ships atomically with:** (a) distiller spawn template extension — byte-for-byte `evidence:` passthrough, no prose absorption; (b) `axis_family` closed enum in `xbreed-shared.md`. Landing M1 alone would silently drop all distilled executor moves.
 
-### M2 · Executor-lane `|godspeed-impl` variant · [moderate]
+### M2 · Executor-lane `|godspeed-impl` variant · [moderate, Round 2 amended]
 **Source principle:** Superpowers TDD red-green-refactor, scoped
-**Change:** Replace the raw `|godspeed` suffix for executor spawns only with `|godspeed-impl`. Preserves no-clarifying-questions and parallel-tool-calls directives; adds: *"A move is a complete TDD cycle — failing-test commit SHA + implementation commit SHA + passing CI output. Incomplete cycles are not Pareto-eligible."* All other teammate roles inherit plain `|godspeed`; TDD is out-of-scope for research/critique lanes by domain, not waived.
+**Change:** Replace the raw `|godspeed` suffix for executor spawns only with `|godspeed-impl`. Adds: *"A move is a complete red-before-green cycle — `evidence:` must include failing-test output AND passing-test output (two test runs, no commit SHAs). If no test harness exists in scope, attach diff + rationale as evidence. Non-executable axes are not eligible for the executor lane."* All other teammate roles inherit plain `|godspeed`; TDD-ordering is out-of-scope for research/critique lanes by domain, not waived. Executor.md `Completion is the metric` rule is rewritten to carry the `evidence:` return-format field.
 
 ### M3 · Pre-flight brainstorming as user ritual, not pipeline · [high, 3-source]
 **Source principle:** Superpowers `brainstorming` HARD-GATE
 **Change:** Document in `/xbgst` that **Superpowers brainstorming runs before `/xbgst` is invoked**, producing the approved spec that becomes `/xbgst`'s input prompt. Never inside the walk. This eliminates the "stop asking clarifying questions" contradiction at the architecture level.
 
-### M4 · `dispatching-parallel-agents` as canonical reference · [moderate]
+### M4 · `dispatching-parallel-agents` as reference (not canonical) · [moderate, Round 2 amended]
 **Source principle:** `dispatching-parallel-agents`
-**Change:** Cite `superpowers:dispatching-parallel-agents` in `xbreed-shared.md` Phase 2 as the canonical pattern for crafted-brief + isolated-context + concurrent-dispatch. This is already what /xbgst does; naming it reduces drift and gives teammates a shared mental model.
+**Change:** Cite `superpowers:dispatching-parallel-agents` in `xbreed-shared.md` as a **reference only** for the crafted-brief + isolated-context + concurrent-dispatch pattern. Demoted from "canonical" to "reference" — `xbreed-shared.md` is already declared SSoT in commit 31f5902; dual-canonical is split-brain.
 
 ### M5 · Explicit cut-list · [moderate]
 Skip 10 Superpowers skills, grouped by reason:
@@ -67,9 +67,9 @@ Skip 10 Superpowers skills, grouped by reason:
 |---|---|---|
 | integration-surface | ✅ | M1+M4 name the clean joinpoints |
 | correctness-fit | ✅ | C1+C2 structurally resolved |
-| complexity-subset | ✅ | M5 rejects 11 skills |
+| complexity-subset | ✅ | M5 rejects 10 skills (3-bucket taxonomy) |
 | adversarial-breakage | ✅ | M3 dissolves the recency-bias failure mode |
 | empirical-probe | ✅ | labrat's falsification preserved as "selective gate" |
 | cross-axis-callsites | ◻️ | matrix emitted but connector's top pick was Pareto-rejected |
 
-Frontier stable. Round 1 exits.
+**Round 2 adds (2026-04-13, commit 12578bf):** `the-judge.md` Pareto-filter description gains explicit evidence-gate step; `xbreed-shared.md` moved into repo + scope-tagged to Pareto modes only (informational in /xbt, /xbreed); distiller spawn template gains byte-for-byte `evidence:` constraint. Round 3 dispatched on the commit itself; see commit trailer.
