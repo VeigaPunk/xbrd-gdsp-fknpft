@@ -171,7 +171,7 @@ flowchart TD
     A["/xbreed <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
     B --> C[Adopt judge persona]
     C --> E{need sub-roles?}
-    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask codex, labrat→xask gemini)"]
+    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask codex, labrat→xask --spark codex)"]
     E -->|no| G[DRAFT output]
     F --> H["xask gate: first tool call = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     H --> I[aggregate findings]
@@ -205,7 +205,7 @@ flowchart TD
     B --> C[Adopt judge persona]
     C --> D["TeamCreate(team_name=...)"]
     D --> F[Parse prompt, pick sub-roles]
-    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask codex, labrat→xask gemini)"]
+    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask codex, labrat→xask --spark codex)"]
     G --> Gx["xask gate: first tool = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     Gx --> H[Create TaskCreate per teammate]
     H --> I[Wait for SendMessage replies]
@@ -284,7 +284,7 @@ sequenceDiagram
     par Phase 2: Spawn all teammates
         J->>T: scout brief (axis + xask gemini gate)
         J->>T: reviewer brief (axis + xask codex gate)
-        J->>T: labrat brief (axis + xask gemini gate)
+        J->>T: labrat brief (axis + xask --spark codex gate)
         J->>T: connector brief (axis + xask gemini gate)
     end
 

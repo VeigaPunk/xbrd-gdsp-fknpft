@@ -20,6 +20,7 @@ xbreed ships 8 perspective agents in `templates/agents/`. Copy them to
 | **critic** | sonnet | Approach-level adversarial reviewer. Challenges design decisions, architectural assumptions, and strategy choices. Distinct from reviewer (code bugs) and sentinel (security). | `xask --effort high codex` for deep design review, `xask gemini` for alternatives |
 | **mutation-tester** | sonnet | Adversarial test suite validator. Generates code mutations, runs against tests, reports surviving mutants. Operates in worktrees for isolation. | `xask --spark codex` for mutation generation, `xask gemini` for target discovery |
 
+<!-- SYNC: read-only copy — source of truth is ~/.claude/commands/references/xbreed-shared.md Axis → Profile Mapping -->
 ## Dispatch table (the-judge reference)
 
 | Axis family | Agent | Delegation |
