@@ -53,16 +53,17 @@ Axis -> profile mapping:
 - Synthesis, dedup -> `distiller` (sonnet)
 - Complexity reduction -> `simplifier` (sonnet)
 
-Cap: <=6 teammates per round.
+Cap: <=4 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster
 
 Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment
-3. Task: propose ONE move (<=200 words)
-4. After proposing, DM each peer by name with one-line critique
-5. Mark task completed
+3. **Godspeed mode** (always — /xgs is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+4. Task: propose ONE move (<=200 words)
+5. After proposing, DM each peer by name with one-line critique
+6. Mark task completed
 
 **No xask gate.** Teammates use CC native tools. This is the all-Claude fast path.
 
@@ -72,7 +73,21 @@ Create TaskCreate per teammate.
 
 ### Phase 3 — Round 1 begins
 
-**Pareto filter:** Accept moves improving >=1 axis with zero regressions. Reject moves with regressions. Compile survivors into ROUND N summary.
+**Distiller synthesis:** Once all teammates have proposed AND cross-critique DMs have landed, spawn the distiller:
+
+```
+Agent(
+  subagent_type="distiller",
+  team_name="<team>",
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+)
+```
+
+**Pareto filter (on distiller output):** Accept moves improving >=1 axis with zero regressions. Reject moves with regressions. Compile survivors into ROUND N summary.
+
+**Re-distill each round:** For rounds 2+, send updated proposals to the distiller via SendMessage rather than re-spawning. Only re-spawn if the distiller has been shut down.
 
 **Exit check:** Frontier reached (zero survivors / duplicates / 4 rounds / user halt) -> final DRAFT with AXES FINAL STATE. Otherwise dispatch Round N+1.
 
@@ -92,7 +107,7 @@ CONFLICTS (emit only if cross-teammate contradictions exist):
 
 After each round, immediately assess and dispatch next round if frontier still moving. Do not pause. Do not ask. The user interrupts when they want to steer.
 
-**Caps:** <=4 rounds, <=6 teammates, <=200-word proposals. Lift only on user direction.
+**Caps:** <=4 rounds, <=4 teammates, <=200-word proposals. Lift only on user direction.
 
 ## Step 6 — Hold after frontier
 

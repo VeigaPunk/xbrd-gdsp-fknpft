@@ -56,17 +56,18 @@ Axis -> profile mapping (from the-judge.md dispatch table):
 - Findings synthesis, dedup -> `distiller` (sonnet) — in-session text synthesis (no xask)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet) — uses CC native tools
 
-Cap: <=6 teammates per round.
+Cap: <=4 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
 Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment (name + direction + observable)
-3. **Structural xask gate** (mandatory for roles that delegate)
-4. Task: propose ONE move on their axis (<=200 words)
-5. After proposing, DM each peer by name with a one-line critique
-6. Mark task completed after sending
+3. **Godspeed mode** (always — /xbgst is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+4. **Structural xask gate** (mandatory for roles that delegate)
+5. Task: propose ONE move on their axis (<=200 words)
+6. After proposing, DM each peer by name with a one-line critique
+7. Mark task completed after sending
 
 #### xask gate by role (four layers)
 
@@ -107,7 +108,21 @@ Create TaskCreate per teammate.
 
 Teammates work in parallel, invoking xask as their first tool call, then proposing moves.
 
-**Pareto filter (judge):** Build the moves x axes matrix. Accept moves improving >=1 axis with zero regressions. Reject moves with regressions. Compile survivors into ROUND N summary.
+**Distiller synthesis:** Once all teammates have proposed AND cross-critique DMs have landed, spawn the distiller:
+
+```
+Agent(
+  subagent_type="distiller",
+  team_name="<team>",
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+)
+```
+
+**Pareto filter (on distiller output):** Build the moves x axes matrix. Accept moves improving >=1 axis with zero regressions. Reject moves with regressions. Compile survivors into ROUND N summary.
+
+**Re-distill each round:** For rounds 2+, send updated proposals to the distiller via SendMessage. Only re-spawn if shut down.
 
 **CONFLICTS block** uses **model labels** (not teammate labels) since cross-model delegation is active:
 ```
@@ -131,7 +146,7 @@ Trigger: opposite verdicts on same claim from different models.
 
 After each round, immediately assess and dispatch next round if frontier still moving. Do not pause. Do not ask. The user interrupts when they want to steer.
 
-**Caps:** <=4 rounds, <=6 teammates per round, <=200-word proposals. Lift only on user direction.
+**Caps:** <=4 rounds, <=4 teammates per round, <=200-word proposals. Lift only on user direction.
 
 ## Step 6 — Hold after frontier
 

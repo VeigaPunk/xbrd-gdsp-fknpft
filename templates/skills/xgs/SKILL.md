@@ -61,16 +61,17 @@ Axis -> profile mapping (from the-judge.md dispatch table):
 - Findings synthesis, dedup -> `distiller` (sonnet)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet)
 
-Team size cap: <=6 teammates per round.
+Team size cap: <=4 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster
 
 Spawn all teammates. Each brief includes:
 1. The full peer roster (all teammate names from Phase 1)
 2. Their axis assignment (name + direction + observable)
-3. Task: propose ONE move on their axis (<=200 words)
-4. After proposing, DM each peer by name with a one-line critique
-5. Mark task completed after sending
+3. **Godspeed mode** (always — /xgs is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+4. Task: propose ONE move on their axis (<=200 words)
+5. After proposing, DM each peer by name with a one-line critique
+6. Mark task completed after sending
 
 **No xask gate in /xgs.** Teammates use CC native tools (Read, Grep, Bash). This is the all-Claude fast path.
 
@@ -83,7 +84,21 @@ Create a TaskCreate task per teammate.
 
 Teammates work in parallel. As proposals and cross-critiques arrive:
 
-**Pareto filter (judge):** Build the moves x axes matrix. Accept any move that improves >=1 axis and regresses none. Reject moves with regressions. Compile surviving set into a brief ROUND N summary (plain text, not a full DRAFT).
+**Distiller synthesis:** Once all teammates have proposed AND cross-critique DMs have landed, spawn the distiller:
+
+```
+Agent(
+  subagent_type="distiller",
+  team_name="<team>",
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+)
+```
+
+**Pareto filter (on distiller output):** Build the moves x axes matrix. Accept any move that improves >=1 axis and regresses none. Reject moves with regressions. Compile surviving set into a brief ROUND N summary (plain text, not a full DRAFT).
+
+**Re-distill each round:** For rounds 2+, send updated proposals to the distiller via SendMessage rather than re-spawning. Only re-spawn if the distiller has been shut down.
 
 **Exit check:** If frontier reached (zero survivors / duplicates / 4 rounds / user halt), emit the final DRAFT per the-judge.md drafting protocol with an added `AXES FINAL STATE` section.
 
@@ -107,7 +122,7 @@ Trigger: opposite verdicts on same claim, OR one teammate's move regresses anoth
 
 After delivering a round's results, immediately assess: did any axis improve? If yes, dispatch the next round. Do not pause to ask "what next?" or prompt cleanup. The user interrupts when they want to steer. Keep the Pareto walk moving until the frontier stops or 4 rounds hit.
 
-**Caps:** <=4 rounds, <=6 teammates per round, <=200-word proposals per teammate. Lift only on explicit user direction.
+**Caps:** <=4 rounds, <=4 teammates per round, <=200-word proposals per teammate. Lift only on explicit user direction.
 
 ## Step 6 — Hold after frontier
 

@@ -55,17 +55,18 @@ Axis -> profile mapping:
 - Synthesis, dedup -> `distiller` (sonnet) — in-session
 - Complexity reduction -> `simplifier` (sonnet) — CC native
 
-Cap: <=6 teammates per round.
+Cap: <=4 teammates per round.
 
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
 Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment
-3. **Structural xask gate** (per-role, three layers)
-4. Task: propose ONE move (<=200 words)
-5. After proposing, DM each peer with one-line critique
-6. Mark task completed
+3. **Godspeed mode** (always — /xbgst is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+4. **Structural xask gate** (per-role, three layers)
+5. Task: propose ONE move (<=200 words)
+6. After proposing, DM each peer with one-line critique
+7. Mark task completed
 
 #### xask gate by role
 
@@ -90,7 +91,21 @@ Create TaskCreate per teammate.
 
 ### Phase 3 — Rounds begin
 
-**Pareto filter:** Accept strict improvers, reject regressions. Compile ROUND N summary.
+**Distiller synthesis:** Once all teammates have proposed AND cross-critique DMs have landed, spawn the distiller:
+
+```
+Agent(
+  subagent_type="distiller",
+  team_name="<team>",
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+)
+```
+
+**Pareto filter (on distiller output):** Accept strict improvers, reject regressions. Compile ROUND N summary.
+
+**Re-distill each round:** For rounds 2+, send updated proposals to the distiller via SendMessage. Only re-spawn if shut down.
 
 **CONFLICTS block** uses **model labels**:
 ```
@@ -111,7 +126,7 @@ CONFLICTS (emit only if cross-model contradictions exist):
 ## Step 5 — Keep iterating
 
 Do not pause. Do not ask. User interrupts to steer.
-Caps: <=4 rounds, <=6 teammates, <=200-word proposals.
+Caps: <=4 rounds, <=4 teammates, <=200-word proposals.
 
 ## Step 6 — Hold after frontier
 

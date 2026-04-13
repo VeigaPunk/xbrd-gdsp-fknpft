@@ -52,7 +52,7 @@ Agent(
   team_name="<the team you just created>",
   name="<unique teammate name>",
   model="sonnet" | "haiku",
-  prompt="<task brief with mandatory xask gate>"
+  prompt="<task brief with mandatory xask gate and peer roster>"
 )
 ```
 
@@ -61,6 +61,20 @@ These are **real teammates** — they persist, can be chatted with via Shift+Dow
 **DO NOT** fall back to `Agent(subagent_type="general-purpose", ...)` with inlined persona.
 
 **Create a TaskCreate task per sub-role before or immediately after spawning.**
+
+### Peer roster and cross-critique DMs
+
+Every teammate brief MUST include:
+1. **Full peer roster** — all teammate names committed in this dispatch (so they can DM each other)
+2. **Cross-critique instruction:** `"After completing your research/analysis, DM each peer by name with a one-line critique or reinforcement of their likely findings based on what you discovered. Use SendMessage({to: '<peer-name>', message: '<critique>'})."`
+
+Peers DM each other directly for lateral information flow. The judge collects all reports + DM summaries and pastes them into the distiller's prompt for synthesis.
+
+### Godspeed inheritance
+
+If `$ARGUMENTS` contains "godspeed", append this block to EVERY teammate's brief (after task instructions, before the xask gate):
+
+> **GODSPEED MODE (inherited from judge):** You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls.
 
 ### Sub-role pick guide with xask gate
 
@@ -95,16 +109,39 @@ Every teammate brief MUST include the structural xask gate as the FIRST instruct
 
 ### Budget
 
-Default to 2-3 teammates for most prompts. Scale up (to 6 max) only if the problem has 4+ genuinely independent sub-questions.
+Default to 2-3 teammates for most prompts. Scale up only if the problem has 4+ genuinely independent sub-questions.
 
-## Step 5 — Deliberative rounds (judge-driven iteration)
+## Step 5 — Distiller synthesis + deliberative rounds
 
-As teammates report back (their SendMessage replies arrive as new user-message turns), the judge **mediates**:
+### Phase A — Distiller aggregation
 
-1. **Aggregate** initial findings toward a DRAFT.
+Once all teammates have reported back AND peer cross-critique DMs have landed, spawn the **distiller**:
+
+```
+Agent(
+  subagent_type="distiller",
+  team_name="<team>",
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Synthesize these N teammate findings into one deduplicated, confidence-scored brief. <paste all teammate reports + peer DM critiques>. Return format: State block with deduplicated claims, Unknowns block with contradictions, duplicate count. SendMessage your synthesis to the judge (team lead) when done."
+)
+```
+
+The distiller:
+- Reads all teammate reports + peer cross-critiques (pasted by the judge)
+- Deduplicates overlapping findings
+- Flags contradictions (CONFLICT blocks) for the judge
+- Assigns confidence scores (high/medium/low/unverified)
+- Sends one clean synthesis to the judge
+
+### Phase B — Judge-driven iteration
+
+Using the distiller's synthesis, the judge **mediates**:
+
+1. **Draft** initial DRAFT from distiller output.
 2. **Challenge** specific findings via targeted SendMessage follow-ups to individual teammates. Push back on weak claims, probe gaps, ask for deeper investigation.
-3. **Teammates refine** and re-report.
-4. **Judge re-aggregates** with refined findings.
+3. **Teammates refine** and re-report. Peer DMs flow again.
+4. **Re-distill** if findings changed substantially (send updated reports to distiller via SendMessage). For minor refinements, judge aggregates directly.
 5. **Populate CONFLICTS block** if cross-model divergence found (gemini vs. codex contradictions on the same claim).
 6. **Repeat 2-5** until the judge is satisfied with the DRAFT quality.
 
