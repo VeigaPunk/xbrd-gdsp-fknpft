@@ -14,7 +14,7 @@ All sonnet teammates can call `advisor()` (CC-native, zero parameters) for in-se
 
 **When to use advisor():** Before committing to non-obvious architectural decisions, when stuck, when a finding contradicts a peer, or before declaring work complete.
 
-**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. Use `xask claude` for contamination-controlled cross-model dispatch; use `advisor()` for full-context reasoning escalation.
+**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. `xask claude` is deprecated (advisor() with Opus Max supersedes it); use `xask gemini`/`xask codex` for contamination-controlled cross-model dispatch and `advisor()` for full-context reasoning escalation.
 
 Include in teammate briefs: `"You have access to advisor() — call it before substantive decisions for opus-max review of your full context. Zero parameters, blocks until response."`
 
@@ -30,8 +30,9 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering)
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort xhigh codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
-- **mutation-tester**: No xask gate (operates locally in worktrees).
-- **executor/simplifier/distiller/mutation-tester/Plan**: No xask gate.
+- **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
+- **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
+- **simplifier/distiller/Plan**: No xask gate.
 
 **Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
 
@@ -60,7 +61,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Research, prior art | `scout` | sonnet | `xask --effort medium gemini` | All |
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort xhigh codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
-| Code execution | `executor` | sonnet | CC native | All |
+| Code execution | `executor` | sonnet | `xask --spark codex` | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
