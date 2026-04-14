@@ -20,7 +20,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Axis family | Agent | Delegation | Tools |
 |---|---|---|---|
 | Research, prior art, outside-world | `scout` | `xask --effort medium gemini "<q>" "context" "librarian"` | All |
-| Correctness, bugs, code review | `reviewer` | `xask --effort xhigh codex "<q>"` | All |
+| Correctness, bugs, code review | `reviewer` | `xask --effort high codex "<q>"` | All |
 | Empirical probes, dry-runs | `labrat` (sonnet) | `xask --spark codex "<probe>"` | All |
 | Code execution, implementation | `executor` | `xask --spark codex "<task>"` | All |
 | Cross-axis patterns, breadth | `connector` | `xask --effort medium gemini "<q>"` | All |

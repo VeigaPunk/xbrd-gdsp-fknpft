@@ -38,6 +38,28 @@ xbreed ships 8 perspective agents in `templates/agents/`. Copy them to
 | Adversarial design, approach review | `critic` | `xask --effort high codex` or `xask gemini` |
 | Test validation, mutation testing | `mutation-tester` | `xask --spark codex` |
 
+## Umwelt Doctrine
+
+Each specialist operates from its own umwelt — xask routes to the competence, not the role.
+
+Every agent's xask dispatch profile IS its umwelt specification: the perceptual world it actually inhabits. Scout's umwelt is discovery and breadth (gemini-librarian). Reviewer's umwelt is surgical precision (codex-xhigh, temp 0.1–0.3). Labrat's umwelt is cheap-fast single-hypothesis probing (codex-spark). Connector's umwelt is cross-axis pattern matching (gemini-breadth). These are not job titles — they are perceptual profiles. Dispatching an agent outside its umwelt produces the tick-testing-for-vision failure: the agent appears incompetent because the task is outside what it can perceive, not because the capability is absent.
+
+**The anti-pattern** is role-routing: assigning by job title rather than perceptual fit. LangGraph node labels are job titles. xask targets are site-fitness checks. Homogeneous model deployment behind a role-router (GPT-4-everywhere, Claude-everywhere) is the monoculture failure — Norway spruce assigned by timber-role regardless of site conditions. xbreed arrived at site-fitness routing through practice before having vocabulary for it; this section crystallizes that practice to prevent regression.
+
+**Cross-umwelt dispatch is forbidden.** If a task requires a perceptual profile the assigned agent doesn't have, reassign — don't stretch.
+
+**The axis schema is the legibility tax.** Specialists don't share a perceptual world; the only shared interface is the axis names in round briefings. Keep axes thin: minimum fields that enable coordination, not a complete ontology.
+
+Each agent entry in the roster carries:
+
+```
+umwelt:
+  model: <xask target>        # operative — determines routing
+  blind_spots: [<list>]       # operative — what this agent cannot perceive; blocks wrong dispatch
+```
+
+`blind_spots` is the only required sub-field. It is what prevents mis-dispatch. `model`, `scope`, and `strengths` are advisory. A umwelt schema that grows mandatory enumerations and sub-typed scopes replicates the scientific-forestry failure at the roster layer — high-modernist imposition on agents whose perceptual world doesn't fit the taxonomy. Keep the schema thinner than what it describes.
+
 ## Naming convention
 
 Teammates use `{prefix}-{role}-{suffix}` naming:

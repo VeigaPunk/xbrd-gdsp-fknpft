@@ -24,7 +24,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 
 **Layer 1 — Gate (structural):**
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' 'context' 'librarian'. No other tool before xask returns."`
-- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort xhigh codex '<review question>'. No other tool before xask returns."`
+- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` (escalate to `--effort xhigh` only when explicitly requested for deep architectural review)
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<pattern question>'. No other tool before xask returns."`
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering)
@@ -59,7 +59,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
 | Research, prior art | `scout` | sonnet | `xask --effort medium gemini` | All |
-| Correctness, bugs | `reviewer` | sonnet | `xask --effort xhigh codex` | All |
+| Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
