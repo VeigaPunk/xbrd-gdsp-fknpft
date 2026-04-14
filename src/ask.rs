@@ -99,6 +99,7 @@ pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command
 pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec");
+    c.arg("--skip-git-repo-check");
     if !loadout.is_empty() {
         // codex -c value is parsed as TOML. A JSON-serialized string (double-quoted,
         // with \n / \" / \\ escapes) is also a valid TOML basic string.
@@ -449,7 +450,7 @@ mod tests {
         let mut c = build_codex_ask_with_loadout(&Loadout::empty());
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
-        assert_eq!(cmd_args(&c), vec!["exec", "hello"]);
+        assert_eq!(cmd_args(&c), vec!["exec", "--skip-git-repo-check", "hello"]);
     }
 
     #[test]
@@ -471,12 +472,23 @@ mod tests {
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
-        assert_eq!(args[1], "-c");
-        assert!(args[2].starts_with("developer_instructions="));
-        assert!(args[2].contains("BE FAST"));
-        let value = args[2].trim_start_matches("developer_instructions=");
+        assert_eq!(args[1], "--skip-git-repo-check");
+        assert_eq!(args[2], "-c");
+        assert!(args[3].starts_with("developer_instructions="));
+        assert!(args[3].contains("BE FAST"));
+        let value = args[3].trim_start_matches("developer_instructions=");
         assert!(value.starts_with('"') && value.ends_with('"'));
-        assert_eq!(args[3], "hello");
+        assert_eq!(args[4], "hello");
+    }
+
+    #[test]
+    fn codex_ask_includes_skip_git_repo_check() {
+        let c = build_codex_ask_with_loadout(&Loadout::empty());
+        let args = cmd_args(&c);
+        assert!(
+            args.contains(&"--skip-git-repo-check".to_string()),
+            "codex exec must pass --skip-git-repo-check, got: {args:?}"
+        );
     }
 
     #[test]
