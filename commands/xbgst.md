@@ -131,17 +131,11 @@ CONFLICTS (emit only if cross-model contradictions exist):
 
 Do not pause. Do not ask. User interrupts to steer. Keep iterating.
 
-**R2 always runs.** R1 synthesis is NEVER the final DRAFT. After R1 distill + Pareto, dispatch at least ONE R2 move (critic, executor, reviewer — a single role suffices) against the R1 findings. Only after R2 can the zero-improvement exit condition be evaluated. Collapsing R1 → DRAFT is a literal protocol violation per `xbreed-shared.md` Exit Condition section — see the Anti-premature-halt rule there.
-
-**Wake-tick forcing function.** If `ScheduleWakeup` delivers `<<autonomous-loop-dynamic>>` after you've declared DRAFT or called `TeamDelete`, do not discard as "stale." Re-check: did R2 actually run? Was R_N compared against R_{N-1} with all axes held? If not, the tick is not stale — dispatch the missing round. The sentinel exists specifically to catch the "I collapsed to DRAFT early" rationalization.
-
 Caps: <=4 rounds, <=12 teammates, <=200-word proposals. Exit semantics live in `xbreed-shared.md`.
 
 ## Step 6 — Auto-cleanup after frontier
 
-Frontier-halt precondition: strict exit condition satisfied (see `xbreed-shared.md`) — Round N produced zero axis improvements vs Round N-1, OR round cap reached, OR user halt. **Not before R2.** TeamDelete before R2 is the same violation as collapsing R1 → DRAFT; the subsequent `<<autonomous-loop-dynamic>>` wake lands in a contextless state and naturally no-ops, so a premature TeamDelete is how early halts become permanent.
-
-When halted correctly: emit final DRAFT, then immediately shutdown all teammates in parallel via `SendMessage shutdown_request`, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask — kill it. User re-invokes `/xbgst` if they want a new axis.
+When the frontier stops moving (zero survivors / duplicates / 4 rounds / user halt): emit final DRAFT, then immediately shutdown all teammates in parallel via `SendMessage shutdown_request`, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask — kill it. User re-invokes `/xbgst` if they want a new axis.
 
 ## Step 7 — Status after init
 
