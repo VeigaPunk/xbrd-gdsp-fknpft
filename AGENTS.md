@@ -31,7 +31,7 @@ xbreed ships 8 perspective agents in `templates/agents/`. Copy them to
 | Code execution, implementation | `executor` | `xask codex` or `xask claude` |
 | Cross-axis patterns, breadth | `connector` | `xask gemini` |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter |
-| Complexity reduction, YAGNI | `simplifier` | direct analysis |
+| Deletion, YAGNI | `simplifier` | direct analysis |
 | Reverse engineering, intent reconstruction | `the-revenger` | direct recon + `xask gemini` for surface enumeration |
 | Security auditing, adversarial analysis | `sentinel` | `xask --effort xhigh codex` + `xask gemini` for CVEs |
 | Pre-executor design, implementation planning | `Plan` (CC built-in) | CC native — no xask gate |

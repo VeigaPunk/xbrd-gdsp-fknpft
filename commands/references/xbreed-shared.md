@@ -63,7 +63,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Code execution | `executor` | sonnet | CC native | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
-| Complexity reduction | `simplifier` | sonnet | CC native | All |
+| Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
 | Reverse engineering | `the-revenger` | opus | `xask gemini` for surface enum | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort xhigh codex` + `xask gemini` | All |
 | Implementation planning | `Plan` | CC built-in | CC native | All |
