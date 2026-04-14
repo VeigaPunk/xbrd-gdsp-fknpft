@@ -158,6 +158,8 @@ The frontier has stopped moving **iff Round N produced zero axis improvements vs
 
 Round 1 by construction improves axes off baseline, so **Round 2 always runs** unless the user halts or a cap triggers. Jumping to cleanup after Round 1 is a protocol violation.
 
+**Wake-tick forcing function.** `ScheduleWakeup` with the `<<autonomous-loop-dynamic>>` sentinel exists to catch premature-halt rationalization. When the wake fires after the judge has declared DRAFT or called `TeamDelete`, it is NOT a stale tick — it is the protocol asking "did you actually satisfy the exit condition?" Discarding it ("walk already over") re-commits the original halt violation. On receipt, re-evaluate: was R2 actually dispatched? Was R_N compared against R_{N-1}? If either answer is no, the wake is live; dispatch the missing round. The sentinel is load-bearing, not cosmetic.
+
 ## Coherence Check
 
 After parallel execution rounds (multiple executors editing files concurrently), spawn a reviewer for cross-file consistency before committing. Checklist:
