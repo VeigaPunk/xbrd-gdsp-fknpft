@@ -31,8 +31,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort xhigh codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
 - **mutation-tester**: No xask gate (operates locally in worktrees).
-- **executor**: No structural xask gate (no single fixed first-call), BUT executor is a sonnet **mediator** that delegates heavy code drafting to `xask --spark codex "<subtask>"` — fan out in parallel when subtasks are independent. Rationale: sonnet-as-direct-implementer is too slow at /xbgst pace; codex-spark is cheap and fast. Sonnet validates outputs, writes final commits, preserves red-before-green evidence discipline, and can escalate to `advisor()` for non-obvious design decisions.
-- **simplifier/distiller/mutation-tester/Plan**: No xask gate.
+- **executor/simplifier/distiller/mutation-tester/Plan**: No xask gate.
 
 **Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
 
@@ -61,7 +60,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Research, prior art | `scout` | sonnet | `xask --effort medium gemini` | All |
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort xhigh codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
-| Code execution | `executor` | sonnet (mediator) | `xask --spark codex` (parallel fan-out) | All |
+| Code execution | `executor` | sonnet | CC native | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |

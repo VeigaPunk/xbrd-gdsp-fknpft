@@ -72,8 +72,6 @@ Each brief includes:
 
 **Executor lane — `|godspeed-impl` suffix variant:** when spawning `executor` teammates, append `|godspeed-impl` instead of plain `|godspeed`. Adds to the godspeed directive: *"A move is a complete red-before-green cycle — `evidence:` must include failing-test output AND passing-test output (two test runs, no commit SHAs). If no test harness exists in the scope, attach diff + rationale as evidence. Non-executable axes are not eligible for the executor lane."* All other roles inherit plain `|godspeed`; TDD ordering is out-of-scope for research/critique lanes by domain, not waived.
 
-**Executor delegation pattern (sonnet mediator + codex spark).** Sonnet-as-direct-implementer is too slow at godspeed pace. Executor briefs MUST instruct sonnet to delegate heavy drafting to `xask --spark codex "<subtask>"` and fan out in parallel wherever subtasks are independent (multiple files at once, tests in parallel with implementation). Sonnet validates outputs, writes final commits, and preserves red-before-green evidence discipline. Escalation: `advisor()` for non-obvious design decisions, NOT additional sonnet thinking loops.
-
 #### xask gate, epistemic constraints
 
 Read `~/.claude/commands/references/xbreed-shared.md` for the full 4-layer xask gate (per-role), epistemic constraints, and divergence mandate. Apply them to every teammate brief.
