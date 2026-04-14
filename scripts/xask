@@ -21,6 +21,7 @@ DEBUG=false
 SCOPE="entire project"
 RICH=false
 DIRECT=false
+SPARK=false
 EFFORT=""
 while [[ "$1" == --* ]]; do
   case "$1" in
@@ -28,6 +29,7 @@ while [[ "$1" == --* ]]; do
     --scope) SCOPE="$2"; shift 2 ;;
     --rich) RICH=true; shift ;;
     --direct) DIRECT=true; shift ;;
+    --spark) SPARK=true; shift ;;
     --effort) EFFORT="$2"; shift 2 ;;
     *) shift ;;
   esac
@@ -124,7 +126,17 @@ case "$MODEL" in
     xbreed ask gemini --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     ;;
   codex)
-    if [ "$DIRECT" = true ]; then
+    if [ "$SPARK" = true ]; then
+      # Spark mode: fast executor via gpt-5.3-codex-spark, low effort
+      codex exec \
+        --skip-git-repo-check \
+        -m gpt-5.3-codex-spark \
+        -c include_permissions_instructions=false \
+        -c include_apps_instructions=false \
+        -c include_environment_context=false \
+        -c model_reasoning_effort=low \
+        "$PROMPT"
+    elif [ "$DIRECT" = true ]; then
       # Direct exec: bypass xbreed, max suppression + effort control
       CODEX_EFFORT="${EFFORT:-none}"
       codex exec \

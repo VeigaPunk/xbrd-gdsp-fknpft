@@ -52,7 +52,7 @@ Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` f
 - Research, prior art → `scout` (sonnet) — `xask --effort medium gemini`
 - Correctness, bugs → `reviewer` (sonnet) — `xask --effort xhigh codex`
 - Empirical probes → `labrat` (sonnet) — `xask --spark codex`
-- Code execution → `executor` (sonnet) — CC native
+- Code execution → `executor` (sonnet) — `xask --spark codex`
 - Cross-axis patterns → `connector` (sonnet) — `xask --effort medium gemini`
 - Synthesis, dedup → `distiller` (sonnet) — in-session
 - Complexity reduction → `simplifier` (sonnet) — CC native
