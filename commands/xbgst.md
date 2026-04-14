@@ -74,6 +74,17 @@ Each brief includes:
 
 **Executor delegation pattern (sonnet mediator + codex spark).** Sonnet-as-direct-implementer is too slow at godspeed pace. Executor briefs MUST instruct sonnet to delegate heavy drafting to `xask --spark codex "<subtask>"` and fan out in parallel wherever subtasks are independent (multiple files at once, tests in parallel with implementation). Sonnet validates outputs, writes final commits, and preserves red-before-green evidence discipline. Escalation: `advisor()` for non-obvious design decisions, NOT additional sonnet thinking loops.
 
+**Executor sharding (multiple parallel executor teammates per round).** For implementation work that decomposes cleanly — multiple files or independent modules with non-overlapping scope — the judge MUST spawn MULTIPLE `executor` teammates **in parallel in the same dispatch message**, each with a strict file-boundary brief naming the specific files it owns. Bundling all of R_N's implementation into a single executor serializes what the pipeline was designed to parallelize and defeats the godspeed walk (observed 2026-04-14: Stage 3 TUI bundled ~820 LOC into one sonnet executor; the work decomposed cleanly into 3-4 parallel executors with zero file overlap).
+
+Coordination is handled by:
+1. **Axis/role decomposition** — each executor owns a named slice of the work; the brief says exactly which files.
+2. **Git index lock** — parallel `git add`/`git commit` in a shared tree serialize automatically; no corruption.
+3. **Pareto/distill gate** — the round-boundary synthesis catches any accidental overlap before it merges.
+
+No `isolation: "worktree"` parameter. The pipeline already prevents the problem worktrees solve.
+
+**When NOT to shard**: R_N has a single indivisible task (e.g., a one-file refactor); dependencies force a strict sequence (A produces a type B consumes, and B cannot be stubbed); the work is <200 LOC total. Otherwise, shard.
+
 #### xask gate, epistemic constraints
 
 Read `~/.claude/commands/references/xbreed-shared.md` for the full 4-layer xask gate (per-role), epistemic constraints, and divergence mandate. Apply them to every teammate brief.
