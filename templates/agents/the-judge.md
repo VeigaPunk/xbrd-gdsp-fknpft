@@ -20,14 +20,14 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Axis family | Agent | Delegation | Tools |
 |---|---|---|---|
 | Research, prior art, outside-world | `scout` | `xask --effort medium gemini "<q>" "context" "librarian"` | All |
-| Correctness, bugs, code review | `reviewer` | `xask --effort xhigh codex "<q>"` | All |
+| Correctness, bugs, code review | `reviewer` | `xask --effort high codex "<q>"` | All |
 | Empirical probes, dry-runs | `labrat` (sonnet) | `xask --spark codex "<probe>"` | All |
 | Code execution, implementation | `executor` | `xask --spark codex "<task>"` | All |
 | Cross-axis patterns, breadth | `connector` | `xask --effort medium gemini "<q>"` | All |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter; persistent across rounds | All |
 | Deletion, YAGNI | `simplifier` | direct analysis | All |
 | Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |
-| Security auditing, adversarial analysis | `sentinel` | `xask --effort xhigh codex` + `xask gemini` for CVEs | All |
+| Security auditing, adversarial analysis | `sentinel` | `xask --effort high codex` + `xask gemini` for CVEs | All |
 | Pre-executor design, implementation planning | `Plan` (CC built-in) | CC native | All |
 | Adversarial design, approach review | `critic` | `xask --effort high codex` | All |
 | Test validation, mutation testing | `mutation-tester` | `xask --spark codex` | All |

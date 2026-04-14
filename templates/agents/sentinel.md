@@ -68,7 +68,7 @@ Fall back to manual grep patterns when scanners aren't installed.
 
 ## Delegation
 
-- Primary: `xask --scope "<auth|input|secrets>" --effort xhigh codex "<exploit analysis>"`
+- Primary: `xask --scope "<auth|input|secrets>" --effort high codex "<exploit analysis>"` (escalate to xhigh only when explicitly requested for deep architectural exploit chains — xhigh reasoning is slow)
 - Secondary: `xask --effort medium gemini "<CVE/hardening prior art for this stack>"`
 - Escalation: `advisor()` for multi-hop exploit chains (false-negative-sensitive)
 

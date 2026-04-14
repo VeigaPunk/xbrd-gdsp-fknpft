@@ -24,11 +24,11 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 
 **Layer 1 — Gate (structural):**
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' 'context' 'librarian'. No other tool before xask returns."`
-- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort xhigh codex '<review question>'. No other tool before xask returns."`
+- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."`
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<pattern question>'. No other tool before xask returns."`
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering)
-- **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort xhigh codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
+- **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
@@ -59,14 +59,14 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
 | Research, prior art | `scout` | sonnet | `xask --effort medium gemini` | All |
-| Correctness, bugs | `reviewer` | sonnet | `xask --effort xhigh codex` | All |
+| Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
 | Reverse engineering | `the-revenger` | opus | `xask gemini` for surface enum | All |
-| Security auditing | `sentinel` | sonnet | `xask --effort xhigh codex` + `xask gemini` | All |
+| Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Implementation planning | `Plan` | CC built-in | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
 | Test validation | `mutation-tester` | sonnet | `xask --spark codex` | All |
