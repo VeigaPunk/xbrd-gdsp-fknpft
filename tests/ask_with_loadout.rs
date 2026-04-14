@@ -107,10 +107,11 @@ fn ask_codex_with_loadout_injects_developer_instructions_override() {
 
     let argv = read_log(&log);
     assert_eq!(argv[0], "exec");
-    assert_eq!(argv[1], "-c");
-    assert!(argv[2].starts_with("developer_instructions="));
-    assert!(argv[2].contains("GO FAST NOW"));
-    assert_eq!(argv[3], "say hi");
+    assert_eq!(argv[1], "--skip-git-repo-check");
+    assert_eq!(argv[2], "-c");
+    assert!(argv[3].starts_with("developer_instructions="));
+    assert!(argv[3].contains("GO FAST NOW"));
+    assert_eq!(argv[4], "say hi");
 }
 
 #[test]
