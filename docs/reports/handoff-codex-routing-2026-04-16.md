@@ -5,9 +5,29 @@
 **Depth reference:** `~/claudevlt/claudevault/Projects/xbrd-gdsp-fknpft/codex-routing-extensive-2026-04-16.md` (12-section findings)
 **This doc:** quick-start + next session's mission — NDJSON mailbox latency optimization.
 
-## Urgent-fix shipped alongside this handoff
+## Urgent-fixes shipped alongside this handoff
 
-User hit `Error: failed to execute codex: xask-timeout: command did not complete within 60s`. Root cause: `src/ask.rs` default `XASK_TIMEOUT_SECS` was 60s — too tight for high/xhigh codex calls (m7 ACH needed 540s). Raised to **300s** (5 min) as the new default ceiling. Still overridable via the env var; still prevents runaway hangs. Commit landed with this handoff; see the commit table below for the SHA. Binary installed to `~/.local/bin/xbreed`. No further action needed — new default takes effect on the next codex call.
+### 1. `XASK_TIMEOUT_SECS` default 60s → 300s (commit `ba59239`)
+
+User hit `Error: failed to execute codex: xask-timeout: command did not complete within 60s`. Root cause: `src/ask.rs` default was 60s — too tight for high/xhigh codex calls (m7 ACH needed 540s). Raised to **300s** (5 min) as the new default ceiling. Still overridable via the env var; still prevents runaway hangs. Binary installed to `~/.local/bin/xbreed`.
+
+### 2. Codex ALWAYS inherits godspeed posture through xask (commit `21a83fb`)
+
+User directive — codex must receive the godspeed directive in its purest form on every xask dispatch. Structural guarantee added at `src/ask.rs::dispatch` (codex branch): the prompt always ends with `| godspeed`, regardless of caller path or `--with` skill selection. **Idempotent** — if `scripts/xask` (SKILL=godspeed default) or the caller already appended the suffix, the Rust layer doesn't duplicate.
+
+**Composition semantics** (all M11-tested):
+
+| Invocation | Result |
+|---|---|
+| `xbreed ask codex "q"` | `"q | godspeed"` |
+| `xbreed ask codex --with godspeed "q"` | `"q | godspeed"` + godspeed text in `-c developer_instructions` (belt + suspenders) |
+| `xbreed ask codex --with librarian "q"` | `"q | godspeed"` + librarian text in `-c developer_instructions` (additive, both present) |
+| `scripts/xask codex "q"` | SKILL=godspeed default → bash appends → Rust idempotent no-op → single suffix |
+| `xbreed ask codex "q | godspeed"` | idempotent no-op → single suffix |
+
+The canonical godspeed skill at `~/.agents/skills/godspeed/SKILL.md` carries the full 4-point doctrine (name the axes / iterate cheap / keep improvers / let the frontier walk). The `| godspeed` prompt suffix is the minimal marker; the `-c developer_instructions` TOML injection is the full text. Codex sees it via both channels when `--with godspeed` is explicit.
+
+**M11 integration test** (`tests/ask_with_loadout.rs::ask_codex_always_inherits_godspeed_suffix`) locks the guarantee in with 3 cases: no-skill, non-godspeed skill, caller idempotence.
 
 ---
 
