@@ -34,19 +34,38 @@ mod tests {
     ];
 
     /// Parses `## ` headings from a markdown doc, returning (heading, non-blank-body-line-count).
+    ///
+    /// Fence-aware: lines inside ``` ... ``` blocks are treated as body text,
+    /// never as headings, even if they begin with `## `. Prevents false
+    /// duplicates where a REQUIRED_SECTION name appears in a code example.
     fn parse_sections(doc: &str) -> Vec<(String, usize)> {
         let mut sections: Vec<(String, usize)> = Vec::new();
         let mut current_heading: Option<String> = None;
         let mut body_count: usize = 0;
+        let mut in_fence = false;
 
         for line in doc.lines() {
-            if let Some(title) = line.strip_prefix("## ") {
-                if let Some(h) = current_heading.take() {
-                    sections.push((h, body_count));
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("```") {
+                in_fence = !in_fence;
+                if current_heading.is_some() && !line.trim().is_empty() {
+                    body_count += 1;
                 }
-                current_heading = Some(title.trim().to_string());
-                body_count = 0;
-            } else if current_heading.is_some() && !line.trim().is_empty() {
+                continue;
+            }
+
+            if !in_fence {
+                if let Some(title) = line.strip_prefix("## ") {
+                    if let Some(h) = current_heading.take() {
+                        sections.push((h, body_count));
+                    }
+                    current_heading = Some(title.trim().to_string());
+                    body_count = 0;
+                    continue;
+                }
+            }
+
+            if current_heading.is_some() && !line.trim().is_empty() {
                 body_count += 1;
             }
         }
@@ -88,6 +107,60 @@ mod tests {
              include_str! may be pointing at the wrong file",
             PROTOCOL.len(),
             on_disk.len()
+        );
+    }
+
+    /// M3.5 — parse_sections must ignore ## lookalikes inside fenced code
+    /// blocks and must not treat ### as ##. Without fence-awareness, a
+    /// REQUIRED_SECTION string appearing in a code example would register
+    /// as a real section and silently satisfy the sentinel, letting the
+    /// actual heading be deleted without detection.
+    #[test]
+    fn parse_sections_ignores_fenced_heading_lookalikes() {
+        let doc = "\
+# Title
+
+## xask Gate (4 layers)
+first body line
+second body line
+
+```markdown
+## xask Gate (4 layers)
+this is inside a fence and must not open a new section
+### xask Gate (4 layers)
+```
+
+### xask Gate (4 layers)
+h3 lookalike must not count as h2
+
+## Next Section
+next body
+";
+        let sections = parse_sections(doc);
+        let hits: Vec<_> = sections
+            .iter()
+            .filter(|(h, _)| h == "xask Gate (4 layers)")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "expected exactly 1 real '## xask Gate (4 layers)', got {}: {:?}",
+            hits.len(),
+            sections
+        );
+        // Two real sections total: xask Gate + Next Section.
+        assert_eq!(
+            sections.len(),
+            2,
+            "expected 2 real ## sections, got {}: {:?}",
+            sections.len(),
+            sections
+        );
+        // "Next Section" must be parsed as its own section, proving the
+        // fenced ## didn't prematurely close/reopen the preceding one.
+        assert!(
+            sections.iter().any(|(h, _)| h == "Next Section"),
+            "Next Section missing — fenced lookalike may have consumed it"
         );
     }
 
