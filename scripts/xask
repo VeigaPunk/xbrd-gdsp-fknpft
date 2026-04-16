@@ -76,7 +76,9 @@ fi
 if [ "$DEBUG" = true ]; then
   echo "=== XASK DEBUG ==="
   echo "MODEL: $MODEL"
-  echo "MODE: $([ "$RICH" = true ] && echo RICH || echo CLEAN)$([ "$DIRECT" = true ] && echo '+DIRECT')"
+  echo "MODE: $([ "$RICH" = true ] && echo RICH || echo CLEAN)"
+  echo "SPARK: $SPARK"
+  echo "EFFORT: ${EFFORT:-<unset>}"
   echo "SCOPE: $SCOPE"
   echo "SKILL: $SKILL"
   echo "TEMPLATE: $TEMPLATE"
