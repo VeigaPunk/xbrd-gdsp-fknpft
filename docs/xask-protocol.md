@@ -171,7 +171,9 @@ Findings from gemini and codex probing their own CLI behavior — surfaced durin
 
 ### Alias shadow warnings
 
-These xask short aliases shadow gemini's own native flags. There is **no runtime conflict** (xask consumes the flags before dispatch), but users should be aware if they ever call gemini CLI directly with muscle-memory xask flags:
+> **Flag namespace boundary:** xask short aliases are consumed by the xask shell layer and are **never forwarded to the underlying CLI**. The native gemini `-s/-r/-e` flags remain inaccessible through xask by design. If you need a gemini-native flag not exposed by xask, call `xbreed ask gemini` directly.
+
+These xask short aliases shadow gemini's own native flags. There is **no runtime conflict**, but users should be aware of the cognitive collision if they also use the gemini CLI directly:
 
 | xask alias | Shadows gemini flag | gemini meaning | Applies to gemini path? |
 |------------|--------------------|----|---|
