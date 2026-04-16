@@ -36,6 +36,8 @@ Gemini's verification commands are aspirational, not data-walked. Brief uses cor
 
 ## Theoretical Framing (descriptive, not evidential)
 
+**M7 ACH verdict: H_C (partial).** 5 load-bearing, 2 overdetermined, 1 dropped as decorative. Audit trail: `docs/reports/m7-framing-audit-2026-04-16.md`.
+
 The lenses below are interpretations of design commitments already in the codebase. They are not arguments that xbreed is superior — they are the language in which xbreed's structural uniqueness becomes legible. Each lens carries an **adversarial gate** (Milestone 7) that the brief must pass before the lens earns its keep.
 
 ### Umwelt (von Uexküll) — every model has its own world
@@ -43,9 +45,8 @@ The lenses below are interpretations of design commitments already in the codeba
 Each model exposes only what its umwelt permits. xbreed's design commitment: route by umwelt, do not flatten.
 
 - **Cross-model divergence mandate** (`commands/references/xbreed-shared.md`): different models bring different priors and tooling; collapsing them to a single voice destroys signal.
-- **Model-prefix naming** (`AGENTS.md` Naming Convention: `g-` / `cco-` / `cdx-` / `ccs-`): the prefix *is* the umwelt label.
 - **Axis → Profile Mapping** (`xbreed-shared.md:124-148`): each axis routes to the model whose umwelt fits.
-- **Raw-quote gate** (xask Layer 2): preserves the source model's wording — it is the umwelt-respecting transport.
+- **Raw-quote gate** (xask Layer 2) *(overdetermined — umwelt preservation + generic provenance discipline)*: preserves the source model's wording — it is the umwelt-respecting transport.
 
 ### Metis (Scott) — local, situated knowledge resists standardization
 
@@ -62,7 +63,7 @@ Forestry-by-monoculture optimizes for one axis (board-feet); the forest collapse
 - **Enforcement Tiers** (`xbreed-shared.md` Enforcement Tiers): Build/CI > Runtime > Protocol. Protocol-only rules (the polite layer) are explicitly weaker than build-time and runtime checks.
 - **Pareto Filter Evidence Schema dropping moves without evidence** (`xbreed-shared.md:133`): "dropped, not scored" — no compliance theatre.
 - **Materiality rule + Round-2-always-runs** (xbgst exit condition): clean synthesis ≠ frontier halt; structural improvement is the gate.
-- **`include_str!` SSoT binding** (`src/protocol.rs:4`): forces the SSoT into the **build** tier (rustc fails if the path moves), not the protocol tier (a comment that hopes nobody renames the file).
+- **`include_str!` SSoT binding** (`src/protocol.rs:4`) *(overdetermined — anti-forestry build-tier enforcement + Rust-idiomatic compile-time binding)*: forces the SSoT into the **build** tier (rustc fails if the path moves), not the protocol tier (a comment that hopes nobody renames the file).
 
 ---
 
