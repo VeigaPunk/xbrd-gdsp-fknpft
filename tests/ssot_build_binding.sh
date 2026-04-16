@@ -17,7 +17,7 @@ restore() {
     echo "RESTORED: $SSOT"
   fi
 }
-trap restore EXIT INT TERM HUP
+trap 'restore; [[ -f "$SSOT" ]] || { echo "FAIL: SSoT missing post-run — restore trap failed" >&2; exit 1; }' EXIT INT TERM HUP
 
 [[ -f "$SSOT" ]] || { echo "FAIL: SSoT missing before test: $SSOT" >&2; exit 2; }
 
