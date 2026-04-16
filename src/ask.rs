@@ -98,6 +98,8 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec")
         .arg("--skip-git-repo-check")
+        .arg("--color")
+        .arg("never")
         .arg("--ephemeral")
         // Yolo / allow-all-tools: codex defaults to a sandbox; we unlock it
         // for headless xask dispatch (parity with gemini's --approval-mode yolo
