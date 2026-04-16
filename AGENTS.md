@@ -51,9 +51,9 @@ All sonnet teammates have two escalation paths:
 
 | Method | When to use | Mechanism |
 |--------|-------------|-----------|
-| `advisor()` | In-session high-stakes reasoning, full-context review | CC-native, zero-params, blocks until opus-max responds. **Layer 0 — no xask gate.** |
+| `advisor()` | In-session high-stakes reasoning, full-context review | CC-native, zero-params, blocks until opus 4.7 max responds. **Layer 0 — no xask gate.** |
 
-`advisor()` forwards the teammate's entire conversation context to opus-max effort. Use it before committing to non-obvious architectural decisions, when stuck, or when a finding contradicts a peer. It is NOT subject to the xask 4-layer gate (it's CC-native, not cross-model).
+`advisor()` forwards the teammate's entire conversation context to opus 4.7 max effort. Use it before committing to non-obvious architectural decisions, when stuck, or when a finding contradicts a peer. It is NOT subject to the xask 4-layer gate (it's CC-native, not cross-model).
 
 ## Swarm capabilities
 

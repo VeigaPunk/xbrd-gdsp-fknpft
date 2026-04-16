@@ -10,13 +10,13 @@ Append to every teammate brief when operating in godspeed:
 
 ## Escalation: advisor() (Layer 0)
 
-All sonnet teammates can call `advisor()` (CC-native, zero parameters) for in-session opus-max escalation. The teammate's full conversation context is forwarded automatically.
+All sonnet teammates can call `advisor()` (CC-native, zero parameters) for in-session opus 4.7 max escalation. The teammate's full conversation context is forwarded automatically.
 
 **When to use advisor():** Before committing to non-obvious architectural decisions, when stuck, when a finding contradicts a peer, or before declaring work complete.
 
-**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. `xask claude` is deprecated (advisor() with Opus Max supersedes it); use `xask gemini`/`xask codex` for contamination-controlled cross-model dispatch and `advisor()` for full-context reasoning escalation.
+**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. `xask claude` is deprecated (advisor() with Opus 4.7 Max supersedes it); use `xask gemini`/`xask codex` for contamination-controlled cross-model dispatch and `advisor()` for full-context reasoning escalation.
 
-Include in teammate briefs: `"You have access to advisor() — call it before substantive decisions for opus-max review of your full context. Zero parameters, blocks until response."`
+Include in teammate briefs: `"You have access to advisor() — call it before substantive decisions for opus 4.7 max review of your full context. Zero parameters, blocks until response."`
 
 ## xask Gate (4 layers)
 

@@ -1,6 +1,6 @@
 ---
 name: xbreed
-description: Judge-orchestrated pipeline — opus 4.6 takes the prompt, dispatches scout/reviewer/labrat with cross-model delegation (xask), drafts an implementation. Triggered by /xbreed or /xb.
+description: Judge-orchestrated pipeline — opus 4.7 takes the prompt, dispatches scout/reviewer/labrat with cross-model delegation (xask), drafts an implementation. Triggered by /xbreed or /xb.
 ---
 
 # /xbreed — Judge-Orchestrated Pipeline (Solo)
