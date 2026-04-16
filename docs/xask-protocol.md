@@ -25,7 +25,7 @@ xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"]
 | `--scope` | `-s` | Scope boundary injected into `{{SCOPE_BOUNDARY}}` in the dispatch template. Note: shadows gemini's `-s/--sandbox` (consumed by xask, no runtime conflict). | all | `"entire project"` |
 | `--rich` | `-r` | Restore `includeDirectoryTree: true` in a PID-namespaced gemini settings copy. Note: shadows gemini's `-r/--resume`. | gemini | `false` (tree suppressed) |
 | `--spark` | `--spk` | Pin codex to `gpt-5.3-codex-spark` + `model_reasoning_effort=low`. Mutually exclusive with `--effort` on codex. | codex | `false` |
-| `--effort` | `-e` | Reasoning effort level. **Codex only** — gemini silently ignores this flag (warning emitted, see templates/dispatch/gemini.md for thinkingBudget hint). Note: shadows gemini's `-e/--extensions` (consumed by xask, no dispatch conflict, but alias is meaningless on gemini path). See per-model mapping below. | codex | unset |
+| `--effort` | `-e` | Reasoning effort level. Codex: passes through as native `model_reasoning_effort`. Gemini: mapped to `thinkingBudget` and injected into prompt template (see per-model mapping below for value table). Note: shadows gemini's `-e/--extensions` (consumed by xask, no dispatch conflict). | codex + gemini | unset |
 | `--direct` | — | **Removed in R2.** No longer accepted — xask hard-fails at the flag parser (`*) echo ... exit 1`). Suppression is always-on; use `--effort` to control reasoning level. | — | — |
 
 ### `--effort` per-model mapping
@@ -33,7 +33,7 @@ xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"]
 | Model | Maps to |
 |-------|---------|
 | `codex` | `-c model_reasoning_effort=<level>` (config key, not a flag) |
-| `gemini` | Warning emitted; flag ignored. Use `thinkingBudget` in the prompt template instead. |
+| `gemini` | Mapped to `thinkingBudget` injected into prompt template by `scripts/xask` (no native CLI flag): `low=512`, `medium=4096`, `high=8192`, `xhigh=16384`. Rendered as `# ThinkingBudget: <N>` in `templates/dispatch/gemini.md`. No warning emitted. |
 
 **Validated effort levels (codex):** `low`, `medium`, `high`, `xhigh`. Level `none` is not validated by xbreed and may fail at codex runtime.
 

@@ -429,9 +429,12 @@ pub fn dispatch(
     let timeout = std::time::Duration::from_secs(timeout_secs);
 
     if cli == "gemini" {
-        if effort.is_some() {
-            eprintln!("warning: --effort is ignored for gemini (no native flag; use thinkingBudget in prompt template instead)");
-        }
+        // --effort for gemini: mapped to thinkingBudget (low=512, medium=4096,
+        // high=8192, xhigh=16384) and injected into the prompt template by
+        // scripts/xask. Gemini-CLI has no native --effort flag, so we don't
+        // pass it on the command line; the budget reaches the model as
+        // prompt-text directive.
+        let _ = effort;
         let chain = gemini_auth_chain();
         if chain.is_empty() {
             anyhow::bail!(

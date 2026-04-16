@@ -74,11 +74,25 @@ if [ -f "$TEMPLATE" ]; then
   CONTEXT_SAFE=$(printf '%s' "$CONTEXT" | sed 's/[&\\]/\\&/g')
   SCOPE_SAFE=$(printf '%s' "$SCOPE" | sed 's/[&\\]/\\&/g')
   EFFORT_SAFE=$(printf '%s' "${EFFORT:-unset}" | sed 's/[&\\]/\\&/g')
-  PROMPT=$(awk -v q="$QUERY_SAFE" -v c="$CONTEXT_SAFE" -v s="$SCOPE_SAFE" -v e="$EFFORT_SAFE" '{
+  # Map abstract effort tier → numeric thinkingBudget. Only gemini's dispatch
+  # template substitutes this — gemini-CLI has no native --effort flag, so the
+  # budget is injected as prompt-text directive (see templates/dispatch/gemini.md).
+  # codex template doesn't reference {{THINKING_BUDGET}}, so substitution is
+  # a no-op there.
+  case "${EFFORT:-}" in
+    low)    THINKING_BUDGET="512" ;;
+    medium) THINKING_BUDGET="4096" ;;
+    high)   THINKING_BUDGET="8192" ;;
+    xhigh)  THINKING_BUDGET="16384" ;;
+    *)      THINKING_BUDGET="default" ;;
+  esac
+  THINKING_BUDGET_SAFE=$(printf '%s' "$THINKING_BUDGET" | sed 's/[&\\]/\\&/g')
+  PROMPT=$(awk -v q="$QUERY_SAFE" -v c="$CONTEXT_SAFE" -v s="$SCOPE_SAFE" -v e="$EFFORT_SAFE" -v t="$THINKING_BUDGET_SAFE" '{
     gsub(/\{\{QUERY\}\}/, q)
     gsub(/\{\{CONTEXT\}\}/, c)
     gsub(/\{\{SCOPE_BOUNDARY\}\}/, s)
     gsub(/\{\{EFFORT\}\}/, e)
+    gsub(/\{\{THINKING_BUDGET\}\}/, t)
     print
   }' "$TEMPLATE")
 else

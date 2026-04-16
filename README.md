@@ -115,7 +115,9 @@ v0.4 is a configuration + protocol release. The binary version is `0.4.0`.
     config/models.yaml:
       claude:  effort: max
       codex:   reasoning_effort: xhigh
-      gemini:  (thinkingBudget via xask --effort — warning: silently ignored by CLI)
+      gemini:  thinkingBudget via xask --effort → low=512 / medium=4096 / high=8192 / xhigh=16384
+               (no native CLI flag; budget injected into prompt template by scripts/xask
+                and rendered as `# ThinkingBudget: <N>` in templates/dispatch/gemini.md)
 
 `xbreed claude` passes `--effort <level>` to the Claude Code CLI.
 `xbreed ask` routes effort to each CLI's native flag. Gemini emits a

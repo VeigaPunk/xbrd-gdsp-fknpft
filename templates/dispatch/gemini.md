@@ -5,6 +5,7 @@
 **IMPORTANT: Your session_context (workspace tree, OS info) is ambient background. The task below is your authoritative frame. Scope: {{SCOPE_BOUNDARY}}**
 
 # Effort: {{EFFORT}}
+# ThinkingBudget: {{THINKING_BUDGET}}
 
 Context (everything relevant):
 {{CONTEXT}}
