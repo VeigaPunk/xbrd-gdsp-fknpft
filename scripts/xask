@@ -111,9 +111,14 @@ fi
 # Concurrent xask --rich calls no longer stomp each other's state.
 # Instead of mutating the shared settings.json, we copy it to a temp file,
 # mutate the copy, point HOME at the temp dir, and clean up on exit.
+XASK_RICH_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/xbreed/xask-rich"
 RICH_TMPDIR=""
 gemini_rich_setup() {
-  RICH_TMPDIR=$(mktemp -d "/tmp/xask-rich-$$-XXXXXX")
+  mkdir -p "$XASK_RICH_ROOT"
+  chmod 700 "$XASK_RICH_ROOT"
+  # Sweep stale dirs older than 60 minutes (covers SIGKILL/OOM orphans)
+  find "$XASK_RICH_ROOT" -maxdepth 1 -name 'xask-rich-*' -mmin +60 -exec rm -rf {} + 2>/dev/null || true
+  RICH_TMPDIR=$(mktemp -d "$XASK_RICH_ROOT/xask-rich-$$-XXXXXX")
   mkdir -p "$RICH_TMPDIR/.gemini"
   if [ -f "$GEMINI_SETTINGS_FILE" ]; then
     cp "$GEMINI_SETTINGS_FILE" "$RICH_TMPDIR/.gemini/settings.json"
