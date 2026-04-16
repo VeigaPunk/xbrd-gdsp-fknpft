@@ -34,19 +34,22 @@ for FILE in "${COPY_FILES[@]}"; do
     continue
   fi
 
+  # Regex intentionally covers ANY `xask --effort <tier> <model>` — including
+  # model drift (gemini → codex), not just tier drift. Anchoring the match on
+  # "gemini" would silently miss the model-swap class of regression (M4).
   if [[ "$FILE" == *"/connector.md" ]]; then
-    # connector.md IS the connector agent — check all xask --effort * gemini delegation lines
-    matches=$(grep -nE 'xask --effort [a-z]+ gemini' "$FILE" || true)
+    # connector.md IS the connector agent — check every delegation line.
+    matches=$(grep -nE 'xask --effort [a-z]+ [a-z]+' "$FILE" || true)
   else
-    # Other files: only lines mentioning connector in routing context
-    matches=$(grep -nE 'xask --effort [a-z]+ gemini' "$FILE" | grep 'connector' || true)
+    # Other files: only lines mentioning connector in routing context.
+    matches=$(grep -nE 'xask --effort [a-z]+ [a-z]+' "$FILE" | grep 'connector' || true)
   fi
 
   while IFS= read -r match; do
     [[ -z "$match" ]] && continue
     lineno="${match%%:*}"
     content="${match#*:}"
-    actual=$(printf '%s' "$content" | grep -oE 'xask --effort [a-z]+ gemini' | head -1)
+    actual=$(printf '%s' "$content" | grep -oE 'xask --effort [a-z]+ [a-z]+' | head -1)
     if [[ -n "$actual" && "$actual" != "$CANONICAL" ]]; then
       printf "DRIFT: %s:%s\n  expected: %s\n  actual:   %s\n" \
         "$FILE" "$lineno" "$CANONICAL" "$actual"
