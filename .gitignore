@@ -19,6 +19,3 @@
 # codex CLI runtime state — per-project OAuth profile + ephemeral home.
 .codex
 .codex-home/
-
-# ScheduleWakeup runtime lock — ephemeral, recreated each session.
-.claude/scheduled_tasks.lock
