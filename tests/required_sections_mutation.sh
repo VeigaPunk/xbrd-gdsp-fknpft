@@ -12,13 +12,15 @@ BAK="$SSOT.m3-bak"
 TARGET_HEADING="## xask Gate (4 layers)"
 MUTATED_HEADING="## xask Gate (renamed by M3 mutation)"
 
+BASELINE_SHA="$(sha256sum "$SSOT" | awk '{print $1}')"
+
 restore() {
   if [[ -f "$BAK" ]]; then
     mv "$BAK" "$SSOT"
     echo "RESTORED: $SSOT"
   fi
 }
-trap restore EXIT INT TERM HUP
+trap 'restore; NOW_SHA=$(sha256sum "$SSOT" 2>/dev/null | awk "{print \$1}" || echo MISSING); [[ "$NOW_SHA" == "$BASELINE_SHA" ]] || { echo "FAIL: $SSOT content diverged from baseline (restore trap failed or incomplete; baseline=${BASELINE_SHA:0:16}... now=${NOW_SHA:0:16}...)" >&2; exit 1; }' EXIT INT TERM HUP
 
 cd "$REPO_ROOT"
 
@@ -71,4 +73,11 @@ if ! cargo test --lib protocol::tests >/dev/null 2>&1; then
   exit 1
 fi
 echo "STEP 4 OK: baseline re-passes after restore"
+
+# Post-condition (class-wide M2 defense-in-depth per R2 cco-critic-r2-r1):
+# sha256 of SSoT must match pre-mutation baseline. Catches any normal-exit
+# path where restore was silenced or incomplete.
+FINAL_SHA="$(sha256sum "$SSOT" | awk '{print $1}')"
+[[ "$FINAL_SHA" == "$BASELINE_SHA" ]] || { echo "FAIL: $SSOT content diverged from baseline (post-condition sha mismatch)" >&2; exit 1; }
+
 echo "PASS: REQUIRED_SECTIONS sentinels catch heading drift"

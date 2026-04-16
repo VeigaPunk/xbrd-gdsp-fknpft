@@ -11,13 +11,15 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AGENTS_MD="$REPO_ROOT/AGENTS.md"
 BAK="$AGENTS_MD.m4-bak"
 
+BASELINE_SHA="$(sha256sum "$AGENTS_MD" | awk '{print $1}')"
+
 restore() {
   if [[ -f "$BAK" ]]; then
     mv "$BAK" "$AGENTS_MD"
     echo "RESTORED: $AGENTS_MD"
   fi
 }
-trap restore EXIT INT TERM HUP
+trap 'restore; NOW_SHA=$(sha256sum "$AGENTS_MD" 2>/dev/null | awk "{print \$1}" || echo MISSING); [[ "$NOW_SHA" == "$BASELINE_SHA" ]] || { echo "FAIL: $AGENTS_MD content diverged from baseline (restore trap failed or incomplete; baseline=${BASELINE_SHA:0:16}... now=${NOW_SHA:0:16}...)" >&2; exit 1; }' EXIT INT TERM HUP
 
 cd "$REPO_ROOT"
 
@@ -78,4 +80,11 @@ if ! ./scripts/verify-docs.sh >/dev/null 2>&1; then
   exit 1
 fi
 echo "STEP 4 OK: baseline re-passes after restore"
+
+# Post-condition (class-wide M2 defense-in-depth per R2 cco-critic-r2-r1):
+# sha256 of AGENTS.md must match pre-mutation baseline. Catches any
+# normal-exit path where restore was silenced or incomplete.
+FINAL_SHA="$(sha256sum "$AGENTS_MD" | awk '{print $1}')"
+[[ "$FINAL_SHA" == "$BASELINE_SHA" ]] || { echo "FAIL: $AGENTS_MD content diverged from baseline (post-condition sha mismatch)" >&2; exit 1; }
+
 echo "PASS: verify-docs.sh catches AGENTS.md connector routing drift"
