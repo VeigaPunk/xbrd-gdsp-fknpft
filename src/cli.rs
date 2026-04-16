@@ -57,6 +57,10 @@ pub enum Commands {
         /// Passes --json to codex exec; no-op for gemini.
         #[arg(long)]
         json: bool,
+        /// Write the final assistant message to FILE (codex only).
+        /// Passes -o <FILE> to codex exec; no-op for gemini.
+        #[arg(long = "output-last-message", short = 'o')]
+        output_last_message: Option<PathBuf>,
     },
     /// Initialize a team workspace
     Team {

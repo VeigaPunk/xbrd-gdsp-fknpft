@@ -384,3 +384,87 @@ fn ask_codex_json_flag_reaches_codex_argv() {
         "--json must not appear when flag absent: {argv2:?}"
     );
 }
+
+/// M9 (codex -o / --output-last-message plumbing) — end-to-end contract: when
+/// `xbreed ask codex --output-last-message <FILE>` is invoked, `-o <FILE>` must
+/// appear in the codex argv, positioned before the prompt.
+///
+/// Guards the three-layer plumb: cli.rs (clap field) → main.rs (destructure +
+/// as_deref) → ask.rs (build_codex_ask_with_loadout emits -o <path> when
+/// output_last_message is Some). Any silent removal breaks artifact capture for
+/// mailboxing, logs, and downstream reducers.
+#[test]
+fn ask_codex_output_last_message_flag_reaches_codex_argv() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+    let log = home.join("codex.log");
+    let out_file = home.join("last_msg.txt");
+
+    write_stub(&bin_dir, "codex", &log);
+
+    let out = run_xbreed_ask(
+        home,
+        &bin_dir,
+        &[
+            "ask",
+            "codex",
+            "--output-last-message",
+            out_file.to_str().unwrap(),
+            "say hi",
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "xbreed ask codex --output-last-message failed: {:?}",
+        out
+    );
+
+    let argv = read_log(&log);
+
+    // -o must appear in argv
+    assert!(
+        argv.iter().any(|a| a == "-o"),
+        "-o flag missing from codex argv: {argv:?}"
+    );
+
+    // the path argument must immediately follow -o
+    let o_idx = argv.iter().position(|a| a == "-o").unwrap();
+    assert_eq!(
+        argv[o_idx + 1],
+        out_file.to_str().unwrap(),
+        "-o must be followed by the output path: {argv:?}"
+    );
+
+    // -o must appear before the prompt (before the final positional arg)
+    let prompt_idx = argv.iter().position(|a| a == "say hi").unwrap();
+    assert!(
+        o_idx < prompt_idx,
+        "-o must precede the prompt in codex argv: {argv:?}"
+    );
+
+    // All other yolo/suppression flags must still be present (no regression)
+    assert!(
+        argv.iter().any(|a| a == "--skip-git-repo-check"),
+        "missing --skip-git-repo-check: {argv:?}"
+    );
+    assert!(
+        argv.contains(&"approval_policy=\"never\"".to_string()),
+        "missing approval_policy: {argv:?}"
+    );
+
+    // Without --output-last-message, -o must NOT appear
+    let log2 = home.join("codex_no_output.log");
+    write_stub(&bin_dir, "codex", &log2);
+    let out2 = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "say hi"]);
+    assert!(
+        out2.status.success(),
+        "xbreed ask codex (no -o) failed: {:?}",
+        out2
+    );
+    let argv2 = read_log(&log2);
+    assert!(
+        !argv2.iter().any(|a| a == "-o"),
+        "-o must not appear when flag absent: {argv2:?}"
+    );
+}
