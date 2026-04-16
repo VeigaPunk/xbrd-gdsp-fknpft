@@ -1,19 +1,19 @@
 #!/bin/bash
-# xask — contamination-aware template dispatch for cross-model orchestration
-# Usage: xask [--debug] [--scope <boundary>] [--rich] [--spark] [--effort <level>] <model> "<query>" ["<context>"] ["<skill>"]
+# xask — minimal routing protocol for cross-model orchestration
+# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"] ["<skill>"]
 #
-# ALL dispatches route through `xbreed ask` — clean suppression, loadout injection,
-# auth cascade, and godspeed forwarding are always-on.
-# --rich: FULL context — temporarily restores Gemini dir tree for interactive use.
-# --spark: Fast codex-spark model with low effort (codex only).
-# --effort: Reasoning effort level. Maps per-model: claude→--effort, codex→-c model_reasoning_effort, gemini→thinkingBudget profile.
+# All dispatches route through `xbreed ask`. Always-on: suppression, approval bypass,
+# auth cascade, godspeed forwarding, fast_mode (gpt-5.4). See docs/xask-protocol.md.
+#
+# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -e (effort)
 #
 # Examples:
-#   xask gemini "What patterns exist?"                    # clean, godspeed loaded
-#   xask --scope "src/ask.rs" gemini "Review this"        # scoped clean dispatch
-#   xask --rich gemini "Explore the codebase"             # full context, dir tree ON
-#   xask --spark codex "Probe this hypothesis"            # fast codex-spark, low effort
-#   xask claude "Analyze this" "prior findings"           # claude (no CLI injection)
+#   xask gemini "What patterns exist?"              # clean, godspeed loaded
+#   xask -s "src/ask.rs" gemini "Review this"       # scoped clean dispatch
+#   xask -r gemini "Explore the codebase"           # full context, dir tree ON
+#   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
+#   xask -e high codex "Deep review"                # high reasoning effort
+#   xask claude "Analyze this" "prior findings"     # claude (no CLI injection)
 
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 
@@ -23,14 +23,14 @@ SCOPE="entire project"
 RICH=false
 SPARK=false
 EFFORT=""
-while [[ "$1" == --* ]]; do
+while [[ "$1" == -* ]]; do
   case "$1" in
-    --debug) DEBUG=true; shift ;;
-    --scope) SCOPE="$2"; shift 2 ;;
-    --rich) RICH=true; shift ;;
-    --spark) SPARK=true; shift ;;
-    --effort) EFFORT="$2"; shift 2 ;;
-    --direct) SPARK=false; shift ;; # deprecated: suppression is always-on, use --effort for reasoning level
+    --debug  | -d)   DEBUG=true; shift ;;
+    --scope  | -s)   SCOPE="$2"; shift 2 ;;
+    --rich   | -r)   RICH=true; shift ;;
+    --spark  | --spk) SPARK=true; shift ;;
+    --effort | -e)   EFFORT="$2"; shift 2 ;;
+    --direct)        SPARK=false; shift ;; # deprecated: suppression is always-on, use --effort for reasoning level
     *) shift ;;
   esac
 done
@@ -44,7 +44,7 @@ TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
 if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
-  echo "Usage: xask [--debug] [--scope <boundary>] [--rich] [--direct] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
+  echo "Usage: xask [-d|--debug] [-s|--scope <boundary>] [-r|--rich] [--spk|--spark] [-e|--effort <level>] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
   exit 1
 fi
 
