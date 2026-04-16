@@ -57,8 +57,7 @@ flowchart TD
 |---|-------|--------|------|--------|
 | 1 | `xbreed ask claude "2+2"` | Bare dispatch | 0 | `4` |
 | 2 | `xbreed ask claude --with godspeed "3*7"` | Loadout injection | 0 | `21` |
-| 3 | `xask claude "capital of Japan?"` | xask with new --with loadout | 0 | `Tokyo` |
-| 4 | Guard deny `rm -rf /` | Policy enforcement | 0 | `{"decision":"deny"}` |
+| 3 | Guard deny `rm -rf /` | Policy enforcement | 0 | `{"decision":"deny"}` |
 | 5 | Guard allow `cargo test` | Policy pass-through | 0 | `{"decision":"allow"}` |
 
 ## Round 2 — Roundtable review

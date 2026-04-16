@@ -23,11 +23,11 @@ Include in teammate briefs: `"You have access to advisor() — call it before su
 Include as FIRST instruction in every teammate brief that requires cross-model delegation.
 
 **Layer 1 — Gate (structural):**
-- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15; restore to `xask --effort medium gemini '<q>' 'context' 'librarian'` when quota returns.)*
+- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
-- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15.)*
-- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(Gemini rate-limited fallback 2026-04-15.)*
+- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
+- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
@@ -58,14 +58,14 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15)* | All |
+| Research, prior art | `scout` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
-| Cross-axis patterns | `connector` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15)* | All |
+| Cross-axis patterns | `connector` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
-| Reverse engineering | `the-revenger` | opus 4.7 max | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15)* | All |
+| Reverse engineering | `the-revenger` | opus 4.7 max | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |

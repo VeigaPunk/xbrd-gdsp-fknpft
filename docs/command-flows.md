@@ -331,7 +331,6 @@ sequenceDiagram
 | Teammate spawn (4x parallel) | ~3s | CC agent initialization |
 | xask gemini (per call) | ~14s | Gemini CLI + OAuth cascade |
 | xask codex (per call) | ~6s | Codex exec |
-| xask claude (per call) | ~7s | Claude -p |
 | xbreed ask gemini --with godspeed | ~13s | Loadout resolution + dispatch |
 | Cross-critique DMs | ~2-5s | Turn-boundary polling |
 | Pareto filter (judge) | ~1-3s | In-session, no I/O |

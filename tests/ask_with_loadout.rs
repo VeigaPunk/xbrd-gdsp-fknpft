@@ -64,31 +64,6 @@ fn run_xbreed_ask_in_dir(
 }
 
 #[test]
-fn ask_claude_with_loadout_injects_append_system_prompt() {
-    let tmp = tempdir().unwrap();
-    let home = tmp.path();
-    let bin_dir = home.join("bin");
-    let log = home.join("claude.log");
-
-    write_skill(home, "godspeed", "GO FAST NOW");
-    write_stub(&bin_dir, "claude", &log);
-
-    let out = run_xbreed_ask(
-        home,
-        &bin_dir,
-        &["ask", "claude", "--with", "godspeed", "say hi"],
-    );
-    assert!(out.status.success(), "xbreed ask failed: {:?}", out);
-
-    let argv = read_log(&log);
-    assert_eq!(argv[0], "-p");
-    assert_eq!(argv[1], "say hi");
-    assert_eq!(argv[2], "--append-system-prompt");
-    assert!(argv[3].contains("GO FAST NOW"));
-    assert!(argv[3].contains("## godspeed"));
-}
-
-#[test]
 fn ask_codex_with_loadout_injects_developer_instructions_override() {
     let tmp = tempdir().unwrap();
     let home = tmp.path();
@@ -156,19 +131,23 @@ fn ask_gemini_with_loadout_prepends_to_prompt() {
 }
 
 #[test]
-fn ask_without_with_flag_is_backwards_compatible() {
+fn ask_without_with_flag_dispatches_cleanly() {
     let tmp = tempdir().unwrap();
     let home = tmp.path();
     let bin_dir = home.join("bin");
-    let log = home.join("claude.log");
+    let log = home.join("codex.log");
 
-    write_stub(&bin_dir, "claude", &log);
+    write_stub(&bin_dir, "codex", &log);
 
-    let out = run_xbreed_ask(home, &bin_dir, &["ask", "claude", "say hi"]);
+    let out = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "say hi"]);
     assert!(out.status.success(), "xbreed ask failed: {:?}", out);
 
     let argv = read_log(&log);
-    assert_eq!(argv, vec!["-p".to_string(), "say hi".to_string()]);
+    assert_eq!(argv[0], "exec");
+    assert_eq!(*argv.last().unwrap(), "say hi");
+    assert!(!argv
+        .iter()
+        .any(|a| a.starts_with("developer_instructions=")));
 }
 
 #[test]
@@ -176,15 +155,15 @@ fn ask_with_missing_skill_errors_cleanly() {
     let tmp = tempdir().unwrap();
     let home = tmp.path();
     let bin_dir = home.join("bin");
-    let log = home.join("claude.log");
+    let log = home.join("codex.log");
 
     // No skill written.
-    write_stub(&bin_dir, "claude", &log);
+    write_stub(&bin_dir, "codex", &log);
 
     let out = run_xbreed_ask(
         home,
         &bin_dir,
-        &["ask", "claude", "--with", "nonexistent", "say hi"],
+        &["ask", "codex", "--with", "nonexistent", "say hi"],
     );
     assert!(!out.status.success(), "expected failure for missing skill");
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -202,24 +181,27 @@ fn ask_with_multiple_skills_comma_separated() {
     let tmp = tempdir().unwrap();
     let home = tmp.path();
     let bin_dir = home.join("bin");
-    let log = home.join("claude.log");
+    let log = home.join("codex.log");
 
     write_skill(home, "godspeed", "GO FAST");
     write_skill(home, "librarian", "CURATE");
-    write_stub(&bin_dir, "claude", &log);
+    write_stub(&bin_dir, "codex", &log);
 
     let out = run_xbreed_ask(
         home,
         &bin_dir,
-        &["ask", "claude", "--with", "godspeed,librarian", "research"],
+        &["ask", "codex", "--with", "godspeed,librarian", "research"],
     );
     assert!(out.status.success());
 
     let argv = read_log(&log);
-    assert_eq!(argv[2], "--append-system-prompt");
-    assert!(argv[3].contains("GO FAST"));
-    assert!(argv[3].contains("CURATE"));
-    let go_idx = argv[3].find("GO FAST").unwrap();
-    let cur_idx = argv[3].find("CURATE").unwrap();
+    let dev_instr = argv
+        .iter()
+        .find(|a| a.starts_with("developer_instructions="))
+        .expect("developer_instructions missing");
+    assert!(dev_instr.contains("GO FAST"));
+    assert!(dev_instr.contains("CURATE"));
+    let go_idx = dev_instr.find("GO FAST").unwrap();
+    let cur_idx = dev_instr.find("CURATE").unwrap();
     assert!(go_idx < cur_idx, "godspeed should come before librarian");
 }

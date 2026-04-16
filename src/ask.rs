@@ -330,6 +330,20 @@ fn is_auth_error(stderr: &[u8]) -> bool {
         || s.contains("set an Auth method")
 }
 
+/// Warn when `--effort` is supplied alongside `--spark` for codex.
+/// Returns true if a warning was emitted (effort is non-default for spark).
+pub fn warn_codex_spark_effort(effort: Option<&str>) -> bool {
+    if let Some(e) = effort {
+        if e != "low" {
+            eprintln!(
+                "warning: --effort is ignored for codex spark (spark pins model_reasoning_effort=low)"
+            );
+            return true;
+        }
+    }
+    false
+}
+
 pub fn dispatch(
     cli: &str,
     prompt: &str,
@@ -402,10 +416,10 @@ pub fn dispatch(
         }
         "codex" => {
             let mut c = build_codex_ask_with_loadout(loadout, spark);
-            if !spark {
-                if let Some(e) = effort {
-                    c.arg("-c").arg(format!("model_reasoning_effort={e}"));
-                }
+            if spark {
+                warn_codex_spark_effort(effort);
+            } else if let Some(e) = effort {
+                c.arg("-c").arg(format!("model_reasoning_effort={e}"));
             }
             // Prompt MUST be the last positional arg for codex exec —
             // all -c flags must come before it.
@@ -420,11 +434,10 @@ pub fn dispatch(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         // Auth-class errors get a clearer hint pointing to the CLI's own
-        // credential chain. xbreed does not manage claude/codex OAuth —
+        // credential chain. xbreed does not manage codex OAuth —
         // those CLIs own their own auth (subscription login, etc.).
         if is_auth_error(stderr.as_bytes()) {
             let hint = match cli {
-                "claude" => "run `claude login` to authenticate",
                 "codex" => {
                     "run `codex login` to sign in with your ChatGPT Plus/Pro/Enterprise subscription or API key"
                 }
@@ -471,13 +484,6 @@ mod tests {
     }
 
     #[test]
-    fn claude_ask_empty_loadout_matches_v0_1_behavior() {
-        let c = build_claude_ask_with_loadout("hello", &Loadout::empty());
-        assert_eq!(c.get_program().to_string_lossy(), "claude");
-        assert_eq!(cmd_args(&c), vec!["-p", "hello"]);
-    }
-
-    #[test]
     fn codex_ask_empty_loadout_has_suppression_and_approval_flags() {
         let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false);
         c.arg("hello"); // caller appends prompt after -c flags
@@ -505,18 +511,6 @@ mod tests {
         // fast_mode is gpt-5.4 only — must NOT be present on spark path
         assert!(!args.contains(&"features.fast_mode=true".to_string()));
         assert_eq!(*args.last().unwrap(), "probe");
-    }
-
-    #[test]
-    fn claude_ask_with_loadout_adds_append_system_prompt() {
-        let l = loadout_with("BE FAST");
-        let c = build_claude_ask_with_loadout("hello", &l);
-        let args = cmd_args(&c);
-        assert_eq!(args[0], "-p");
-        assert_eq!(args[1], "hello");
-        assert_eq!(args[2], "--append-system-prompt");
-        assert!(args[3].contains("BE FAST"));
-        assert!(args[3].contains("## testskill"));
     }
 
     #[test]
@@ -729,5 +723,13 @@ mod tests {
                 || root_str.ends_with(".xbreed/gemini-profiles"),
             "profiles root must be under .config/xbreed or fallback .xbreed, got: {root_str}"
         );
+    }
+
+    #[test]
+    fn spark_with_effort_warns_and_drops() {
+        assert!(super::warn_codex_spark_effort(Some("high")));
+        assert!(super::warn_codex_spark_effort(Some("medium")));
+        assert!(!super::warn_codex_spark_effort(Some("low")));
+        assert!(!super::warn_codex_spark_effort(None));
     }
 }

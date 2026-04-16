@@ -121,7 +121,6 @@ stderr warning since it has no native `--effort` flag.
 |-----------|-----------|
 | `xask gemini` | ~14s (OAuth cascade) |
 | `xask codex` | ~6s (structured) / ~1s (`--direct`) |
-| `xask claude` | ~7s |
 | Full xbgst round | ~29s |
 
 **Agent roster:** 8 agents using Inter-Model Communication Protocol v0.2
