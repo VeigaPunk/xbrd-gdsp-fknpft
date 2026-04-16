@@ -1,6 +1,6 @@
 claude:
   default: opus
-  effort: max
+  effort: xhigh
 codex:
   default: gpt-5.4
   reasoning_effort: xhigh

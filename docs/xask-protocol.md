@@ -139,7 +139,7 @@ Agent and teammate names use a prefix that signals where reasoning lives:
 | `g-` | Gemini | `g-scout-research`, `g-connector-axes` |
 | `cdx-` | Codex | `cdx-labrat-probe`, `cdx-reviewer-security` |
 | `ccs-` | Claude Code (Sonnet) | `ccs-executor-docs`, `ccs-simplifier-refactor` |
-| `cco-` | Claude Code (Opus) | `cco-judge`, `cco-distiller` |
+| `cco-` | Claude Code (Opus 4.7, effort: high — LOCKED; the-judge runs at xhigh) | `cco-judge`, `cco-distiller` |
 
 The prefix is the xask delegation target, not the model running the agent (which is always Claude). A `g-scout-*` agent's first tool call must be `xask gemini`.
 

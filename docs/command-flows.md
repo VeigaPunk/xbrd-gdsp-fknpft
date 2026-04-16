@@ -57,7 +57,7 @@ flowchart TD
     A[xbreed claude] --> B[load policy.yaml]
     B --> C[sync: write settings.json]
     C --> D[load models.yaml]
-    D --> E["claude --model opus \n--effort max \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
+    D --> E["claude --model opus \n--effort xhigh \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
     E --> F[Claude Code TUI session]
 ```
 

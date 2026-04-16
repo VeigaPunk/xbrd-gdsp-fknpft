@@ -114,11 +114,13 @@ fi
 # Instead of mutating the shared settings.json, we copy it to a temp file,
 # mutate the copy, point HOME at the temp dir, and clean up on exit.
 XASK_RICH_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/xbreed/xask-rich"
+[[ "$XASK_RICH_ROOT" != /* ]] && XASK_RICH_ROOT="$HOME/.cache/xbreed/xask-rich"
 RICH_TMPDIR=""
 gemini_rich_setup() {
   mkdir -p "$XASK_RICH_ROOT"
   chmod 700 "$XASK_RICH_ROOT"
   # Sweep stale dirs older than 60 minutes (covers SIGKILL/OOM orphans)
+  # fire-and-forget intentional: stale-dir sweep; failure must not block rich-mode setup
   find "$XASK_RICH_ROOT" -maxdepth 1 -name 'xask-rich-*' -mmin +60 -exec rm -rf {} + 2>/dev/null || true
   RICH_TMPDIR=$(mktemp -d "$XASK_RICH_ROOT/xask-rich-$$-XXXXXX")
   mkdir -p "$RICH_TMPDIR/.gemini"
@@ -136,12 +138,12 @@ gemini_rich_setup() {
     mkdir -p "$RICH_TMPDIR/.config/xbreed"
     cp -r "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
     for profile_settings in "$RICH_TMPDIR/.config/xbreed/gemini-profiles"/*/.gemini/settings.json; do
-        [ -f "$profile_settings" ] && XASK_PROFILE_SETTINGS="$profile_settings" python3 -c "
+        [ -f "$profile_settings" ] && { XASK_PROFILE_SETTINGS="$profile_settings" python3 -c "
 import json, os
 f = os.environ['XASK_PROFILE_SETTINGS']
 with open(f) as fh: d=json.load(fh)
 d.setdefault('context',{})['includeDirectoryTree']=True
-with open(f,'w') as fh: json.dump(d,fh,indent=2)"
+with open(f,'w') as fh: json.dump(d,fh,indent=2)" || { echo "xask: failed to patch profile settings: $profile_settings" >&2; rm -rf "$RICH_TMPDIR"; return 1; }; }
     done
   fi
   XASK_RICH_SETTINGS="$RICH_TMPDIR/.gemini/settings.json" python3 -c "

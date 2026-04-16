@@ -29,7 +29,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns."` *(connector is locked to gemini high — does not fall back to codex; see feedback_connector_gemini_high.md)*
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
-- **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
+- **critic**: For `cco-critic-*` (opus): `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."` For `ccs-critic-*` (sonnet): skip Layer 0; first tool call is the xask gate as written here. See `feedback_cco_critic_heuer.md`.
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
 - **simplifier/distiller/scribe/the-planner**: No xask gate.
@@ -63,9 +63,9 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
-| Synthesis, dedup | `distiller` | sonnet | in-session | All |
+| Synthesis, dedup | `distiller` | opus 4.7 medium (LOCKED — see `feedback_cco_opus_high.md`) | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
-| Reverse engineering | `the-revenger` | opus 4.7 max | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
+| Reverse engineering | `the-revenger` | opus 4.7 high | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
@@ -80,7 +80,9 @@ Exit 0 + `RESTORE` → primary gemini routing is healthy; revert the `-rate-limi
 
 ## Naming Convention
 
-`{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus), `cdx-` (Codex).
+`{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
+
+**Effort tiers (LOCKED):** `cco-` general roles run at `effort: high`. **Exception: `the-judge` runs at `xhigh`** (orchestrator depth required). **Exception: `advisor()` responds at `max`** (Layer-0 escalation, separate code path). See `feedback_cco_opus_high.md`.
 
 ## Labrat Invocation (Universal)
 
@@ -99,9 +101,9 @@ Default labrat delegation is `xask --spark codex` (fast, cheap, expendable). For
 Agent(
   subagent_type="distiller",
   team_name="<team>",
-  name="ccs-distiller",
-  model="sonnet",
-  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions (cross-model if xask used, cross-teammate if all-Claude), assign confidence. Preserve each surviving move's `evidence:` field verbatim (see Pareto Filter Evidence Schema) — do not absorb into prose; the filter reads it post-synthesis. Use SYNTHESIS_READY mapping for judge consumption. SendMessage your synthesis to the judge (team lead) when done."
+  name="cco-distiller",
+  model="opus",
+  prompt="You are the distiller. Opus 4.7 effort: medium (per cco effort 4-tier hierarchy — distiller is the structural-synthesis tier with active rigor: spoof-checking, contradiction surfacing, consensus capping). Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions (cross-model if xask used, cross-teammate if all-Claude), assign confidence. Preserve each surviving move's `evidence:` field verbatim (see Pareto Filter Evidence Schema) — do not absorb into prose; the filter reads it post-synthesis. Apply opus-harness rigor: spoof-check cited file:line excerpts via literal-substring grep; cap single-prefix consensus at MED; upweight cross-model divergence. Use SYNTHESIS_READY mapping for judge consumption. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```
 

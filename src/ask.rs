@@ -335,6 +335,40 @@ pub fn warn_codex_spark_effort(effort: Option<&str>) -> bool {
     false
 }
 
+/// Execute a `Command` with a wall-clock timeout.
+///
+/// Returns `Err` with an `"xask-timeout:"` marker when the process does not
+/// complete within `timeout`. The spawned worker thread continues running in
+/// the background — the OS will reap the child process when the pipe closes.
+///
+/// **Bypass surface:** this timeout only applies to calls routed through
+/// `dispatch()` → `src/ask.rs`. Agents invoking `gemini` directly via shell
+/// (Bash tool, `Agent()` native) bypass it entirely. `XASK_TIMEOUT_SECS=0`
+/// is treated as invalid and falls back to the 60s default to prevent
+/// accidental self-DoS.
+pub fn execute_with_timeout(
+    mut cmd: std::process::Command,
+    timeout: std::time::Duration,
+) -> Result<std::process::Output> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(cmd.output());
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(res) => res.map_err(|e| anyhow::anyhow!("failed to execute command: {e}")),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            anyhow::bail!(
+                "xask-timeout: command did not complete within {}s \
+                 (set XASK_TIMEOUT_SECS env var to override)",
+                timeout.as_secs()
+            )
+        }
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            anyhow::bail!("xask-timeout: command worker thread disconnected unexpectedly")
+        }
+    }
+}
+
 pub fn dispatch(
     cli: &str,
     prompt: &str,
@@ -356,15 +390,21 @@ pub fn dispatch(
             );
         }
 
+        let timeout_secs = std::env::var("XASK_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .filter(|&n| n > 0)
+            .unwrap_or(60);
+        let timeout = std::time::Duration::from_secs(timeout_secs);
+
         let mut last_stderr: Vec<u8> = Vec::new();
         let mut last_code: Option<i32> = None;
         let mut last_label = String::new();
 
         for auth in &chain {
-            let mut cmd = build_gemini_with_auth(prompt, loadout, auth);
-            let output = cmd.output().map_err(|e| {
-                anyhow::anyhow!("failed to execute gemini (auth={}): {e}", auth.label())
-            })?;
+            let cmd = build_gemini_with_auth(prompt, loadout, auth);
+            let output = execute_with_timeout(cmd, timeout)
+                .map_err(|e| anyhow::anyhow!("gemini (auth={}): {e}", auth.label()))?;
             if output.status.success() {
                 return Ok(String::from_utf8_lossy(&output.stdout).to_string());
             }
@@ -715,5 +755,17 @@ mod tests {
         assert!(super::warn_codex_spark_effort(Some("medium")));
         assert!(!super::warn_codex_spark_effort(Some("low")));
         assert!(!super::warn_codex_spark_effort(None));
+    }
+
+    #[test]
+    fn execute_with_timeout_returns_err_on_slow_cmd() {
+        let mut cmd = std::process::Command::new("sleep");
+        cmd.arg("30");
+        let result = super::execute_with_timeout(cmd, std::time::Duration::from_secs(1));
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("xask-timeout"),
+            "expected xask-timeout error, got: {err}"
+        );
     }
 }

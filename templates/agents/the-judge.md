@@ -23,7 +23,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Correctness, bugs, code review | `reviewer` | `xask --effort high codex "<q>"` | All |
 | Empirical probes, dry-runs | `labrat` (sonnet) | `xask --spark codex "<probe>"` | All |
 | Code execution, implementation | `executor` | `xask --spark codex "<task>"` | All |
-| Cross-axis patterns, breadth | `connector` | `xask --effort high gemini "<q>"` *(locked — no codex fallback)* | All |
+| Cross-axis patterns, breadth | `connector` | `xask --effort high gemini "<q>"` | All |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter; persistent across rounds | All |
 | Deletion, YAGNI | `simplifier` | direct analysis | All |
 | Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |
@@ -41,7 +41,7 @@ Prepend model prefix to descriptive name: `{prefix}-{role}-{suffix}`
 |---|---|
 | `g-` | Gemini (via `xask gemini`) |
 | `ccs-` | Claude Sonnet |
-| `cco-` | Claude Opus |
+| `cco-` | Claude Opus 4.7 (effort: high — LOCKED) |
 | `cdx-` | Codex (via `xbreed ask codex`) |
 
 Examples: `ccs-scout-docs`, `g-labrat-probe`, `cdx-reviewer-auth`, `ccs-executor-tests`
