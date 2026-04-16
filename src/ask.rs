@@ -853,4 +853,47 @@ mod tests {
             "child PID {child_pid} still present in /proc after timeout — ghost leak not fixed"
         );
     }
+
+    #[test]
+    fn dispatch_codex_path_reaches_timeout_wrapper() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+
+        // Serialize env-mutating tests to avoid PATH race with parallel test threads.
+        static PATH_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        let _guard = PATH_LOCK
+            .get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap();
+
+        // Fake "codex" that hangs — ensures dispatch() must fire the timeout wrapper.
+        let tmp = tempfile::tempdir().unwrap();
+        let fake_codex = tmp.path().join("codex");
+        {
+            let mut f = std::fs::File::create(&fake_codex).unwrap();
+            writeln!(f, "#!/bin/sh\nexec sleep 60").unwrap();
+        }
+        std::fs::set_permissions(&fake_codex, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let orig_path = std::env::var("PATH").unwrap_or_default();
+        std::env::set_var("PATH", format!("{}:{}", tmp.path().display(), orig_path));
+        std::env::set_var("XASK_TIMEOUT_SECS", "1");
+
+        let result = super::dispatch(
+            "codex",
+            "test prompt",
+            &super::Loadout::empty(),
+            None,
+            false,
+        );
+
+        std::env::set_var("PATH", &orig_path);
+        std::env::remove_var("XASK_TIMEOUT_SECS");
+
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("xask-timeout"),
+            "codex dispatch path did not invoke timeout wrapper: {err}"
+        );
+    }
 }
