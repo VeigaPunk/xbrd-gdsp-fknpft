@@ -134,6 +134,11 @@ pub fn build_codex_ask_with_loadout(
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
     } else {
+        // Pin the default model explicitly (CODEX_DEFAULT_MODEL = "gpt-5.4"
+        // per ~/.codex/config.toml SSoT). Previously inferred via fast_mode;
+        // pinning makes a codex default-model change visible at argv audit
+        // time rather than silently drifting.
+        c.arg("-m").arg(CODEX_DEFAULT_MODEL);
         // fast_mode is a codex feature flag for gpt-5.4 family (default model).
         // Not applicable to spark (gpt-5.3-codex-spark).
         c.arg("-c").arg("features.fast_mode=true");
@@ -171,6 +176,16 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
 
 /// The codex model used for spark (cheap/fast/expendable) probes.
 pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
+
+/// The codex model used for non-spark dispatch (reviewer/critic/sentinel/
+/// the-revenger/etc.). `gpt-5.4` is codex's native default in v0.120.0 per
+/// `~/.codex/config.toml` SSoT (`# gpt-5.4 is the native default ... declared
+/// for SSoT alignment with models.yaml`). We pin it explicitly via `-m` in
+/// the non-spark branch for drift detection and argv audit clarity —
+/// previously the model was only inferred server-side via `features.fast_mode
+/// =true`, which makes regressions invisible until a codex version bump
+/// changes the default.
+pub const CODEX_DEFAULT_MODEL: &str = "gpt-5.4";
 
 // ========================================================================
 // v0.3.5 — Gemini auth cascade with multi-profile OAuth
@@ -594,6 +609,10 @@ mod tests {
         assert!(args.contains(&"include_environment_context=false".to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert!(args.contains(&"--ephemeral".to_string()));
+        // Non-spark path pins CODEX_DEFAULT_MODEL explicitly for drift detection —
+        // codex's native default in v0.120.0 is gpt-5.4 per ~/.codex/config.toml.
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&CODEX_DEFAULT_MODEL.to_string()));
         // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
         assert!(args.contains(&"--sandbox".to_string()));
         assert!(args.contains(&"danger-full-access".to_string()));

@@ -246,6 +246,21 @@ fn ask_codex_route_preserves_full_unlock_contract() {
         argv.contains(&"features.fast_mode=true".to_string()),
         "missing features.fast_mode=true in argv: {argv:?}"
     );
+
+    // M10 (explicit codex default model pin): non-spark dispatch must include
+    // -m gpt-5.4 so a codex version bump that shifts the default model is
+    // caught at argv audit time, not silently. Pairs with ask.rs constant
+    // CODEX_DEFAULT_MODEL and ~/.codex/config.toml SSoT.
+    let m_idx = argv.iter().position(|a| a == "-m");
+    assert!(
+        m_idx.is_some(),
+        "missing -m flag in non-spark argv: {argv:?}"
+    );
+    assert_eq!(
+        argv[m_idx.unwrap() + 1],
+        "gpt-5.4",
+        "non-spark path must pin -m gpt-5.4: {argv:?}"
+    );
 }
 
 /// M6 (codex #6) — gemini argv asserts budget stays prompt-side and yolo stays
