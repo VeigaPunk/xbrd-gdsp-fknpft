@@ -98,7 +98,13 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec")
         .arg("--skip-git-repo-check")
-        .arg("--ephemeral");
+        .arg("--ephemeral")
+        // Yolo / allow-all-tools: codex defaults to a sandbox; we unlock it
+        // for headless xask dispatch (parity with gemini's --approval-mode yolo
+        // at line ~279). User-locked policy: solo-dev workflow, all-tool
+        // permission across xask-gated subprocesses. See feedback_yolo_routing.md.
+        .arg("--sandbox")
+        .arg("danger-full-access");
 
     // Contamination suppression + approval bypass — always-on for clean headless dispatch
     c.arg("-c").arg("approval_policy=\"never\"");
@@ -568,6 +574,9 @@ mod tests {
         assert!(args.contains(&"include_environment_context=false".to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert!(args.contains(&"--ephemeral".to_string()));
+        // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
+        assert!(args.contains(&"--sandbox".to_string()));
+        assert!(args.contains(&"danger-full-access".to_string()));
         assert_eq!(*args.last().unwrap(), "hello");
     }
 
@@ -581,6 +590,9 @@ mod tests {
         assert!(args.contains(&"model_reasoning_effort=low".to_string()));
         // fast_mode is gpt-5.4 only — must NOT be present on spark path
         assert!(!args.contains(&"features.fast_mode=true".to_string()));
+        // Yolo sandbox applies to spark too — labrats need all-tool access
+        assert!(args.contains(&"--sandbox".to_string()));
+        assert!(args.contains(&"danger-full-access".to_string()));
         assert_eq!(*args.last().unwrap(), "probe");
     }
 

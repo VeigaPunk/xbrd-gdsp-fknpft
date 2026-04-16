@@ -30,9 +30,10 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: For `cco-critic-*` (opus): `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."` For `ccs-critic-*` (sonnet): skip Layer 0; first tool call is the xask gate as written here. See `feedback_cco_critic_heuer.md`.
-- **mutation-tester**: `"Your FIRST tool call MUST be Bash, EITHER: (a) `xask --spark codex '<generate mutation for this function>'` for a single targeted mutation (fast spot-check), OR (b) `xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>. Vary the angle per mutation (boundary, operator-flip, return-swap, etc). Report each in HYPOTHESIS/METHOD/RESULT.'` for systematic 10-probe coverage (gemini low = `# ThinkingBudget: 512`). No other tool before xask returns. Pick (a) for ≤2 mutation targets, (b) for ≥3 or for breadth discovery."`
+- **mutation-tester**: `"Your FIRST tool call MUST be Bash, EITHER: (a) `xask --spark codex '<generate mutation for this function>'` for a single targeted mutation (fast spot-check), OR (b) `xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>. Vary the angle per mutation (boundary, operator-flip, return-swap, etc). Report each in HYPOTHESIS/METHOD/RESULT.'` for systematic 10-probe coverage (gemini low = `# ThinkingBudget: 512`). No other tool before xask returns. Pick (a) for ≤4 mutation targets, (b) for ≥3 or for breadth discovery."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
-- **simplifier/distiller/scribe/the-planner**: No xask gate.
+- **the-planner**: `"Your FIRST tool call MUST be Skill(skill='wwkd') — this is Layer 0 (loads the What Would Karpathy Do planning posture: data-walk-first, end-to-end skeleton before capacity, overfit-one-case before generalizing, structural verification at every step). After the skill loads, proceed to Phase 0 data-walk + WWKD skeleton per the-planner.md template. NO Layer-1 xask gate — CC-native planning."` See `feedback_the_planner_wwkd.md`.
+- **simplifier/distiller/scribe**: No xask gate, no Layer 0 skill load.
 
 **Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
 
@@ -67,9 +68,9 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Deletion, YAGNI | `simplifier` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
 | Reverse engineering | `the-revenger` | opus 4.7 high | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
-| Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` | opus 4.7 high · Layer-0 wwkd skill load (LOCKED — see `feedback_the_planner_wwkd.md`) | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
-| Test validation | `mutation-tester` | sonnet | `xask --spark codex` (single mutation, ≤2 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) — see Layer-1 gate above for selection rule | All |
+| Test validation | `mutation-tester` | sonnet | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) — see Layer-1 gate above for selection rule | All |
 | Documentation, audit trail | `scribe` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
 
 **Gemini restoration canary (machine-checkable):** before restoring any `xask --effort * gemini` routing marked `*(gemini-rate-limited 2026-04-15)*`, run:

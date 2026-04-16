@@ -28,9 +28,9 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Deletion, YAGNI | `simplifier` (sonnet · medium) | direct analysis | All |
 | Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |
 | Security auditing, adversarial analysis | `sentinel` | `xask --effort high codex` + `xask gemini` for CVEs | All |
-| Planning, Phase 0, WWKD sequencing | `the-planner` | CC native | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` (opus 4.7 high · Layer-0 wwkd skill) | CC native — spawn FIRST at Phase 0 to map skeleton baseline before specialist dispatch | All |
 | Adversarial design, approach review | `critic` | `xask --effort high codex` | All |
-| Test validation, mutation testing | `mutation-tester` | `xask --spark codex` (single, ≤2 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets, `# ThinkingBudget: 512`) | All |
+| Test validation, mutation testing | `mutation-tester` | `xask --spark codex` (single, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥5 targets, `# ThinkingBudget: 512`) | All |
 | Documentation, audit trail | `scribe` (sonnet · medium) | CC native; spawn after SYNTHESIS_READY, concurrent with Pareto scoring; filter-exempt | All |
 
 ## Teammate naming convention
