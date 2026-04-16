@@ -105,7 +105,9 @@ pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command
 /// positional arg.
 pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     let mut c = Command::new("codex");
-    c.arg("exec").arg("--skip-git-repo-check");
+    c.arg("exec")
+        .arg("--skip-git-repo-check")
+        .arg("--ephemeral");
 
     // Contamination suppression + approval bypass — always-on for clean headless dispatch
     c.arg("-c").arg("approval_policy=\"never\"");
@@ -488,6 +490,7 @@ mod tests {
         assert!(args.contains(&"include_apps_instructions=false".to_string()));
         assert!(args.contains(&"include_environment_context=false".to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
+        assert!(args.contains(&"--ephemeral".to_string()));
         assert_eq!(*args.last().unwrap(), "hello");
     }
 

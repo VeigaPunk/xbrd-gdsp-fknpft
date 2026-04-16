@@ -23,6 +23,8 @@ SCOPE="entire project"
 RICH=false
 SPARK=false
 EFFORT=""
+EFFORT_FLAGS=()
+SPARK_FLAGS=()
 while [[ "$1" == -* ]]; do
   case "$1" in
     --debug  | -d)   DEBUG=true; shift ;;
@@ -30,10 +32,18 @@ while [[ "$1" == -* ]]; do
     --rich   | -r)   RICH=true; shift ;;
     --spark  | --spk) SPARK=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
-    --direct)        SPARK=false; shift ;; # deprecated: suppression is always-on, use --effort for reasoning level
     *) shift ;;
   esac
 done
+
+if [ -n "$EFFORT" ]; then
+  case "$EFFORT" in
+    low|medium|high|xhigh) ;;
+    *) echo "xask: invalid effort level '$EFFORT' (use low|medium|high|xhigh)" >&2; exit 1 ;;
+  esac
+fi
+[ -n "$EFFORT" ] && EFFORT_FLAGS=(--effort "$EFFORT")
+[ "$SPARK" = true ] && SPARK_FLAGS=(--spark)
 
 MODEL="$1"
 QUERY="$2"
@@ -109,7 +119,15 @@ gemini_rich_setup() {
   # Preserve named OAuth profiles so gemini_profiles_root() resolves correctly
   if [ -d "$HOME/.config/xbreed/gemini-profiles" ]; then
     mkdir -p "$RICH_TMPDIR/.config/xbreed"
-    ln -s "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
+    cp -r "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
+    for profile_settings in "$RICH_TMPDIR/.config/xbreed/gemini-profiles"/*/.gemini/settings.json; do
+        [ -f "$profile_settings" ] && python3 -c "
+import json
+f='$profile_settings'
+with open(f) as fh: d=json.load(fh)
+d.setdefault('context',{})['includeDirectoryTree']=True
+with open(f,'w') as fh: json.dump(d,fh,indent=2)"
+    done
   fi
   python3 -c "
 import json, sys
@@ -127,24 +145,16 @@ case "$MODEL" in
   gemini)
     if [ "$RICH" = true ]; then
       gemini_rich_setup || exit 1
-      trap 'gemini_rich_cleanup' EXIT
+      trap 'gemini_rich_cleanup' EXIT INT TERM HUP
       export HOME="$RICH_TMPDIR"
     fi
-    EFFORT_FLAG=""
-    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-    xbreed ask gemini --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
+    xbreed ask gemini --with "$SKILL" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   codex)
-    SPARK_FLAG=""
-    [ "$SPARK" = true ] && SPARK_FLAG="--spark"
-    EFFORT_FLAG=""
-    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-    xbreed ask codex --with "$SKILL" ${SPARK_FLAG:+$SPARK_FLAG} ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
+    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   claude)
-    EFFORT_FLAG=""
-    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-    xbreed ask claude --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
+    xbreed ask claude --with "$SKILL" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini, codex, or claude." >&2

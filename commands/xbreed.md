@@ -25,7 +25,7 @@ Treat this as the problem to judge/draft. If it names multiple proposals, score 
 
 ## Step 3 — Sub-role dispatch rules (load-bearing)
 
-You may dispatch specialist sub-roles: **scout** (research), **reviewer** (surgical review), **labrat** (cheap dry-run), **executor** (parallel leaf-task executor), **distiller** (multi-source deduplication). Personas live at `~/.claude/agents/{scout,reviewer,labrat,executor,distiller}.md`.
+You may dispatch specialist sub-roles: **scout** (research), **reviewer** (surgical review), **labrat** (cheap dry-run), **executor** (parallel leaf-task executor), **distiller** (multi-source deduplication), **the-planner** (Phase 0 data-walk + WWKD plan artifact). Personas live at `~/.claude/agents/{scout,reviewer,labrat,executor,distiller,the-planner}.md`.
 
 **Architectural quirk (Claude Code 2.1.101):** `Agent(subagent_type="<user-scope-name>")` ONLY resolves user-scope agent definitions when spawned inside a team context. Out-of-team, only built-in subagent types work.
 

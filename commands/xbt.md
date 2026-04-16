@@ -48,7 +48,7 @@ When you decide a sub-role is needed, spawn it as a **persistent team member**:
 
 ```
 Agent(
-  subagent_type="scout" | "reviewer" | "labrat",
+  subagent_type="scout" | "reviewer" | "labrat" | "the-planner",
   team_name="<the team you just created>",
   name="<unique teammate name>",
   model="sonnet",

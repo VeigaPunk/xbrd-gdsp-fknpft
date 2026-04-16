@@ -28,7 +28,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Deletion, YAGNI | `simplifier` | direct analysis | All |
 | Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |
 | Security auditing, adversarial analysis | `sentinel` | `xask --effort high codex` + `xask gemini` for CVEs | All |
-| Pre-executor design, implementation planning | `Plan` (CC built-in) | CC native | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` | CC native | All |
 | Adversarial design, approach review | `critic` | `xask --effort high codex` | All |
 | Test validation, mutation testing | `mutation-tester` | `xask --spark codex` | All |
 | Documentation, audit trail | `scribe` | CC native; spawn after SYNTHESIS_READY, concurrent with Pareto scoring; filter-exempt | All |

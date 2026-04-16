@@ -1,6 +1,6 @@
 # Agent Roster
 
-xbreed ships 13 perspective agents in `templates/agents/`. Copy them to
+xbreed ships 14 perspective agents in `templates/agents/`. Copy them to
 `~/.claude/agents/` for Claude Code to discover them as subagent types.
 
 ## Agents
@@ -20,6 +20,7 @@ xbreed ships 13 perspective agents in `templates/agents/`. Copy them to
 | **critic** | sonnet | Approach-level adversarial reviewer. Challenges design decisions, architectural assumptions, and strategy choices. Distinct from reviewer (code bugs) and sentinel (security). | `xask --effort high codex` for deep design review, `xask gemini` for alternatives |
 | **mutation-tester** | sonnet | Adversarial test suite validator. Generates code mutations, runs against tests, reports surviving mutants. | `xask --spark codex` (Layer-1 gate) for mutation generation, `xask gemini` for target discovery |
 | **scribe** | sonnet | Writes Carpaccio milestone reports and executes git commits. One report + gate + commit per milestone — the auditable-trail anchor. Filter-exempt output role. | CC native (no xask gate) |
+| **the-planner** | sonnet | Pre-execution planner. Owns Phase 0 data-walk and WWKD plan artifact generation. Dispatched by the-judge before executors. | CC native (no xask gate) |
 
 ## Dispatch table
 

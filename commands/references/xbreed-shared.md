@@ -32,7 +32,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
-- **simplifier/distiller/scribe/Plan**: No xask gate.
+- **simplifier/distiller/scribe/the-planner**: No xask gate.
 
 **Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
 
@@ -54,7 +54,7 @@ Include in every teammate brief:
 
 **This table is the single source of truth for agent routing.** AGENTS.md and the-judge.md carry read-only copies for discoverability. On any edit here, update those two.
 
-Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`.
+Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
 | Reverse engineering | `the-revenger` | opus | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
-| Implementation planning | `Plan` | CC built-in | CC native | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
 | Test validation | `mutation-tester` | sonnet | `xask --spark codex` | All |
 | Documentation, audit trail | `scribe` | sonnet | CC native | All |
@@ -114,6 +114,7 @@ The Pareto filter reads a structured `evidence:` field on every proposed move. M
 | `empirical` (labrat) | probe HYPOTHESIS/METHOD/RESULT triple |
 | `deletion` (simplifier) | diff of removed symbols + test pass/fail output (pre- and post-removal) |
 | `research` (scout), `cross-axis` (connector), `synthesis` (distiller), `orchestration`, `adversarial-design` (critic), `complexity`, `reverse-engineering`, `documentation` (scribe) | `evidence: none — <axis reason>` (non-executable) |
+| `planning` (the-planner) | `evidence: none — planning artifact` |
 
 **Exempt-role allowlist is a closed enum keyed on `axis_family`**, not free-text self-classification. Any new role must land with a schema update to this table or ship with executable evidence. Distiller passes the field through verbatim.
 
