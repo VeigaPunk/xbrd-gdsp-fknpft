@@ -7,14 +7,17 @@ pub const PROTOCOL: &str = include_str!("../commands/references/xbreed-shared.md
 mod tests {
     use super::*;
 
-    /// Load-bearing sections that must each appear exactly once with ≥3
+    /// Load-bearing sections that must each appear exactly once with ≥2
     /// non-blank body lines. Extend only for headings that are genuinely
-    /// stable and critical to the protocol contract.
+    /// stable and critical to the protocol contract. Exact-string match is
+    /// intentional: a heading rename breaks the test immediately, forcing
+    /// an explicit update to this list (self-correcting drift detection).
     const REQUIRED_SECTIONS: &[&str] = &[
         "xask Gate (4 layers)",
         "Axis → Profile Mapping",
         "Enforcement Tiers",
         "Naming Convention",
+        "Labrat Invocation (Universal)",
         "Distiller Spawn Template",
         "Pareto Filter Evidence Schema",
         "DESPAWN Protocol",
