@@ -16,6 +16,27 @@
 
 ---
 
+## Errata (post-commit, cco-reviewer-novel-mirror correction)
+
+Three factual errors in §3 (Verified Novel Mechanisms) were caught by the cco-reviewer-novel-mirror **after** the report's first commit. Corrections applied inline in §3 below; surfaced here for audit-trail honesty.
+
+1. **Gate locus correction.** §3 #1 originally cited `scripts/xask:55-58` as the 4-layer gate location. That file is a transport shim (flag parsing, awk template substitution, HOME isolation, dispatch to `xbreed ask`) with **zero gate-enforcement code**. The gate lives at `commands/references/xbreed-shared.md:25-43` plus skill briefs — i.e. PROTOCOL-level enforcement (agents read and follow the brief), not CODE-level enforcement. **Material implication:** the 4-layer gate is novel-as-a-protocol, but a non-compliant agent can skip Layer 1 — the structural guarantee is weaker than compiled enforcement would be.
+2. **Stratification claim factually wrong.** The "judge=opus + others=sonnet" framing was already noted as rejected (REJECTED list in §3). Strengthening the rejection: `the-revenger` is also opus per `xbreed-shared.md:68`, so the framing is factually incorrect, not just "borrowed pattern." Drop entirely from any novelty list.
+3. **IMCP v0.2 CONFLICTS attribution wrong.** §3 PARTIAL #8 attributed CONFLICTS to the IMCP v0.2 wire format. The actual wire headers are Goal/State/Unknowns/Dissent/Action/Artifact/Rationale (`docs/superpowers/specs/2026-04-12-inter-model-protocol-v0.2.md:22-28`) — no CONFLICTS. The CONFLICTS block is a DRAFT-layer envelope defined by the judge at `templates/agents/the-judge.md:57-62`. Novel piece: the `judge_resolution` + `escalate_to` labeled-by-model output envelope — NOT the wire format.
+
+**Revised novelty tally** (down from "6 HIGH + 2 PARTIAL" claimed in the original commit message):
+- 4 cco-confirmed HIGH (Pareto drop-gate, materiality rule, anti-premature-halt R2, 4-layer xask gate at corrected locus)
+- 2 cco-gap HIGH (judge blinding + SHA-256 audit hash, contamination-suppression flags — not in cco mirror's 8-item scope; A3 evidence stands)
+- 1 HIGH (N8 NDJSON mailbox + CC hook-injection — not in cco scope)
+- 1 MEDIUM partial (axis-tuple naming-before-spawn — novel piece is the (name, direction, observable) tuple + frozen-pre-spawn names, not "plan before dispatch")
+- **DROPPED:** model-prefix naming convention (naming hygiene, not mechanism); opus stratification (factually wrong)
+
+**Net: 7 HIGH + 1 MEDIUM novel mechanisms** (was 6 HIGH + 2 PARTIAL pre-errata).
+
+This errata is itself a data point on the cco-vs-ccs A/B (§8) — opus mirror's late critical pass caught factual errors in the briefing that would have shipped uncorrected.
+
+---
+
 ## 1. Empirical Implementation Surface (A1 + A5)
 
 xbreed v0.4.0 ships:
@@ -77,7 +98,7 @@ xbreed v0.4.0 ships:
 
 ### HIGH confidence (verified by both mirrors)
 
-1. **xask 4-layer gate** (structural → raw-quote → fallback → confidence) — `scripts/xask:55-58`, `xbreed-shared.md:21-43`. No competitor surveyed enforces verbatim raw-output substring tagging on cross-model dispatch.
+1. **xask 4-layer gate** (structural → raw-quote → fallback → confidence) — `commands/references/xbreed-shared.md:25-43` + per-skill briefs. (Gate is **protocol-level**, not code-level — `scripts/xask` is a transport shim with no gate-enforcement code; a non-compliant agent can skip Layer 1. See §Errata.) No competitor surveyed defines a 4-layer cross-model dispatch gate of any kind, code- or protocol-enforced.
 2. **Pareto Filter Evidence Schema** with per-`axis_family` evidence requirements — `xbreed-shared.md:114-125`. Drop-gate on missing/malformed evidence is run BEFORE acceptance scoring.
 3. **Materiality rule** (axis-observable change for exit, not prose delta) — `xbreed-shared.md:222-223`. Paraphrased findings against unchanged observables are explicitly NOT improvements.
 4. **Anti-premature-halt + Round-2-always-runs invariant** — `xbreed-shared.md:229`. Round 1 by construction moves axes off baseline; jumping to cleanup is a protocol violation.
@@ -86,13 +107,13 @@ xbreed v0.4.0 ships:
 
 ### PARTIAL confidence (cco mirror downgraded)
 
-7. **Axis-naming-before-spawn** (Phase 0/1/2/3 protocol) — present but borrowed-pattern adjacent.
-8. **IMCP v0.2 with CONFLICTS block** — naming is novel, format isn't.
+7. **Axis-naming-before-spawn** — novel piece is specifically the (name, direction, observable) axis tuple + frozen teammate names committed BEFORE spawn. "Plan before dispatch" generally is common (CrewAI, AutoGen). The tuple-as-contract is the narrow novel piece.
+8. **Judge CONFLICTS envelope** — the labeled-by-model `judge_resolution` + `escalate_to` output envelope at `templates/agents/the-judge.md:57-62` is the novel piece. NOT the IMCP v0.2 wire format itself (which is Goal/State/Unknowns/Dissent/Action/Artifact/Rationale, no CONFLICTS — see §Errata).
 
 ### REJECTED (cco mirror eliminated)
 
-- ~~Model-prefix naming convention as novelty~~ — naming convention, not mechanism.
-- ~~Judge=opus + others=sonnet stratification as novelty~~ — staffing pattern, not protocol.
+- ~~Model-prefix naming convention as novelty~~ — naming hygiene, not mechanism.
+- ~~Judge=opus + others=sonnet stratification as novelty~~ — **factually wrong**: `the-revenger` is also opus per `xbreed-shared.md:68`. Hierarchical stratification itself is common (CrewAI manager/crew, LangGraph supervisor, AutoGen selector).
 
 ---
 
@@ -207,8 +228,9 @@ Three orthogonal swap axes that competitors fuse into class hierarchies or confi
 | Moves dropped | 0 |
 | Moves spoof-flagged | 0 |
 | In-band cross-corrections | 4 (M002 reframe, M004 narrow, M005 W3 add, M006 portability scope) |
-| Cross-model CONFLICTS surfaced | 1 (novel count: 7 vs 4) |
-| Cross-model CONFLICTS resolved | 1 (defer to cco-mirror) |
+| Cross-model CONFLICTS surfaced | 2 (novel count: 7 vs 4; gate locus: scripts/xask vs xbreed-shared.md protocol) |
+| Cross-model CONFLICTS resolved | 2 (defer to cco-mirror on both — file:line anchored) |
+| Post-commit errata applied | 3 (gate locus, stratification factual error, IMCP envelope vs wire) |
 | audit_hash | `762ea768928183114185d497fc4703d661bdd9664b1ffc68e8ecb80c49653780` |
 | Round 2 | Mooted (in-band cross-correction loop produced equivalent material; pane capacity blocked the targeted Round-2 connector probe; cross-axis pattern check would not change materiality calculus) |
 
