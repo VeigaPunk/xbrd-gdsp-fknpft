@@ -78,6 +78,24 @@ xask --effort low gemini "ping" 2>&1 | grep -qv "RESOURCE_EXHAUSTED\|429" && ech
 ```
 Exit 0 + `RESTORE` → primary gemini routing is healthy; revert the `-rate-limited` fallback annotations in this table + scout/connector/the-revenger Layer-1 gates above + AGENTS.md Delegation bias column. Exit 1 or `HOLD` → keep codex fallback. **Caveat:** ask.rs gemini path has a 5-level auth cascade (OAuthProfile → fallback → OAuthDefault → ApiKey → fallback); the canary passing means *some* auth level succeeded, not primary OAuth. For strict primary-OAuth health, prepend `GEMINI_API_KEY=""` to force the OAuth-only path.
 
+## Enforcement Tiers
+
+When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-list, timeout, drift-detection, etc.), categorize against three tiers — **all three reachable from this repo**:
+
+| Tier | Reach | Guarantee | Bypass surface | xbreed examples |
+|------|-------|-----------|----------------|-----------------|
+| **Build/CI** | rustc + cargo test + shell lints | Fails the build / test suite if violated; cannot ship a binary that breaks the invariant | Skip `cargo build` / skip `make verify` (CI-side mitigation) | `src/protocol.rs` `include_str!` SSoT binding (R3 A2'); `cargo test` content-sentinel asserts; `scripts/verify-docs.sh` connector-routing drift check + `make verify-docs` (R2 A2) |
+| **Runtime** | Rust binary + bash wrappers | Wraps subprocesses xbreed launches; per-call timeout / kill / cleanup | Bypassable by skipping the wrapper (`unset XASK_TIMEOUT_SECS`, raw shell call to gemini/codex, alternative tool) | `src/guard.rs` deny-list at PreToolUse hook; `src/ask.rs` `execute_with_timeout` + `Child::kill` (R2 A1 + R3 A1'); `scripts/xask` 4-layer transport gate; `scripts/xask` HOME-scoped tmpdir + sweeper |
+| **Protocol** | Brief strings + agent templates + docs | Convention only — agents read and follow | Non-compliant agent can skip by ignoring brief text | xask Layer 1 gate per-role briefs (`xbreed-shared.md:25-43`); cco-critic Layer 0 heuer-skill load directive; skill briefs; the-judge.md sub-role table |
+
+**Out of scope (NOT a tier we claim):** A "harness-broker" enforcement surface (Anthropic-side CC tool broker that could intercept tool calls before Bash/Read/Grep/Agent dispatch) does not exist for cross-CLI enforcement from user-space. Listing it as a tier would canonize an aspirational external surface and worsen ceiling honesty rather than improve it. If Anthropic exposes such an interface in the future, this section gets a 4th tier; until then, the honest ceiling is Build/CI.
+
+**Standing axis label:** "**Runtime-tier hardening with documented ceiling**" — used in DRAFT/synthesis to honestly frame what a given runtime move achieves. Build/CI moves use "**Build/CI-tier enforcement**" as the parallel label. Avoid claims that conflate tiers (e.g. "we closed the compile-time gate" when the move is runtime-tier; or "we enforce X" when the move is protocol-tier). The ceiling MUST be documented when proposing a runtime-tier or protocol-tier move.
+
+**Why three tiers, not two or four:** Build/CI and runtime are commonly conflated ("we have a test for it" vs "the binary refuses to do it"); runtime and protocol are commonly conflated ("xask wraps the call" vs "the brief says to use xask"). Each pair has different bypass surface and different guarantee strength — the granularity matters. The aspirational broker tier was tried in an earlier draft and rejected per R3 A4' heuer-ACH analysis (overclaim of unreachable surface).
+
+**Origin:** R2 ask-resilience-r2-0416 cco-critic-compile-gate (audit_hash cfe3e176...) coined "runtime-tier hardening with documented ceiling." R3 ask-resilience-r3-0416 cco-critic-r3-overclaim (heuer Layer 0 loaded) refined the tier set: dropped the harness-broker overclaim, added Build/CI as the third real tier where include_str! / cargo test / verify-docs.sh actually enforce.
+
 ## Naming Convention
 
 `{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).

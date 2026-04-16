@@ -338,8 +338,10 @@ pub fn warn_codex_spark_effort(effort: Option<&str>) -> bool {
 /// Execute a `Command` with a wall-clock timeout.
 ///
 /// Returns `Err` with an `"xask-timeout:"` marker when the process does not
-/// complete within `timeout`. The spawned worker thread continues running in
-/// the background — the OS will reap the child process when the pipe closes.
+/// complete within `timeout`. Without explicit child.kill(), the timed-out
+/// subprocess is reparented to pid 1 and continues running — leaking process
+/// slots, file descriptors, and (for gemini) burning API quota. Hence the
+/// explicit Child::kill() + wait() sequence below.
 ///
 /// **Bypass surface:** this timeout only applies to calls routed through
 /// `dispatch()` → `src/ask.rs`. Agents invoking `gemini` directly via shell
@@ -350,13 +352,54 @@ pub fn execute_with_timeout(
     mut cmd: std::process::Command,
     timeout: std::time::Duration,
 ) -> Result<std::process::Output> {
-    let (tx, rx) = std::sync::mpsc::channel();
+    use std::io::Read;
+
+    cmd.stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("failed to spawn command: {e}"))?;
+
+    let stdout_pipe = child.stdout.take().expect("stdout piped");
+    let stderr_pipe = child.stderr.take().expect("stderr piped");
+
+    let (tx, rx) = std::sync::mpsc::channel::<(Vec<u8>, Vec<u8>)>();
+
+    // Two inner threads read stdout and stderr concurrently to avoid pipe-buffer
+    // deadlock, then signal the outer thread which holds the Child handle.
     std::thread::spawn(move || {
-        let _ = tx.send(cmd.output());
+        let (otx, orx) = std::sync::mpsc::channel();
+        let (etx, erx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut v = Vec::new();
+            let _ = std::io::BufReader::new(stdout_pipe).read_to_end(&mut v);
+            let _ = otx.send(v);
+        });
+        std::thread::spawn(move || {
+            let mut v = Vec::new();
+            let _ = std::io::BufReader::new(stderr_pipe).read_to_end(&mut v);
+            let _ = etx.send(v);
+        });
+        let out = orx.recv().unwrap_or_default();
+        let err = erx.recv().unwrap_or_default();
+        let _ = tx.send((out, err));
     });
+
     match rx.recv_timeout(timeout) {
-        Ok(res) => res.map_err(|e| anyhow::anyhow!("failed to execute command: {e}")),
+        Ok((stdout, stderr)) => {
+            let status = child
+                .wait()
+                .map_err(|e| anyhow::anyhow!("failed to wait for child: {e}"))?;
+            Ok(std::process::Output {
+                status,
+                stdout,
+                stderr,
+            })
+        }
         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            child.kill().ok();
+            child.wait().ok();
             anyhow::bail!(
                 "xask-timeout: command did not complete within {}s \
                  (set XASK_TIMEOUT_SECS env var to override)",
@@ -364,6 +407,8 @@ pub fn execute_with_timeout(
             )
         }
         Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            child.kill().ok();
+            child.wait().ok();
             anyhow::bail!("xask-timeout: command worker thread disconnected unexpectedly")
         }
     }
@@ -376,6 +421,13 @@ pub fn dispatch(
     effort: Option<&str>,
     spark: bool,
 ) -> Result<String> {
+    let timeout_secs = std::env::var("XASK_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(60);
+    let timeout = std::time::Duration::from_secs(timeout_secs);
+
     if cli == "gemini" {
         if effort.is_some() {
             eprintln!("warning: --effort is ignored for gemini (no native flag; use thinkingBudget in prompt template instead)");
@@ -389,13 +441,6 @@ pub fn dispatch(
                  - API key:             add GEMINI_API_KEY=<key> to .env.local at the repo root"
             );
         }
-
-        let timeout_secs = std::env::var("XASK_TIMEOUT_SECS")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
-            .filter(|&n| n > 0)
-            .unwrap_or(60);
-        let timeout = std::time::Duration::from_secs(timeout_secs);
 
         let mut last_stderr: Vec<u8> = Vec::new();
         let mut last_code: Option<i32> = None;
@@ -437,7 +482,7 @@ pub fn dispatch(
         );
     }
 
-    let mut cmd = match cli {
+    let cmd = match cli {
         "codex" => {
             let mut c = build_codex_ask_with_loadout(loadout, spark);
             if spark {
@@ -452,8 +497,7 @@ pub fn dispatch(
         }
         other => anyhow::bail!("unknown cli: {other} (expected codex|gemini)"),
     };
-    let output = cmd
-        .output()
+    let output = execute_with_timeout(cmd, timeout)
         .map_err(|e| anyhow::anyhow!("failed to execute {cli}: {e} (is it on PATH?)"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -766,6 +810,47 @@ mod tests {
         assert!(
             err.to_string().contains("xask-timeout"),
             "expected xask-timeout error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn execute_with_timeout_kills_child_on_timeout() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let pid_path = tmp.path().to_path_buf();
+
+        let mut cmd = std::process::Command::new("bash");
+        cmd.arg("-c")
+            .arg(format!("echo $$ > {}; sleep 60", pid_path.display()));
+
+        let result = super::execute_with_timeout(cmd, std::time::Duration::from_secs(1));
+        assert!(result.is_err(), "expected timeout error");
+        assert!(
+            result.unwrap_err().to_string().contains("xask-timeout"),
+            "error should carry xask-timeout marker"
+        );
+
+        // Poll up to 500 ms for bash to have written its PID (it does so immediately
+        // at startup, but we race the kill window in the fixed impl).
+        let mut child_pid: u32 = 0;
+        for _ in 0..10 {
+            if let Ok(s) = std::fs::read_to_string(&pid_path) {
+                if let Ok(p) = s.trim().parse::<u32>() {
+                    child_pid = p;
+                    break;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(child_pid > 0, "child PID was never written to temp file");
+
+        // Brief settle window for the OS to finalise the kill+wait.
+        std::thread::sleep(std::time::Duration::from_millis(200));
+
+        // /proc/<pid> must be absent — child killed and reaped, not a ghost.
+        let still_alive = std::path::Path::new(&format!("/proc/{child_pid}")).exists();
+        assert!(
+            !still_alive,
+            "child PID {child_pid} still present in /proc after timeout — ghost leak not fixed"
         );
     }
 }
