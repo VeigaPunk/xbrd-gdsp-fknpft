@@ -176,6 +176,108 @@ fn ask_with_missing_skill_errors_cleanly() {
     );
 }
 
+/// M6 (codex #7) — end-to-end codex yolo contract through `xbreed ask codex`.
+/// Asserts argv contains: `exec`, `--skip-git-repo-check`, the adjacent pair
+/// `--sandbox` + `danger-full-access`, `approval_policy="never"`,
+/// `model_reasoning_effort=high`, and the trailing prompt.
+///
+/// Guards against any future refactor silently dropping one of the yolo
+/// flags. The yolo routing is a user-locked policy
+/// (feedback_yolo_routing.md) and lives in three layers here:
+/// comment, frontmatter, and this test.
+#[test]
+fn ask_codex_route_preserves_full_unlock_contract() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+    let log = home.join("codex.log");
+
+    write_stub(&bin_dir, "codex", &log);
+
+    let out = run_xbreed_ask(
+        home,
+        &bin_dir,
+        &["ask", "codex", "--effort", "high", "say hi"],
+    );
+    assert!(out.status.success(), "xbreed ask codex failed: {:?}", out);
+
+    let argv = read_log(&log);
+    assert_eq!(argv[0], "exec");
+    assert!(
+        argv.iter().any(|a| a == "--skip-git-repo-check"),
+        "missing --skip-git-repo-check in argv: {argv:?}"
+    );
+
+    // Adjacency: --sandbox must be immediately followed by danger-full-access.
+    let sandbox_idx = argv
+        .iter()
+        .position(|a| a == "--sandbox")
+        .expect("missing --sandbox flag");
+    assert_eq!(
+        argv.get(sandbox_idx + 1).map(String::as_str),
+        Some("danger-full-access"),
+        "--sandbox not immediately followed by danger-full-access: {argv:?}"
+    );
+
+    assert!(
+        argv.contains(&"approval_policy=\"never\"".to_string()),
+        "missing approval_policy=\"never\" in argv: {argv:?}"
+    );
+    assert!(
+        argv.contains(&"model_reasoning_effort=high".to_string()),
+        "missing model_reasoning_effort=high in argv: {argv:?}"
+    );
+
+    assert_eq!(
+        argv.last().map(String::as_str),
+        Some("say hi"),
+        "prompt must be the final argv element: {argv:?}"
+    );
+}
+
+/// M6 (codex #6) — gemini argv asserts budget stays prompt-side and yolo stays
+/// CLI-side. The gemini CLI has no native --effort flag, so the flag must NOT
+/// appear in argv; the budget must be embedded in the prompt text, and
+/// `--approval-mode yolo` must survive as an adjacent argv pair.
+#[test]
+fn ask_gemini_uses_yolo_and_no_native_effort_flag() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+    let log = home.join("gemini.log");
+
+    write_stub(&bin_dir, "gemini", &log);
+    fs::write(home.join(".env.local"), "GEMINI_API_KEY=test-key\n").unwrap();
+
+    let out = run_xbreed_ask_in_dir(
+        home,
+        home,
+        &bin_dir,
+        &["ask", "gemini", "--effort", "high", "say hi"],
+    );
+    assert!(out.status.success(), "xbreed ask gemini failed: {:?}", out);
+
+    let argv = read_log(&log);
+
+    // Adjacency: --approval-mode yolo.
+    let approval_idx = argv
+        .iter()
+        .position(|a| a == "--approval-mode")
+        .expect("missing --approval-mode flag");
+    assert_eq!(
+        argv.get(approval_idx + 1).map(String::as_str),
+        Some("yolo"),
+        "--approval-mode not immediately followed by yolo: {argv:?}"
+    );
+
+    // No bare --effort token may appear in gemini argv; the budget routes
+    // through the prompt template, not the CLI.
+    assert!(
+        !argv.iter().any(|a| a == "--effort"),
+        "gemini argv must not contain bare --effort token: {argv:?}"
+    );
+}
+
 #[test]
 fn ask_with_multiple_skills_comma_separated() {
     let tmp = tempdir().unwrap();
