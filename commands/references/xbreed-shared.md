@@ -23,14 +23,14 @@ Include in teammate briefs: `"You have access to advisor() — call it before su
 Include as FIRST instruction in every teammate brief that requires cross-model delegation.
 
 **Layer 1 — Gate (structural):**
-- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
+- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>' 'librarian'. No other tool before xask returns."` (default — gemini medium = `# ThinkingBudget: 4096`, librarian loadout for taste-filtered discovery; if gemini 429s, scout may fall back to `xask --effort medium codex` + flag as `[xask dry — gemini 429 fallback]` per Layer 3)
 - **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns."` *(connector is locked to gemini high — does not fall back to codex; see feedback_connector_gemini_high.md)*
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: For `cco-critic-*` (opus): `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."` For `ccs-critic-*` (sonnet): skip Layer 0; first tool call is the xask gate as written here. See `feedback_cco_critic_heuer.md`.
-- **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
+- **mutation-tester**: `"Your FIRST tool call MUST be Bash, EITHER: (a) `xask --spark codex '<generate mutation for this function>'` for a single targeted mutation (fast spot-check), OR (b) `xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>. Vary the angle per mutation (boundary, operator-flip, return-swap, etc). Report each in HYPOTHESIS/METHOD/RESULT.'` for systematic 10-probe coverage (gemini low = `# ThinkingBudget: 512`). No other tool before xask returns. Pick (a) for ≤2 mutation targets, (b) for ≥3 or for breadth discovery."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
 - **simplifier/distiller/scribe/the-planner**: No xask gate.
 
@@ -58,7 +58,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
+| Research, prior art | `scout` | sonnet | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
@@ -69,7 +69,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
-| Test validation | `mutation-tester` | sonnet | `xask --spark codex` | All |
+| Test validation | `mutation-tester` | sonnet | `xask --spark codex` (single mutation, ≤2 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) — see Layer-1 gate above for selection rule | All |
 | Documentation, audit trail | `scribe` | sonnet | CC native | All |
 
 **Gemini restoration canary (machine-checkable):** before restoring any `xask --effort * gemini` routing marked `*(gemini-rate-limited 2026-04-15)*`, run:

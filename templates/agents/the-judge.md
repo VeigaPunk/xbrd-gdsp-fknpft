@@ -19,7 +19,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 
 | Axis family | Agent | Delegation | Tools |
 |---|---|---|---|
-| Research, prior art, outside-world | `scout` | `xask --effort medium codex "<q>"` *(gemini-rate-limited 2026-04-15; restore to `xask --effort medium gemini "<q>" "context" "librarian"` when quota returns)* | All |
+| Research, prior art, outside-world | `scout` | `xask --effort medium gemini "<q>" "<context>" "librarian"` (LOCKED default, `# ThinkingBudget: 4096`; codex fallback only on 429 with `[xask dry]` marker) | All |
 | Correctness, bugs, code review | `reviewer` | `xask --effort high codex "<q>"` | All |
 | Empirical probes, dry-runs | `labrat` (sonnet) | `xask --spark codex "<probe>"` | All |
 | Code execution, implementation | `executor` | `xask --spark codex "<task>"` | All |
@@ -30,7 +30,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Security auditing, adversarial analysis | `sentinel` | `xask --effort high codex` + `xask gemini` for CVEs | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | CC native | All |
 | Adversarial design, approach review | `critic` | `xask --effort high codex` | All |
-| Test validation, mutation testing | `mutation-tester` | `xask --spark codex` | All |
+| Test validation, mutation testing | `mutation-tester` | `xask --spark codex` (single, ≤2 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets, `# ThinkingBudget: 512`) | All |
 | Documentation, audit trail | `scribe` | CC native; spawn after SYNTHESIS_READY, concurrent with Pareto scoring; filter-exempt | All |
 
 ## Teammate naming convention

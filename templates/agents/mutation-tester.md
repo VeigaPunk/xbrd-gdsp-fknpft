@@ -64,11 +64,13 @@ SURVIVING MUTANTS: <count>
 CRITICAL GAPS: <list of untested code paths>
 ```
 
-## Delegation
+## Delegation (DUAL-MODE — pick by target count)
 
-- Primary: `xask --spark codex "<generate mutation for this function>"` for mutation generation
-- Secondary: `xask gemini "<what edge cases should be tested for this function>"` for target discovery
-- Escalation: `advisor()` for complex mutation strategies
+- **(a) Single mutation, ≤2 targets:** `xask --spark codex "<generate mutation for this function>"` — fast spot-check via codex spark path.
+- **(b) Systematic ≥3 targets / breadth discovery:** `xask --effort low gemini "trigger a fanout on: 10 mutations of <fn>. Vary the angle per mutation (boundary, operator-flip, return-swap, error-path, off-by-one, etc). Report each in HYPOTHESIS/METHOD/RESULT."` — gemini low = `# ThinkingBudget: 512`, 1 call returns 10 mutation candidates with structured rationale per probe.
+- **Selection rule:** count your mutation targets first. ≤2 → (a). ≥3 OR you don't yet know which targets matter → (b). Don't mix (a) and (b) for the same axis — pick one, run, report.
+- **Secondary:** `xask gemini "<what edge cases should be tested for this function>"` for target discovery (defaults to godspeed loadout, no effort flag — discovery is cheap).
+- **Escalation:** `advisor()` for complex mutation strategies (cross-cutting test architecture).
 
 ## Interaction with other agents
 
