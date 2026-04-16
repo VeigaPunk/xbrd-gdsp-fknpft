@@ -11,8 +11,16 @@ test-xask-shell:
 
 ## verify: cargo test + shell integration tests
 verify:
-	cargo clippy && cargo test && cargo fmt --check
-	@bash tests/xask_effort_substitution.sh
+	@set -e
+	@echo "verify: cargo clippy --all-targets"; cargo clippy --all-targets
+	@echo "verify: cargo test"; cargo test
+	@echo "verify: cargo fmt --check"; cargo fmt --check
+	@echo "verify: tests/ssot_build_binding.sh"; bash tests/ssot_build_binding.sh
+	@echo "verify: tests/required_sections_mutation.sh"; bash tests/required_sections_mutation.sh
+	@echo "verify: tests/mirror_drift_mutation.sh"; bash tests/mirror_drift_mutation.sh
+	@echo "verify: tests/xask_gemini_effort_transport.sh"; bash tests/xask_gemini_effort_transport.sh
+	@echo "verify: tests/xask_effort_substitution.sh"; bash tests/xask_effort_substitution.sh
+	@echo "verify: tests/xask_failloud.sh"; bash tests/xask_failloud.sh
 
 ## verify-docs: check connector routing consistency across SSoT copies
 verify-docs:
