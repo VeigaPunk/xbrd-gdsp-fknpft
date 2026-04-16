@@ -385,8 +385,15 @@ pub fn warn_codex_spark_effort(effort: Option<&str>) -> bool {
 /// **Bypass surface:** this timeout only applies to calls routed through
 /// `dispatch()` → `src/ask.rs`. Agents invoking `gemini` directly via shell
 /// (Bash tool, `Agent()` native) bypass it entirely. `XASK_TIMEOUT_SECS=0`
-/// is treated as invalid and falls back to the 60s default to prevent
+/// is treated as invalid and falls back to the default to prevent
 /// accidental self-DoS.
+///
+/// **Default raised 2026-04-16:** 60s → 300s. User hit the 60s ceiling on
+/// high-effort codex calls (xhigh reasoning on non-trivial prompts can
+/// exceed 60s; see m7-framing-audit-2026-04-16.md which needed
+/// XASK_TIMEOUT_SECS=540 for the ACH run). 300s is a safe ceiling that
+/// still prevents runaway processes from hanging the harness indefinitely.
+/// Override via `XASK_TIMEOUT_SECS=<seconds>` env var.
 pub fn execute_with_timeout(
     mut cmd: std::process::Command,
     timeout: std::time::Duration,
@@ -466,7 +473,7 @@ pub fn dispatch(
         .ok()
         .and_then(|s| s.parse::<u64>().ok())
         .filter(|&n| n > 0)
-        .unwrap_or(60);
+        .unwrap_or(300);
     let timeout = std::time::Duration::from_secs(timeout_secs);
 
     if cli == "gemini" {
