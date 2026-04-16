@@ -26,7 +26,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Cross-axis patterns, breadth | `connector` | `xask --effort high gemini "<q>"` | All |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter; persistent across rounds | All |
 | Deletion, YAGNI | `simplifier` (sonnet · medium) | direct analysis | All |
-| Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |
+| Reverse engineering, intent reconstruction | `the-revenger` (opus 4.7 high) | `xask --effort high codex` for surface enum *(gemini-rate-limited 2026-04-15)*, direct recon | All |
 | Security auditing, adversarial analysis | `sentinel` | `xask --effort high codex` + `xask gemini` for CVEs | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` (opus 4.7 high · Layer-0 wwkd skill) | CC native — spawn FIRST at Phase 0 to map skeleton baseline before specialist dispatch | All |
 | Adversarial design, approach review | `critic` | `xask --effort high codex` | All |
