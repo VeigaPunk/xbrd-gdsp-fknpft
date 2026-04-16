@@ -373,10 +373,7 @@ fn ask_codex_json_flag_reaches_codex_argv() {
     // --json must appear before the prompt (before the final positional arg).
     // M11: prompt now carries the "| godspeed" suffix (user directive).
     let json_idx = argv.iter().position(|a| a == "--json").unwrap();
-    let prompt_idx = argv
-        .iter()
-        .position(|a| a == "say hi | godspeed")
-        .unwrap();
+    let prompt_idx = argv.iter().position(|a| a == "say hi | godspeed").unwrap();
     assert!(
         json_idx < prompt_idx,
         "--json must precede the prompt in codex argv: {argv:?}"
@@ -461,10 +458,7 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
 
     // -o must appear before the prompt (before the final positional arg).
     // M11: prompt carries "| godspeed" suffix (user directive).
-    let prompt_idx = argv
-        .iter()
-        .position(|a| a == "say hi | godspeed")
-        .unwrap();
+    let prompt_idx = argv.iter().position(|a| a == "say hi | godspeed").unwrap();
     assert!(
         o_idx < prompt_idx,
         "-o must precede the prompt in codex argv: {argv:?}"
@@ -554,11 +548,7 @@ fn ask_codex_always_inherits_godspeed_suffix() {
     // Case 3: idempotence — if caller already appended "| godspeed", no double-suffix
     let log3 = home.join("codex3.log");
     write_stub(&bin_dir, "codex", &log3);
-    let out3 = run_xbreed_ask(
-        home,
-        &bin_dir,
-        &["ask", "codex", "prompt three | godspeed"],
-    );
+    let out3 = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "prompt three | godspeed"]);
     assert!(out3.status.success(), "case 3 failed: {out3:?}");
     let argv3 = read_log(&log3);
     assert_eq!(
@@ -569,7 +559,8 @@ fn ask_codex_always_inherits_godspeed_suffix() {
     // Specifically: there must be exactly ONE occurrence of "| godspeed" in the prompt
     let count = argv3.last().unwrap().matches("| godspeed").count();
     assert_eq!(
-        count, 1,
+        count,
+        1,
         "godspeed suffix must appear exactly once: {}",
         argv3.last().unwrap()
     );
