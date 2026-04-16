@@ -89,12 +89,13 @@ fn clean_env_value(raw: &str) -> String {
 /// Always applies contamination-suppression flags (`--skip-git-repo-check` +
 /// `include_permissions/apps/environment_context=false`) for epistemic
 /// equivalence across models. When `spark` is true, pins the model to
-/// [`CODEX_SPARK_MODEL`] and forces `model_reasoning_effort=low`.
+/// [`CODEX_SPARK_MODEL`] and forces `model_reasoning_effort=low`. When `json`
+/// is true, passes `--json` to codex exec for structured output.
 ///
 /// NOTE: does NOT append the prompt — caller must append it AFTER any `-c`
 /// flags (effort, etc.) since `codex exec` treats the prompt as a trailing
 /// positional arg.
-pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
+pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool, json: bool) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec")
         .arg("--skip-git-repo-check")
@@ -113,6 +114,10 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     c.arg("-c").arg("include_permissions_instructions=false");
     c.arg("-c").arg("include_apps_instructions=false");
     c.arg("-c").arg("include_environment_context=false");
+
+    if json {
+        c.arg("--json");
+    }
 
     if spark {
         c.arg("-m").arg(CODEX_SPARK_MODEL);
@@ -428,6 +433,7 @@ pub fn dispatch(
     loadout: &Loadout,
     effort: Option<&str>,
     spark: bool,
+    json: bool,
 ) -> Result<String> {
     let timeout_secs = std::env::var("XASK_TIMEOUT_SECS")
         .ok()
@@ -495,7 +501,7 @@ pub fn dispatch(
 
     let cmd = match cli {
         "codex" => {
-            let mut c = build_codex_ask_with_loadout(loadout, spark);
+            let mut c = build_codex_ask_with_loadout(loadout, spark, json);
             if spark {
                 warn_codex_spark_effort(effort);
             } else if let Some(e) = effort {
@@ -564,7 +570,7 @@ mod tests {
 
     #[test]
     fn codex_ask_empty_loadout_has_suppression_and_approval_flags() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false);
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, false);
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
         let args = cmd_args(&c);
@@ -579,12 +585,14 @@ mod tests {
         // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
         assert!(args.contains(&"--sandbox".to_string()));
         assert!(args.contains(&"danger-full-access".to_string()));
+        // json=false: --json must NOT appear in argv
+        assert!(!args.contains(&"--json".to_string()));
         assert_eq!(*args.last().unwrap(), "hello");
     }
 
     #[test]
     fn codex_ask_spark_adds_model_and_low_effort() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true);
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true, false);
         c.arg("probe"); // caller appends prompt
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -601,7 +609,7 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let mut c = build_codex_ask_with_loadout(&l, false);
+        let mut c = build_codex_ask_with_loadout(&l, false, false);
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
@@ -620,7 +628,7 @@ mod tests {
     #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
-        let err = dispatch("unknown-cli", "hello", &l, None, false).unwrap_err();
+        let err = dispatch("unknown-cli", "hello", &l, None, false, false).unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
     }
 
@@ -901,6 +909,7 @@ mod tests {
             "test prompt",
             &super::Loadout::empty(),
             None,
+            false,
             false,
         );
 

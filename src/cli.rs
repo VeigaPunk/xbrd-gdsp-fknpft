@@ -53,6 +53,10 @@ pub enum Commands {
         /// Equivalent to: -m gpt-5.3-codex-spark + model_reasoning_effort=low
         #[arg(long)]
         spark: bool,
+        /// Emit raw JSON from codex exec responses (codex only).
+        /// Passes --json to codex exec; no-op for gemini.
+        #[arg(long)]
+        json: bool,
     },
     /// Initialize a team workspace
     Team {

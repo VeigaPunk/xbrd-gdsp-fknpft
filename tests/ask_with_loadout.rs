@@ -320,3 +320,67 @@ fn ask_with_multiple_skills_comma_separated() {
     let cur_idx = dev_instr.find("CURATE").unwrap();
     assert!(go_idx < cur_idx, "godspeed should come before librarian");
 }
+
+/// M8 (codex --json plumbing) — end-to-end contract: when `xbreed ask codex --json`
+/// is invoked, `--json` must appear in the codex argv, positioned before the prompt.
+///
+/// Guards the three-layer plumb: cli.rs (clap field) → main.rs (destructure + pass)
+/// → ask.rs (build_codex_ask_with_loadout emits --json when json=true). Any silent
+/// removal at any layer breaks orchestrator pipelines that rely on structured output.
+#[test]
+fn ask_codex_json_flag_reaches_codex_argv() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+    let log = home.join("codex.log");
+
+    write_stub(&bin_dir, "codex", &log);
+
+    let out = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "--json", "say hi"]);
+    assert!(
+        out.status.success(),
+        "xbreed ask codex --json failed: {:?}",
+        out
+    );
+
+    let argv = read_log(&log);
+
+    // --json must appear in argv
+    assert!(
+        argv.iter().any(|a| a == "--json"),
+        "--json flag missing from codex argv: {argv:?}"
+    );
+
+    // --json must appear before the prompt (before the final positional arg)
+    let json_idx = argv.iter().position(|a| a == "--json").unwrap();
+    let prompt_idx = argv.iter().position(|a| a == "say hi").unwrap();
+    assert!(
+        json_idx < prompt_idx,
+        "--json must precede the prompt in codex argv: {argv:?}"
+    );
+
+    // All other yolo/suppression flags must still be present (no regression)
+    assert!(
+        argv.iter().any(|a| a == "--skip-git-repo-check"),
+        "missing --skip-git-repo-check: {argv:?}"
+    );
+    assert!(
+        argv.contains(&"approval_policy=\"never\"".to_string()),
+        "missing approval_policy: {argv:?}"
+    );
+
+    // Without --json, --json must NOT appear
+    let log2 = home.join("codex_nojson.log");
+    write_stub(&bin_dir, "codex", &log2);
+    let out2 = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "say hi"]);
+    assert!(
+        out2.status.success(),
+        "xbreed ask codex (no --json) failed: {:?}",
+        out2
+    );
+    let argv2 = read_log(&log2);
+    assert!(
+        !argv2.iter().any(|a| a == "--json"),
+        "--json must not appear when flag absent: {argv2:?}"
+    );
+}
