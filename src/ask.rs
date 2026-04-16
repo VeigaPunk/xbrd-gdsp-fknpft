@@ -105,7 +105,10 @@ pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command
 /// positional arg.
 pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     let mut c = Command::new("codex");
-    c.arg("exec").arg("--skip-git-repo-check");
+    c.arg("exec")
+        .arg("--skip-git-repo-check")
+        .arg("-a")
+        .arg("never");
 
     // Contamination suppression — always-on for clean dispatch
     c.arg("-c").arg("include_permissions_instructions=false");
@@ -115,6 +118,10 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     if spark {
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
+    } else {
+        // fast_mode is a codex feature flag for gpt-5.4 family (default model).
+        // Not applicable to spark (gpt-5.3-codex-spark).
+        c.arg("-c").arg("features.fast_mode=true");
     }
 
     if !loadout.is_empty() {
@@ -277,7 +284,9 @@ pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth
     c.arg("-m")
         .arg(GEMINI_DEFAULT_MODEL)
         .arg("-p")
-        .arg(final_prompt);
+        .arg(final_prompt)
+        .arg("--approval-mode")
+        .arg("yolo");
 
     match auth {
         GeminiAuth::OAuthProfile(name) => {
@@ -469,19 +478,19 @@ mod tests {
     }
 
     #[test]
-    fn codex_ask_empty_loadout_has_suppression_flags() {
+    fn codex_ask_empty_loadout_has_suppression_and_approval_flags() {
         let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false);
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
         assert_eq!(args[1], "--skip-git-repo-check");
-        assert_eq!(args[2], "-c");
-        assert_eq!(args[3], "include_permissions_instructions=false");
-        assert_eq!(args[4], "-c");
-        assert_eq!(args[5], "include_apps_instructions=false");
-        assert_eq!(args[6], "-c");
-        assert_eq!(args[7], "include_environment_context=false");
+        assert_eq!(args[2], "-a");
+        assert_eq!(args[3], "never");
+        assert!(args.contains(&"include_permissions_instructions=false".to_string()));
+        assert!(args.contains(&"include_apps_instructions=false".to_string()));
+        assert!(args.contains(&"include_environment_context=false".to_string()));
+        assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert_eq!(*args.last().unwrap(), "hello");
     }
 
@@ -493,6 +502,8 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_SPARK_MODEL.to_string()));
         assert!(args.contains(&"model_reasoning_effort=low".to_string()));
+        // fast_mode is gpt-5.4 only — must NOT be present on spark path
+        assert!(!args.contains(&"features.fast_mode=true".to_string()));
         assert_eq!(*args.last().unwrap(), "probe");
     }
 

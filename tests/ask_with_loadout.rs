@@ -108,7 +108,8 @@ fn ask_codex_with_loadout_injects_developer_instructions_override() {
     let argv = read_log(&log);
     assert_eq!(argv[0], "exec");
     assert_eq!(argv[1], "--skip-git-repo-check");
-    // suppression flags present
+    assert!(argv.contains(&"never".to_string())); // -a never
+                                                  // suppression flags present
     assert!(argv.contains(&"include_permissions_instructions=false".to_string()));
     assert!(argv.contains(&"include_apps_instructions=false".to_string()));
     assert!(argv.contains(&"include_environment_context=false".to_string()));
