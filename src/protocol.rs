@@ -8,19 +8,29 @@ mod tests {
     use super::*;
 
     /// Load-bearing sections that must each appear exactly once with ≥2
-    /// non-blank body lines. Extend only for headings that are genuinely
-    /// stable and critical to the protocol contract. Exact-string match is
-    /// intentional: a heading rename breaks the test immediately, forcing
-    /// an explicit update to this list (self-correcting drift detection).
+    /// non-blank body lines. Exact-string match is intentional: a heading
+    /// rename breaks the test immediately, forcing an explicit update here
+    /// (self-correcting drift detection, not silent fuzzy match).
+    ///
+    /// IN criteria: section encodes a hard protocol contract (halt, gate,
+    /// dispatch, blinding, spawn) whose silent removal breaks team behavior.
+    /// OUT: operational notes (Round Limits, Parallel Dispatch Reference)
+    /// that are advisory, not contractual — removal degrades docs, not runs.
     const REQUIRED_SECTIONS: &[&str] = &[
+        // Gate + dispatch contracts
         "xask Gate (4 layers)",
+        "Escalation: advisor() (Layer 0)",
         "Axis → Profile Mapping",
         "Enforcement Tiers",
         "Naming Convention",
+        // Agent lifecycle contracts
         "Labrat Invocation (Universal)",
         "Distiller Spawn Template",
-        "Pareto Filter Evidence Schema",
+        "Judge Blinding Protocol",
         "DESPAWN Protocol",
+        // Output + termination contracts
+        "Pareto Filter Evidence Schema",
+        "Exit Condition (strict, applies to xgs/xbgst/xbt)",
     ];
 
     /// Parses `## ` headings from a markdown doc, returning (heading, non-blank-body-line-count).
