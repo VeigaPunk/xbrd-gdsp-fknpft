@@ -68,6 +68,29 @@ mod tests {
         }
     }
 
+    /// M2.5 — byte-identity with SSoT. `include_str!` only proves the path
+    /// exists at build time; it does not prove it points at the *intended*
+    /// file. This test catches the subtle failure where `include_str!`
+    /// resolves to a wrong file whose headings happen to coincide with
+    /// REQUIRED_SECTIONS (e.g. a stale copy that passes structural gates).
+    #[test]
+    fn protocol_is_exactly_bound_to_shared_md_ssot() {
+        let ssot_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("commands")
+            .join("references")
+            .join("xbreed-shared.md");
+        let on_disk = std::fs::read_to_string(&ssot_path)
+            .unwrap_or_else(|e| panic!("cannot read SSoT at {}: {e}", ssot_path.display()));
+        assert_eq!(
+            PROTOCOL,
+            on_disk,
+            "PROTOCOL ({} bytes) does not byte-equal SSoT on disk ({} bytes) — \
+             include_str! may be pointing at the wrong file",
+            PROTOCOL.len(),
+            on_disk.len()
+        );
+    }
+
     #[test]
     fn protocol_required_sections_have_body() {
         let sections = parse_sections(PROTOCOL);
