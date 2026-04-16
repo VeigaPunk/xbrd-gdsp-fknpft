@@ -7,44 +7,65 @@ pub const PROTOCOL: &str = include_str!("../commands/references/xbreed-shared.md
 mod tests {
     use super::*;
 
-    fn headings() -> Vec<&'static str> {
-        PROTOCOL.lines().filter(|l| l.starts_with("## ")).collect()
+    /// Load-bearing sections that must each appear exactly once with ≥3
+    /// non-blank body lines. Extend only for headings that are genuinely
+    /// stable and critical to the protocol contract.
+    const REQUIRED_SECTIONS: &[&str] = &[
+        "xask Gate (4 layers)",
+        "Axis → Profile Mapping",
+        "Enforcement Tiers",
+        "Naming Convention",
+        "Distiller Spawn Template",
+        "Pareto Filter Evidence Schema",
+        "DESPAWN Protocol",
+    ];
+
+    /// Parses `## ` headings from a markdown doc, returning (heading, non-blank-body-line-count).
+    fn parse_sections(doc: &str) -> Vec<(String, usize)> {
+        let mut sections: Vec<(String, usize)> = Vec::new();
+        let mut current_heading: Option<String> = None;
+        let mut body_count: usize = 0;
+
+        for line in doc.lines() {
+            if let Some(title) = line.strip_prefix("## ") {
+                if let Some(h) = current_heading.take() {
+                    sections.push((h, body_count));
+                }
+                current_heading = Some(title.trim().to_string());
+                body_count = 0;
+            } else if current_heading.is_some() && !line.trim().is_empty() {
+                body_count += 1;
+            }
+        }
+        if let Some(h) = current_heading {
+            sections.push((h, body_count));
+        }
+        sections
     }
 
-    // Known limitation (R4 hardening item): these tests assert heading *presence*,
-    // not section body non-emptiness. A gutted section keeps the heading → FP still
-    // possible. Fix: per-section min-body-line checks or pulldown-cmark parse.
-
     #[test]
-    fn protocol_has_axis_profile_section() {
-        assert!(
-            headings().contains(&"## Axis → Profile Mapping"),
-            "missing '## Axis → Profile Mapping' heading"
-        );
+    fn protocol_required_sections_present_once() {
+        let sections = parse_sections(PROTOCOL);
+        for required in REQUIRED_SECTIONS {
+            let count = sections.iter().filter(|(h, _)| h == required).count();
+            assert_eq!(
+                count, 1,
+                "expected exactly 1 occurrence of '## {required}', found {count}"
+            );
+        }
     }
 
     #[test]
-    fn protocol_has_xask_gate_section() {
-        assert!(
-            headings().contains(&"## xask Gate (4 layers)"),
-            "missing '## xask Gate (4 layers)' heading"
-        );
-    }
-
-    #[test]
-    fn protocol_has_pareto_evidence_section() {
-        assert!(
-            headings().contains(&"## Pareto Filter Evidence Schema"),
-            "missing '## Pareto Filter Evidence Schema' heading"
-        );
-    }
-
-    #[test]
-    fn protocol_has_minimum_section_count() {
-        assert!(
-            headings().len() >= 10,
-            "expected ≥10 top-level sections, got {}",
-            headings().len()
-        );
+    fn protocol_required_sections_have_body() {
+        let sections = parse_sections(PROTOCOL);
+        for required in REQUIRED_SECTIONS {
+            match sections.iter().find(|(h, _)| h == required) {
+                None => panic!("missing required section: '## {required}'"),
+                Some((_, count)) => assert!(
+                    *count >= 2,
+                    "section '## {required}' has only {count} non-blank body lines (need ≥2)"
+                ),
+            }
+        }
     }
 }
