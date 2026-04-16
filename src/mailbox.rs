@@ -195,6 +195,8 @@ pub fn compact_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Barrier};
+    use std::thread;
     use tempfile::tempdir;
 
     #[test]
@@ -306,5 +308,46 @@ mod tests {
             .unwrap();
         assert!(ctx.contains("[1000ms] shutdown-ack from=critic payload=ok"));
         assert!(ctx.contains("[2000ms] alive from=builder payload=working"));
+    }
+
+    #[test]
+    fn m02_concurrent_writer_torn_lines() {
+        let dir = tempdir().unwrap();
+        let payload = "x".repeat(5 * 1024);
+        let payload = payload.as_str().to_owned();
+        let gate = Arc::new(Barrier::new(4));
+
+        let mut handles = Vec::with_capacity(4);
+        for thread_id in 0..4 {
+            let team_dir = dir.path().to_path_buf();
+            let payload = payload.clone();
+            let gate = Arc::clone(&gate);
+            handles.push(thread::spawn(move || {
+                gate.wait();
+                write_event(&team_dir, &format!("writer-{thread_id}"), "bench", &payload).unwrap();
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let path = dir
+            .path()
+            .join(".xbreed")
+            .join("mailbox")
+            .join("events.ndjson");
+        let raw = std::fs::read_to_string(&path).unwrap();
+        for (idx, line) in raw
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .enumerate()
+        {
+            assert!(
+                serde_json::from_str::<Event>(line).is_ok(),
+                "line {idx} must parse as Event"
+            );
+        }
+        assert!(!raw.is_empty(), "expected mailbox output");
     }
 }
