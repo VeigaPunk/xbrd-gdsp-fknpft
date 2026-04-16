@@ -227,9 +227,50 @@ These are not gated on this brief — they belong to the next plan.
 
 ---
 
-## Codex input status
+## Codex input — appended verbatim (umwelt preservation)
 
-Codex was probed twice for its view on tests. First attempt: timed out at 60s default (`bs6u7wmj0.output`). Second attempt: backgrounded at `XASK_TIMEOUT_SECS=240` (`bc3ipx8r9.output`); empty at brief-write time. **If codex returns a divergent test set, it is appended as M2.5 / M3.5 etc. and run through the same wwkd discipline (data-walk first, executable gate required).** Brief is not blocked on codex.
+Codex returned 7 tests after the brief's M1-M7 were drafted. Per the umwelt frame, codex's voice is preserved raw (no re-narration in my voice) and then mapped to brief slots. Three of the seven add genuine gaps the rest of the brief missed.
+
+**Source:** `bc3ipx8r9.output` (XASK_TIMEOUT_SECS=240 retry).
+
+> Given the current suite, the biggest remaining gaps are end-to-end transport and the chatty-child race. I'd add these 7 tests.
+>
+> 1. `execute_with_timeout_drains_both_pipes_without_deadlock`; target: src/ask.rs:375, src/ask.rs:395. Observable: run a child that writes `131072` bytes of `O` to stdout and `131072` bytes of `E` to stderr, then exits `0`; assert `output.status.success()`, `output.stdout.len() == 131072`, `output.stderr.len() == 131072`, and every stdout byte is `b'O'` while every stderr byte is `b'E'`. Verify: `cargo test ask::tests::execute_with_timeout_drains_both_pipes_without_deadlock -- --exact`.
+>
+> 2. `execute_with_timeout_kills_chatty_child_on_timeout`; target: src/ask.rs:406, src/ask.rs:407, src/ask.rs:408. Observable: child records `$$`, then loops forever writing to both stdout and stderr; assert the error contains `xask-timeout`, the pid file is populated, and after a short settle window `/proc/<pid>` does not exist. This is the real ghost-leak regression trap across all three mpsc arms. Verify: `cargo test ask::tests::execute_with_timeout_kills_chatty_child_on_timeout -- --exact`.
+>
+> 3. `protocol_is_exactly_bound_to_shared_md_ssot`; target: src/protocol.rs:4. Observable: assert `PROTOCOL == std::fs::read_to_string("commands/references/xbreed-shared.md").unwrap()`. This catches the subtle failure mode where `include_str!` points at the wrong file but the required headings still happen to exist. Verify: `cargo test protocol::tests::protocol_is_exactly_bound_to_shared_md_ssot -- --exact`.
+>
+> 4. `parse_sections_ignores_fenced_heading_lookalikes`; target: src/protocol.rs:37. Observable: feed `parse_sections()` synthetic markdown containing one real `## xask Gate (4 layers)`, one fenced-code line `## xask Gate (4 layers)`, and one `### xask Gate (4 layers)`; assert the parsed count for that heading is exactly `1` and the body-line count only reflects real prose. This hardens the REQUIRED_SECTIONS sentinel against false duplicates. Verify: `cargo test protocol::tests::parse_sections_ignores_fenced_heading_lookalikes -- --exact`.
+>
+> 5. `xask_gemini_effort_transport_preserves_budget_and_flag`; target: scripts/xask:82, scripts/xask:183, templates/dispatch/gemini.md:8. Observable: with a fake `xbreed` stub, run `scripts/xask -e xhigh gemini "probe"`; assert captured argv contains `ask gemini --with godspeed --effort xhigh`, and the final prompt contains `# Effort: xhigh` and `# ThinkingBudget: 16384` with no literal `{{EFFORT}}` or `{{THINKING_BUDGET}}` left behind. Verify: `bash tests/xask_gemini_effort_transport.sh`.
+>
+> 6. `ask_gemini_uses_yolo_and_no_native_effort_flag`; target: src/ask.rs:274, src/ask.rs:285. Observable: through `xbreed ask gemini --effort high ...` with a fake `gemini` binary, assert argv contains the adjacent pair `--approval-mode`, `yolo`, and does not contain any literal `--effort` token. That proves the budget stays prompt-side while yolo stays CLI-side. Verify: `cargo test --test ask_with_loadout ask_gemini_uses_yolo_and_no_native_effort_flag -- --exact`.
+>
+> 7. `ask_codex_route_preserves_full_unlock_contract`; target: src/ask.rs:97, src/ask.rs:110. Observable: through `xbreed ask codex --effort high "say hi"` with a fake `codex` binary, assert argv contains `exec`, `--skip-git-repo-check`, the adjacent pair `--sandbox`, `danger-full-access`, `approval_policy=\"never\"`, `model_reasoning_effort=high`, and that the last arg is exactly `say hi`. This is the end-to-end check that the yolo route survives real CLI plumbing. Verify: `cargo test --test ask_with_loadout ask_codex_route_preserves_full_unlock_contract -- --exact`.
+
+### Mapping to brief slots
+
+| Codex # | Maps to | Status |
+|---|---|---|
+| 1 (chatty-child pipe drain) | **NEW M1.5** — gemini missed this; pipe-buffer deadlock is the silent-failure axis at the concurrency layer. Strict add. |
+| 2 (chatty-child timeout reap) | **Replaces M1** — codex's `/proc/<pid>` check is more rigorous than my `pgrep -P`. Use codex's variant. |
+| 3 (PROTOCOL == fs::read_to_string) | **NEW M2.5** — catches `include_str!` pointing at wrong file with coincidentally-valid headings. Genuine gap in M2+M3. Strict add. |
+| 4 (fenced-heading parse) | **NEW M3.5** — assumes a `parse_sections()` helper that may not yet exist; first sub-task: confirm the helper, refactor inline test out of `mod tests` if needed, then add this test. **Risk:** invention if helper doesn't exist. |
+| 5 (gemini transport argv + budget) | **Strengthens M5** — adds argv assertion + literal-template-absence assertion. Use codex's variant. |
+| 6 (gemini yolo + no --effort) | **Strengthens M6** — adds the SEPARATION assertion (budget=prompt-side, yolo=CLI-side). Use codex's variant. |
+| 7 (codex full unlock end-to-end) | **Strengthens M6** — through `xbreed ask codex`, not just `build_codex_ask_with_loadout`. Use codex's variant. |
+
+### Cross-model divergence observation (load-bearing for the umwelt frame)
+
+| Axis | Gemini lens | Codex lens |
+|---|---|---|
+| **What's at risk** | Drift between docs and engine | Pipe-buffer deadlock + binding misdirection |
+| **Test style** | Bash one-liners with mutate/restore | Rust integration tests with byte-exact assertions |
+| **Ground truth source** | Aspirational (invents `--dry-run`, `protocol_sentinels`) | Verified (reads actual file:line; uses real flags) |
+| **Adversarial depth** | Single mutation per axis | Pathological inputs (131072 bytes, fenced lookalikes) |
+
+This divergence is itself M7's evidence: **two models with different umwelten produce non-overlapping test gaps**. Collapsing them to one voice would destroy the gap-coverage. The brief preserves both as co-equal inputs.
 
 ## Inputs and provenance
 
