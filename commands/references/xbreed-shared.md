@@ -23,16 +23,16 @@ Include in teammate briefs: `"You have access to advisor() — call it before su
 Include as FIRST instruction in every teammate brief that requires cross-model delegation.
 
 **Layer 1 — Gate (structural):**
-- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' 'context' 'librarian'. No other tool before xask returns."`
+- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15; restore to `xask --effort medium gemini '<q>' 'context' 'librarian'` when quota returns.)*
 - **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."`
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
-- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<pattern question>'. No other tool before xask returns."`
-- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering)
+- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15.)*
+- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(Gemini rate-limited fallback 2026-04-15.)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<generate mutation for this function>'. No other tool before xask returns."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
-- **simplifier/distiller/Plan**: No xask gate.
+- **simplifier/distiller/scribe/Plan**: No xask gate.
 
 **Layer 2 — Raw-quote gate:** `"After xask, paste verbatim passage in <raw_output> tags. Must be literal substring of xask stdout. Empty = invalid. CLI output only."`
 
@@ -54,22 +54,23 @@ Include in every teammate brief:
 
 **This table is the single source of truth for agent routing.** AGENTS.md and the-judge.md carry read-only copies for discoverability. On any edit here, update those two.
 
-Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`.
+Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`.
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | sonnet | `xask --effort medium gemini` | All |
+| Research, prior art | `scout` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15)* | All |
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
-| Cross-axis patterns | `connector` | sonnet | `xask --effort medium gemini` | All |
+| Cross-axis patterns | `connector` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15)* | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
-| Reverse engineering | `the-revenger` | opus | `xask gemini` for surface enum | All |
+| Reverse engineering | `the-revenger` | opus | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Implementation planning | `Plan` | CC built-in | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
 | Test validation | `mutation-tester` | sonnet | `xask --spark codex` | All |
+| Documentation, audit trail | `scribe` | sonnet | CC native | All |
 
 ## Naming Convention
 
@@ -112,9 +113,70 @@ The Pareto filter reads a structured `evidence:` field on every proposed move. M
 | `correctness` (reviewer), `test-validation` (mutation-tester), `security` (sentinel) | verbatim xask output OR test/lint stdout + exit code |
 | `empirical` (labrat) | probe HYPOTHESIS/METHOD/RESULT triple |
 | `deletion` (simplifier) | diff of removed symbols + test pass/fail output (pre- and post-removal) |
-| `research` (scout), `cross-axis` (connector), `synthesis` (distiller), `orchestration`, `adversarial-design` (critic), `complexity`, `reverse-engineering` | `evidence: none — <axis reason>` (non-executable) |
+| `research` (scout), `cross-axis` (connector), `synthesis` (distiller), `orchestration`, `adversarial-design` (critic), `complexity`, `reverse-engineering`, `documentation` (scribe) | `evidence: none — <axis reason>` (non-executable) |
 
 **Exempt-role allowlist is a closed enum keyed on `axis_family`**, not free-text self-classification. Any new role must land with a schema update to this table or ship with executable evidence. Distiller passes the field through verbatim.
+
+### Evidence Audit Line (MANDATORY in judge round summaries)
+
+After distiller synthesis and before the Pareto walk, the judge MUST emit exactly one line:
+
+```
+EVIDENCE AUDIT: <N> moves with evidence, <M> moves without, <M> dropped, <K> spoof_flagged
+```
+
+If `M > 0` and the distiller did not log drops, flag as protocol violation. If `K > 0`, route the spoof-flagged `move_id`s to reviewer before scoring. Rationale: mutation-tester Round-1 finding — dropping the `evidence:` field requirement is otherwise a *silent* regression; no counter exists in legacy round summaries. Converts a silent-drop path into a visible counter.
+
+### Evidence Authenticity Spot-Check (counter-spoofing)
+
+xbgst Round-1 live incident: `ccs-simplifier-bloat` proposed a 5-file deletion diff whose "before" text was fabricated — `Grep "Gemini labrat swarm" ~/.claude/agents/` returned 1 file, not 5. Filter must assume evidence spoofing is a possible failure mode (malfunctioning agent, not external attacker).
+
+- **Distiller spot-check (mandatory):** On any proposal whose `evidence:` cites a file state: (1) proposer must supply a **specific line span and exact excerpt** — bare path citations are rejected; (2) distiller matches the excerpt as a **literal substring** (`rg -F` / fixed-string, not regex) within that span; (3) if the excerpt appears only in comments/tests/docs but the claim is about implementation state, flag as non-supporting. If observed state ≠ claimed state, emit `evidence_unverified: <reason>` and do not pass the move through verbatim; flag to judge under `spoof_flagged`. Known gap: teammate-created fresh files (path created after proposal) require git/mtime provenance — route to reviewer if file is untracked or mtime postdates the proposal timestamp.
+- **Reviewer triage:** Judge routes spoof-flagged `move_id`s to reviewer (blocking) before Pareto walk can accept them.
+
+## Judge Blinding Protocol
+
+**Source of truth for `the-judge.md` line 82 ("see xbreed-shared.md §Judge Blinding Protocol").** Closes the dangling-reference defect (R1 reviewer finding).
+
+### Hold rule
+
+The judge MUST NOT form or record per-axis scores based on raw teammate DMs. Wait for distiller `SYNTHESIS_READY` (schema defined in `distiller.md`), which carries only `move_id / axis / claim / confidence / linchpin / evidence` — **no source or model labels**.
+
+### Score against `move_id`
+
+Record provisional Pareto verdicts against `move_id`s. Emit `EVIDENCE AUDIT` line before scoring. Commit provisional survivors to a draft block.
+
+### Source reveal (late-binding)
+
+After provisional scores are posted, the judge requests `SOURCE_MAP` from distiller via SendMessage. The map returns `move_id → source` (role + model prefix).
+
+**Use the map ONLY for:**
+1. Contradiction routing (CONFLICTS block): which model said what.
+2. Follow-up dispatch decisions (which role owns the next-round ask).
+3. Cross-model vs same-model confidence adjustment (inputs to R2+, not retroactive to R1 scores).
+
+**Never use the map to:**
+- Retroactively adjust R1 scores (halo-leak).
+- Privilege or penalize model prefix as a scoring axis.
+- Break tie in Pareto filter.
+
+### Cross-model vs same-model confidence
+
+When SOURCE_MAP reveals a claim's supporting sources share a model prefix (all `ccs-`, all `g-`, etc.), the distiller has already capped confidence at `medium` (per distiller.md rule). The judge MUST NOT upgrade same-model consensus to `high` post-reveal. Cross-model confirmation is the only path to `high`.
+
+### Audit-commit handshake (distiller ↔ judge)
+
+Closes the structural-gap labrat R2 finding (SOURCE_MAP late-binding was prose-only).
+
+**Step 1 — SYNTHESIS_READY commit:** Distiller posts per-move confidence plus `audit_hash`. Compute as: sort `[{move_id, source_prefix}]` by `move_id`, serialize as the literal sorted string, SHA-256 it. Post hash alongside the synthesis payload. The hashed list IS the exact same-model-audit evidence used under the cap.
+
+**Step 2 — Provisional scoring:** Judge posts provisional Pareto scores citing `audit_hash`. Judge MUST NOT inspect the source mapping before this post.
+
+**Step 3 — SOURCE_MAP reveal + verification:** Judge sends `SOURCE_MAP` request. Distiller returns the `{move_id, source_prefix}` map. Judge recomputes the hash from the returned map using the same serialization. Hashes match → provisional scores stand. Hashes diverge → round invalid, rerun from SYNTHESIS_READY.
+
+**Step 4 — Spot-check (closes false-attestation vector):** After SOURCE_MAP reveal, judge picks one random `move_id` and sends a direct `confirm_model` DM to the original proposer. If the proposer's self-reported model prefix contradicts the distiller's map, flag round as `SPOOF_SUSPECT` and route to reviewer BEFORE Pareto walk continues.
+
+Hash-commit alone closes early-reveal; spot-check closes distiller fabrication. Both together bound the attack surface to colluding-team — outside the threat model under SendMessage-only infra.
 
 ## Parallel Dispatch Reference
 

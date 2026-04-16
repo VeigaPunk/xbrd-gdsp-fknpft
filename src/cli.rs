@@ -49,6 +49,10 @@ pub enum Commands {
         /// Maps to: claude --effort, codex -c model_reasoning_effort=, gemini thinkingBudget (future)
         #[arg(short = 'e', long = "effort")]
         effort: Option<String>,
+        /// Use the fast codex-spark model with low effort (codex only).
+        /// Equivalent to: -m gpt-5.3-codex-spark + model_reasoning_effort=low
+        #[arg(long)]
+        spark: bool,
     },
     /// Initialize a team workspace
     Team {

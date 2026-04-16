@@ -45,13 +45,14 @@ fn main() -> anyhow::Result<()> {
             prompt,
             with,
             effort,
+            spark,
         } => {
             let loadout = if with.is_empty() {
                 xbreed::loadout::Loadout::empty()
             } else {
                 xbreed::loadout::Loadout::resolve(&with)?
             };
-            let out = xbreed::ask::dispatch(&cli, &prompt, &loadout, effort.as_deref())?;
+            let out = xbreed::ask::dispatch(&cli, &prompt, &loadout, effort.as_deref(), spark)?;
             print!("{out}");
             Ok(())
         }

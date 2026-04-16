@@ -1,17 +1,18 @@
 #!/bin/bash
 # xask — contamination-aware template dispatch for cross-model orchestration
-# Usage: xask [--debug] [--scope <boundary>] [--rich] [--direct] [--effort <level>] <model> "<query>" ["<context>"] ["<skill>"]
+# Usage: xask [--debug] [--scope <boundary>] [--rich] [--spark] [--effort <level>] <model> "<query>" ["<context>"] ["<skill>"]
 #
-# Default: CLEAN dispatch — suppresses CLI auto-injection for epistemic equivalence.
+# ALL dispatches route through `xbreed ask` — clean suppression, loadout injection,
+# auth cascade, and godspeed forwarding are always-on.
 # --rich: FULL context — temporarily restores Gemini dir tree for interactive use.
-# --direct: Codex direct exec fallback — bypasses xbreed, uses codex exec with -c flags.
+# --spark: Fast codex-spark model with low effort (codex only).
 # --effort: Reasoning effort level. Maps per-model: claude→--effort, codex→-c model_reasoning_effort, gemini→thinkingBudget profile.
 #
 # Examples:
 #   xask gemini "What patterns exist?"                    # clean, godspeed loaded
 #   xask --scope "src/ask.rs" gemini "Review this"        # scoped clean dispatch
 #   xask --rich gemini "Explore the codebase"             # full context, dir tree ON
-#   xask --direct codex "Fix this bug"                    # direct codex exec, max suppression
+#   xask --spark codex "Probe this hypothesis"            # fast codex-spark, low effort
 #   xask claude "Analyze this" "prior findings"           # claude (no CLI injection)
 
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
@@ -20,7 +21,6 @@ GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 DEBUG=false
 SCOPE="entire project"
 RICH=false
-DIRECT=false
 SPARK=false
 EFFORT=""
 while [[ "$1" == --* ]]; do
@@ -28,9 +28,9 @@ while [[ "$1" == --* ]]; do
     --debug) DEBUG=true; shift ;;
     --scope) SCOPE="$2"; shift 2 ;;
     --rich) RICH=true; shift ;;
-    --direct) DIRECT=true; shift ;;
     --spark) SPARK=true; shift ;;
     --effort) EFFORT="$2"; shift 2 ;;
+    --direct) SPARK=false; shift ;; # deprecated: suppression is always-on, use --effort for reasoning level
     *) shift ;;
   esac
 done
@@ -63,6 +63,13 @@ if [ -f "$TEMPLATE" ]; then
   }' "$TEMPLATE")
 else
   PROMPT="$QUERY"
+fi
+
+# Forward godspeed posture through xask prompt text.
+# xbreed-ask paths already load SKILL.md via --with; this closes the gap for
+# codex-exec paths (spark/direct) where no skill mechanism exists.
+if [ "$SKILL" = "godspeed" ]; then
+  PROMPT="$PROMPT | godspeed"
 fi
 
 # Debug mode
@@ -126,31 +133,11 @@ case "$MODEL" in
     xbreed ask gemini --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     ;;
   codex)
-    if [ "$SPARK" = true ]; then
-      # Spark mode: fast executor via gpt-5.3-codex-spark, low effort
-      codex exec \
-        --skip-git-repo-check \
-        -m gpt-5.3-codex-spark \
-        -c include_permissions_instructions=false \
-        -c include_apps_instructions=false \
-        -c include_environment_context=false \
-        -c model_reasoning_effort=low \
-        "$PROMPT"
-    elif [ "$DIRECT" = true ]; then
-      # Direct exec: bypass xbreed, max suppression + effort control
-      CODEX_EFFORT="${EFFORT:-none}"
-      codex exec \
-        --skip-git-repo-check \
-        -c include_permissions_instructions=false \
-        -c include_apps_instructions=false \
-        -c include_environment_context=false \
-        -c "model_reasoning_effort=$CODEX_EFFORT" \
-        "$PROMPT"
-    else
-      EFFORT_FLAG=""
-      [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
-      xbreed ask codex --with "$SKILL" ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
-    fi
+    SPARK_FLAG=""
+    [ "$SPARK" = true ] && SPARK_FLAG="--spark"
+    EFFORT_FLAG=""
+    [ -n "$EFFORT" ] && EFFORT_FLAG="--effort $EFFORT"
+    xbreed ask codex --with "$SKILL" ${SPARK_FLAG:+$SPARK_FLAG} ${EFFORT_FLAG:+$EFFORT_FLAG} "$PROMPT"
     ;;
   claude)
     EFFORT_FLAG=""

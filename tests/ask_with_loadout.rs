@@ -107,10 +107,18 @@ fn ask_codex_with_loadout_injects_developer_instructions_override() {
 
     let argv = read_log(&log);
     assert_eq!(argv[0], "exec");
-    assert_eq!(argv[1], "-c");
-    assert!(argv[2].starts_with("developer_instructions="));
-    assert!(argv[2].contains("GO FAST NOW"));
-    assert_eq!(argv[3], "say hi");
+    assert_eq!(argv[1], "--skip-git-repo-check");
+    // suppression flags present
+    assert!(argv.contains(&"include_permissions_instructions=false".to_string()));
+    assert!(argv.contains(&"include_apps_instructions=false".to_string()));
+    assert!(argv.contains(&"include_environment_context=false".to_string()));
+    // developer_instructions from loadout
+    let dev_instr = argv
+        .iter()
+        .find(|a| a.starts_with("developer_instructions="))
+        .expect("developer_instructions flag missing");
+    assert!(dev_instr.contains("GO FAST NOW"));
+    assert_eq!(*argv.last().unwrap(), "say hi");
 }
 
 #[test]

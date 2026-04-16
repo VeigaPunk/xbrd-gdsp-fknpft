@@ -93,12 +93,30 @@ pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command
     c
 }
 
-/// Build a codex Command with loadout injection. NOTE: does NOT append the
-/// prompt — caller must append it AFTER any `-c` flags (effort, etc.) since
-/// `codex exec` treats the prompt as a trailing positional arg.
-pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
+/// Build a codex Command with loadout injection and clean-dispatch suppression.
+///
+/// Always applies contamination-suppression flags (`--skip-git-repo-check` +
+/// `include_permissions/apps/environment_context=false`) for epistemic
+/// equivalence across models. When `spark` is true, pins the model to
+/// [`CODEX_SPARK_MODEL`] and forces `model_reasoning_effort=low`.
+///
+/// NOTE: does NOT append the prompt — caller must append it AFTER any `-c`
+/// flags (effort, etc.) since `codex exec` treats the prompt as a trailing
+/// positional arg.
+pub fn build_codex_ask_with_loadout(loadout: &Loadout, spark: bool) -> Command {
     let mut c = Command::new("codex");
-    c.arg("exec");
+    c.arg("exec").arg("--skip-git-repo-check");
+
+    // Contamination suppression — always-on for clean dispatch
+    c.arg("-c").arg("include_permissions_instructions=false");
+    c.arg("-c").arg("include_apps_instructions=false");
+    c.arg("-c").arg("include_environment_context=false");
+
+    if spark {
+        c.arg("-m").arg(CODEX_SPARK_MODEL);
+        c.arg("-c").arg("model_reasoning_effort=low");
+    }
+
     if !loadout.is_empty() {
         // codex -c value is parsed as TOML. A JSON-serialized string (double-quoted,
         // with \n / \" / \\ escapes) is also a valid TOML basic string.
@@ -128,6 +146,9 @@ pub fn build_codex_ask_with_loadout(loadout: &Loadout) -> Command {
 /// (still functional, loses the tool-selection optimizations). No xbreed
 /// change needed to reach customtools.
 pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
+
+/// The codex model used for spark (cheap/fast/expendable) probes.
+pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
 
 // ========================================================================
 // v0.3.5 — Gemini auth cascade with multi-profile OAuth
@@ -305,6 +326,7 @@ pub fn dispatch(
     prompt: &str,
     loadout: &Loadout,
     effort: Option<&str>,
+    spark: bool,
 ) -> Result<String> {
     if cli == "gemini" {
         if effort.is_some() {
@@ -370,9 +392,11 @@ pub fn dispatch(
             c
         }
         "codex" => {
-            let mut c = build_codex_ask_with_loadout(loadout);
-            if let Some(e) = effort {
-                c.arg("-c").arg(format!("model_reasoning_effort={e}"));
+            let mut c = build_codex_ask_with_loadout(loadout, spark);
+            if !spark {
+                if let Some(e) = effort {
+                    c.arg("-c").arg(format!("model_reasoning_effort={e}"));
+                }
             }
             // Prompt MUST be the last positional arg for codex exec —
             // all -c flags must come before it.
@@ -445,11 +469,31 @@ mod tests {
     }
 
     #[test]
-    fn codex_ask_empty_loadout_matches_v0_1_behavior() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty());
+    fn codex_ask_empty_loadout_has_suppression_flags() {
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false);
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
-        assert_eq!(cmd_args(&c), vec!["exec", "hello"]);
+        let args = cmd_args(&c);
+        assert_eq!(args[0], "exec");
+        assert_eq!(args[1], "--skip-git-repo-check");
+        assert_eq!(args[2], "-c");
+        assert_eq!(args[3], "include_permissions_instructions=false");
+        assert_eq!(args[4], "-c");
+        assert_eq!(args[5], "include_apps_instructions=false");
+        assert_eq!(args[6], "-c");
+        assert_eq!(args[7], "include_environment_context=false");
+        assert_eq!(*args.last().unwrap(), "hello");
+    }
+
+    #[test]
+    fn codex_ask_spark_adds_model_and_low_effort() {
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true);
+        c.arg("probe"); // caller appends prompt
+        let args = cmd_args(&c);
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&CODEX_SPARK_MODEL.to_string()));
+        assert!(args.contains(&"model_reasoning_effort=low".to_string()));
+        assert_eq!(*args.last().unwrap(), "probe");
     }
 
     #[test]
@@ -467,22 +511,26 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let mut c = build_codex_ask_with_loadout(&l);
+        let mut c = build_codex_ask_with_loadout(&l, false);
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
-        assert_eq!(args[1], "-c");
-        assert!(args[2].starts_with("developer_instructions="));
-        assert!(args[2].contains("BE FAST"));
-        let value = args[2].trim_start_matches("developer_instructions=");
+        assert_eq!(args[1], "--skip-git-repo-check");
+        // suppression flags at [2..7], then developer_instructions
+        let dev_instr = args
+            .iter()
+            .find(|a| a.starts_with("developer_instructions="))
+            .expect("developer_instructions flag missing");
+        assert!(dev_instr.contains("BE FAST"));
+        let value = dev_instr.trim_start_matches("developer_instructions=");
         assert!(value.starts_with('"') && value.ends_with('"'));
-        assert_eq!(args[3], "hello");
+        assert_eq!(*args.last().unwrap(), "hello");
     }
 
     #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
-        let err = dispatch("unknown-cli", "hello", &l, None).unwrap_err();
+        let err = dispatch("unknown-cli", "hello", &l, None, false).unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
     }
 
