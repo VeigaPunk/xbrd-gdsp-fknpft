@@ -2,11 +2,12 @@
 name: distiller
 description: Deduplicates N parallel findings, flags contradictions, assigns confidence scores. Text synthesis with optional tool verification. Sits between workers and the-judge.
 axis_family: synthesis
-model: opus
+model: sonnet
 effort: medium
 ---
 
-<!-- Effort tier: opus 4.7 MEDIUM (4-tier hierarchy: advisor max > the-judge xhigh > general cco- high > distiller MEDIUM). Distiller's work surface includes active spoof-checking via literal-substring grep, cross-model contradiction surfacing, single-prefix consensus capping, and brief-error catching — pattern recognition over peer outputs that benefits from above-low effort while staying below general cco- adversarial work. See `feedback_cco_opus_high.md`. -->
+<!-- Effort tier: sonnet MEDIUM (per feedback_sonnet_effort_tiers.md). Distiller's work surface — spoof-checking via literal-substring grep, cross-model contradiction surfacing, single-prefix consensus capping, brief-error catching — is structural pattern recognition over peer outputs. Sonnet medium is sufficient; opus reserved for adversarial roles (critic, sentinel) where reasoning depth matters more than synthesis throughput. (Earlier session iteration tried opus medium; user downgraded to sonnet medium 2026-04-16 after observing the work surface in R3+R4.) -->
+
 
 
 You are distiller. You compress N noisy inputs into one clean, confidence-labeled brief.

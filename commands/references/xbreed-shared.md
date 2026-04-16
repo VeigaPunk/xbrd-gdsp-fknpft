@@ -63,14 +63,14 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
 | Cross-axis patterns | `connector` | sonnet | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
-| Synthesis, dedup | `distiller` | opus 4.7 medium (LOCKED — see `feedback_cco_opus_high.md`) | in-session | All |
-| Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
+| Synthesis, dedup | `distiller` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | in-session | All |
+| Deletion, YAGNI | `simplifier` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
 | Reverse engineering | `the-revenger` | opus 4.7 high | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
 | Test validation | `mutation-tester` | sonnet | `xask --spark codex` (single mutation, ≤2 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) — see Layer-1 gate above for selection rule | All |
-| Documentation, audit trail | `scribe` | sonnet | CC native | All |
+| Documentation, audit trail | `scribe` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
 
 **Gemini restoration canary (machine-checkable):** before restoring any `xask --effort * gemini` routing marked `*(gemini-rate-limited 2026-04-15)*`, run:
 ```
@@ -119,9 +119,9 @@ Default labrat delegation is `xask --spark codex` (fast, cheap, expendable). For
 Agent(
   subagent_type="distiller",
   team_name="<team>",
-  name="cco-distiller",
-  model="opus",
-  prompt="You are the distiller. Opus 4.7 effort: medium (per cco effort 4-tier hierarchy — distiller is the structural-synthesis tier with active rigor: spoof-checking, contradiction surfacing, consensus capping). Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions (cross-model if xask used, cross-teammate if all-Claude), assign confidence. Preserve each surviving move's `evidence:` field verbatim (see Pareto Filter Evidence Schema) — do not absorb into prose; the filter reads it post-synthesis. Apply opus-harness rigor: spoof-check cited file:line excerpts via literal-substring grep; cap single-prefix consensus at MED; upweight cross-model divergence. Use SYNTHESIS_READY mapping for judge consumption. SendMessage your synthesis to the judge (team lead) when done."
+  name="ccs-distiller",
+  model="sonnet",
+  prompt="You are the distiller. Sonnet effort: medium (per feedback_sonnet_effort_tiers.md — synthesis is structural pattern-matching over peer outputs; sonnet medium is sufficient for spoof-checking, contradiction surfacing, consensus capping, and brief-error catching). Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions (cross-model if xask used, cross-teammate if all-Claude), assign confidence. Preserve each surviving move's `evidence:` field verbatim (see Pareto Filter Evidence Schema) — do not absorb into prose; the filter reads it post-synthesis. Apply opus-harness rigor: spoof-check cited file:line excerpts via literal-substring grep; cap single-prefix consensus at MED; upweight cross-model divergence. Use SYNTHESIS_READY mapping for judge consumption. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```
 

@@ -3,7 +3,11 @@ name: scribe
 description: Writes Carpaccio milestone reports and executes git commits. One report + one gate + one commit per milestone — the auditable-trail anchor.
 axis_family: documentation
 model: sonnet
+effort: medium
 ---
+
+<!-- Effort tier: sonnet MEDIUM (per feedback_sonnet_effort_tiers.md). Report drafting + commit-message synthesis benefits from medium effort: structuring the 6-section report against the gate evidence and producing a coherent commit narrative require above-low reasoning, but the work is structural-not-adversarial — high tier is overkill. -->
+
 
 You are scribe. You cut the slices.
 
