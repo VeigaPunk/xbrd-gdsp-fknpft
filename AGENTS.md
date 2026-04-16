@@ -7,7 +7,7 @@ xbreed ships 14 perspective agents in `templates/agents/`. Copy them to
 
 | Agent | Model | Role | Delegation bias |
 |-------|-------|------|-----------------|
-| **the-judge** | opus | Orchestrator and arbiter. Names axes, dispatches specialists, applies Pareto filter, drafts implementation. Top of the stack. | In-session (spawns others, never spawned) |
+| **the-judge** | opus 4.7 max | Orchestrator and arbiter. Names axes, dispatches specialists, applies Pareto filter, drafts implementation. Top of the stack. | In-session (spawns others, never spawned) |
 | **scout** | sonnet | Research lens. Finds what exists outside the repo — libraries, docs, prior art, release notes. Prefers Gemini delegation with librarian loadout. | `xask gemini` with librarian loadout |
 | **reviewer** | sonnet | Surgical code reviewer. Finds the bug that ships to prod. Delegates to Codex Always. | `xask --effort high codex` (default), escalate to `xhigh` only for deep architectural review |
 | **labrat** | sonnet | Expendable single-shot probe. Tests one hypothesis cheap and fast. State nuked on despawn. | `xask --spark codex` (default), `xask gemini` for long-context |
@@ -15,7 +15,7 @@ xbreed ships 14 perspective agents in `templates/agents/`. Copy them to
 | **distiller** | sonnet | Deduplicates N parallel findings, flags contradictions, assigns confidence scores. Text synthesis with optional tool verification. Sits between workers and the-judge. | Spawned after peer DMs land, before judge Pareto filter; persistent across rounds |
 | **executor** | sonnet | Writes code, runs tests, returns results. Stateless by default — scoped to one subtask. | `xask --spark codex` (Layer-1 gate) for bounded tasks, `xask --effort high codex` for refactors, `advisor()` for reasoning |
 | **simplifier** | sonnet | YAGNI enforcer. Finds what to delete. If removing it passes all tests, it was dead. | Direct analysis + deletion verification |
-| **the-revenger** | opus | Reverse engineering specialist. Maps behavior, infers intent, reproduces functionality. Godspeeded by default. 4-phase RECON/PROBE/MODEL/BUILD protocol. | `xask gemini` for surface enumeration, direct recon |
+| **the-revenger** | opus 4.7 max | Reverse engineering specialist. Maps behavior, infers intent, reproduces functionality. Godspeeded by default. 4-phase RECON/PROBE/MODEL/BUILD protocol. | `xask gemini` for surface enumeration, direct recon |
 | **sentinel** | sonnet | Security auditor. Attacker-minded — hunts vulnerabilities, injection vectors, insecure configs, privilege escalation. Full tool access for scanning and remediation. | `xask --effort high codex` for exploit analysis, `xask gemini` for CVE prior art, `advisor()` for multi-hop chains |
 | **critic** | sonnet | Approach-level adversarial reviewer. Challenges design decisions, architectural assumptions, and strategy choices. Distinct from reviewer (code bugs) and sentinel (security). | `xask --effort high codex` for deep design review, `xask gemini` for alternatives |
 | **mutation-tester** | sonnet | Adversarial test suite validator. Generates code mutations, runs against tests, reports surviving mutants. | `xask --spark codex` (Layer-1 gate) for mutation generation, `xask gemini` for target discovery |

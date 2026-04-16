@@ -65,7 +65,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Cross-axis patterns | `connector` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15)* | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
-| Reverse engineering | `the-revenger` | opus | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15)* | All |
+| Reverse engineering | `the-revenger` | opus 4.7 max | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15)* | All |
 | Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet | CC native | All |
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
@@ -208,6 +208,30 @@ DESPAWN: <agent-name> — signal delivered. Send me shutdown_request.
 - **Deliberative** (xbt): 4 rounds max (sequential depth)
 - **Solo pipeline** (xbreed, xb): 8 sub-role dispatches max
 - **Labrat Gemini swarm**: 3 refire rounds (30 probes) — independent of judge rounds
+
+## Dynamic Pacing (ScheduleWakeup)
+
+When xbgst or xgs are invoked via `/loop`, the judge MUST use `ScheduleWakeup` to pace inter-round delays rather than blocking on teammate DMs. The CC harness has a 5-minute prompt-cache TTL — sleeping past 270s incurs a cold-cache reload on wake.
+
+**Delay selection:**
+- `≤270s` — cache stays warm. Use after dispatching a round — teammates typically return within 4 min.
+- `600–1200s` — pays one cache miss. Use after a labrat Gemini swarm (30-probe multi-refire) or `--effort xhigh` xask.
+- Never pick `300s` exactly (worst-of-both, no amortization). Default mid-round idle: `270s`.
+
+**Canonical judge usage (between rounds):**
+```
+ScheduleWakeup({
+  delaySeconds: 270,
+  reason: "waiting for R<N> teammate DMs — all dispatched",
+  prompt: "/xbgst <original-prompt>"
+})
+```
+
+**ScheduleWakeup vs asyncRewake:** These are complementary, not competing. Use ScheduleWakeup (timer-driven) when no completion signal exists — e.g., polling for all-DMs-received after a round dispatch. Use asyncRewake (event-driven) when a background task has a defined completion event. Never configure both for the same round-boundary trigger.
+
+**Scope:** Judge-only. Individual teammate blocking on `xask` is not addressable by ScheduleWakeup — cap connector reasoning in the brief instead (see `feedback_connector_stall.md`).
+
+**Double-dispatch guard (required when TeammateIdle hook is active):** TeammateIdle auto-dispatch and ScheduleWakeup are independent wakeup sources that can both fire for the same round-boundary window. Without a guard, duplicate round invocations result. Canonical guard: write a sentinel tempfile (`/tmp/xbreed-round-active`) on round dispatch, delete on SYNTHESIS_READY; ScheduleWakeup preamble checks for the file and returns early if present. TeammateIdle hook should carry the same check as an `if` condition once the `if` filter ships.
 
 ## Exit Condition (strict, applies to xgs/xbgst/xbt)
 

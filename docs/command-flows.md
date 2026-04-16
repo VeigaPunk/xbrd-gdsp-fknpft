@@ -269,7 +269,7 @@ The full crossbreed. Godspeed Pareto walk with xask cross-model delegation.
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant J as Judge (Opus)
+    participant J as Judge (Opus 4.7 max)
     participant T as Teammates (N)
     participant X as xask CLI
     participant G as Gemini CLI

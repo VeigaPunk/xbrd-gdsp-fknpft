@@ -19,7 +19,7 @@ flowchart TD
         CR["Claude mediator\n(via xbreed ask claude)"]
     end
 
-    Judge["Judge (opus)\nPareto filter"]
+    Judge["Judge (opus 4.7 max)\nPareto filter"]
 
     G --> Judge
     X --> Judge

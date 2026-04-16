@@ -11,3 +11,11 @@
 # `xbreed team init` and `xbreed team mailbox`. Contains mailbox
 # events and beads DB; never belongs in version control.
 .xbreed/
+
+# remember plugin state — disabled (see ~/.claude/settings.json).
+# Defensive ignore so any accidental re-enable does not leak logs into git.
+.remember/
+
+# codex CLI runtime state — per-project OAuth profile + ephemeral home.
+.codex
+.codex-home/
