@@ -94,7 +94,9 @@ fn ask_codex_with_loadout_injects_developer_instructions_override() {
         .find(|a| a.starts_with("developer_instructions="))
         .expect("developer_instructions flag missing");
     assert!(dev_instr.contains("GO FAST NOW"));
-    assert_eq!(*argv.last().unwrap(), "say hi");
+    // M11: codex prompt always ends in "| godspeed" (user directive, structural
+    // guarantee in ask.rs::dispatch).
+    assert_eq!(*argv.last().unwrap(), "say hi | godspeed");
 }
 
 #[test]
@@ -144,7 +146,8 @@ fn ask_without_with_flag_dispatches_cleanly() {
 
     let argv = read_log(&log);
     assert_eq!(argv[0], "exec");
-    assert_eq!(*argv.last().unwrap(), "say hi");
+    // M11: godspeed suffix guarantee holds even without --with.
+    assert_eq!(*argv.last().unwrap(), "say hi | godspeed");
     assert!(!argv
         .iter()
         .any(|a| a.starts_with("developer_instructions=")));
@@ -228,10 +231,11 @@ fn ask_codex_route_preserves_full_unlock_contract() {
         "missing model_reasoning_effort=high in argv: {argv:?}"
     );
 
+    // M11: codex prompt always ends in "| godspeed" (user directive).
     assert_eq!(
         argv.last().map(String::as_str),
-        Some("say hi"),
-        "prompt must be the final argv element: {argv:?}"
+        Some("say hi | godspeed"),
+        "prompt must be the final argv element with godspeed suffix: {argv:?}"
     );
 
     // M7 (mutation sentinels): --ephemeral and features.fast_mode=true must
@@ -366,9 +370,13 @@ fn ask_codex_json_flag_reaches_codex_argv() {
         "--json flag missing from codex argv: {argv:?}"
     );
 
-    // --json must appear before the prompt (before the final positional arg)
+    // --json must appear before the prompt (before the final positional arg).
+    // M11: prompt now carries the "| godspeed" suffix (user directive).
     let json_idx = argv.iter().position(|a| a == "--json").unwrap();
-    let prompt_idx = argv.iter().position(|a| a == "say hi").unwrap();
+    let prompt_idx = argv
+        .iter()
+        .position(|a| a == "say hi | godspeed")
+        .unwrap();
     assert!(
         json_idx < prompt_idx,
         "--json must precede the prompt in codex argv: {argv:?}"
@@ -451,8 +459,12 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
         "-o must be followed by the output path: {argv:?}"
     );
 
-    // -o must appear before the prompt (before the final positional arg)
-    let prompt_idx = argv.iter().position(|a| a == "say hi").unwrap();
+    // -o must appear before the prompt (before the final positional arg).
+    // M11: prompt carries "| godspeed" suffix (user directive).
+    let prompt_idx = argv
+        .iter()
+        .position(|a| a == "say hi | godspeed")
+        .unwrap();
     assert!(
         o_idx < prompt_idx,
         "-o must precede the prompt in codex argv: {argv:?}"
@@ -481,5 +493,84 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
     assert!(
         !argv2.iter().any(|a| a == "-o"),
         "-o must not appear when flag absent: {argv2:?}"
+    );
+}
+
+/// M11 (godspeed inheritance guarantee) — user directive: codex ALWAYS inherits
+/// the godspeed posture through xask in its purest form. Structural guarantee
+/// in ask.rs::dispatch — the codex prompt always ends with "| godspeed",
+/// regardless of --with skill selection. Idempotent: if scripts/xask already
+/// appended the suffix (SKILL=godspeed default), the Rust layer doesn't
+/// duplicate it.
+///
+/// Guards against a future refactor that removes the suffix-append in
+/// dispatch() or that changes the idempotence check.
+#[test]
+fn ask_codex_always_inherits_godspeed_suffix() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+
+    write_stub(&bin_dir, "codex", &home.join("codex.log"));
+
+    // Case 1: no --with flag — godspeed suffix must still be appended
+    let log1 = home.join("codex1.log");
+    write_stub(&bin_dir, "codex", &log1);
+    let out1 = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "prompt one"]);
+    assert!(out1.status.success(), "case 1 failed: {out1:?}");
+    let argv1 = read_log(&log1);
+    assert_eq!(
+        *argv1.last().unwrap(),
+        "prompt one | godspeed",
+        "no-skill codex path must carry godspeed suffix: {argv1:?}"
+    );
+
+    // Case 2: --with librarian (non-godspeed skill) — godspeed suffix still appended
+    write_skill(home, "librarian", "CURATE WISELY");
+    let log2 = home.join("codex2.log");
+    write_stub(&bin_dir, "codex", &log2);
+    let out2 = run_xbreed_ask(
+        home,
+        &bin_dir,
+        &["ask", "codex", "--with", "librarian", "prompt two"],
+    );
+    assert!(out2.status.success(), "case 2 failed: {out2:?}");
+    let argv2 = read_log(&log2);
+    assert_eq!(
+        *argv2.last().unwrap(),
+        "prompt two | godspeed",
+        "non-godspeed skill codex path must still carry godspeed suffix: {argv2:?}"
+    );
+    // librarian loadout is still injected via developer_instructions (additive, not replaced)
+    let dev_instr = argv2
+        .iter()
+        .find(|a| a.starts_with("developer_instructions="))
+        .expect("librarian developer_instructions missing");
+    assert!(
+        dev_instr.contains("CURATE WISELY"),
+        "librarian loadout missing despite godspeed suffix: {dev_instr}"
+    );
+
+    // Case 3: idempotence — if caller already appended "| godspeed", no double-suffix
+    let log3 = home.join("codex3.log");
+    write_stub(&bin_dir, "codex", &log3);
+    let out3 = run_xbreed_ask(
+        home,
+        &bin_dir,
+        &["ask", "codex", "prompt three | godspeed"],
+    );
+    assert!(out3.status.success(), "case 3 failed: {out3:?}");
+    let argv3 = read_log(&log3);
+    assert_eq!(
+        *argv3.last().unwrap(),
+        "prompt three | godspeed",
+        "idempotence failed — double godspeed suffix: {argv3:?}"
+    );
+    // Specifically: there must be exactly ONE occurrence of "| godspeed" in the prompt
+    let count = argv3.last().unwrap().matches("| godspeed").count();
+    assert_eq!(
+        count, 1,
+        "godspeed suffix must appear exactly once: {}",
+        argv3.last().unwrap()
     );
 }

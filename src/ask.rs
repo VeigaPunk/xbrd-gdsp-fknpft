@@ -541,9 +541,23 @@ pub fn dispatch(
             } else if let Some(e) = effort {
                 c.arg("-c").arg(format!("model_reasoning_effort={e}"));
             }
+            // User directive: codex ALWAYS inherits the godspeed posture
+            // through xask in its purest form. Structural guarantee at the
+            // Rust dispatch layer — append "| godspeed" to the prompt if
+            // the caller (scripts/xask or direct xbreed ask) hasn't already.
+            // Idempotent: scripts/xask appends when SKILL=godspeed (default);
+            // the check below avoids "| godspeed | godspeed" duplication.
+            // Belt + suspenders: --with godspeed also injects the skill text
+            // as -c developer_instructions, so codex sees the directive via
+            // both channels.
+            let final_prompt = if prompt.trim_end().ends_with("| godspeed") {
+                prompt.to_string()
+            } else {
+                format!("{prompt} | godspeed")
+            };
             // Prompt MUST be the last positional arg for codex exec —
             // all -c flags must come before it.
-            c.arg(prompt);
+            c.arg(&final_prompt);
             c
         }
         other => anyhow::bail!("unknown cli: {other} (expected codex|gemini)"),
