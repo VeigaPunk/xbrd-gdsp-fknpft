@@ -21,8 +21,11 @@ SCOPE="entire project"
 RICH=false
 SPARK=false
 EFFORT=""
+OUTPUT_LAST_MESSAGE=""
 EFFORT_FLAGS=()
 SPARK_FLAGS=()
+OUTPUT_FLAGS=()
+JSON_FLAGS=()
 while [[ "$1" == -* ]]; do
   case "$1" in
     --debug  | -d)   DEBUG=true; shift ;;
@@ -30,7 +33,9 @@ while [[ "$1" == -* ]]; do
     --rich   | -r)   RICH=true; shift ;;
     --spark  | --spk) SPARK=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
-    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -e|--effort)" >&2; exit 1 ;;
+    --output-last-message | -o) OUTPUT_LAST_MESSAGE="$2"; shift 2 ;;
+    --json) JSON=true; shift ;;
+    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
   esac
 done
 
@@ -42,6 +47,8 @@ if [ -n "$EFFORT" ]; then
 fi
 [ -n "$EFFORT" ] && EFFORT_FLAGS=(--effort "$EFFORT")
 [ "$SPARK" = true ] && SPARK_FLAGS=(--spark)
+[ -n "$OUTPUT_LAST_MESSAGE" ] && OUTPUT_FLAGS=(--output-last-message "$OUTPUT_LAST_MESSAGE")
+[ "$JSON" = true ] && JSON_FLAGS=(--json)
 
 MODEL="$1"
 QUERY="$2"
@@ -62,7 +69,7 @@ TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
 if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
-  echo "Usage: xask [-d|--debug] [-s|--scope <boundary>] [-r|--rich] [--spk|--spark] [-e|--effort <level>] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
+  echo "Usage: xask [-d|--debug] [-s|--scope <boundary>] [-r|--rich] [--spk|--spark] [-e|--effort <level>] [-o|--output-last-message <FILE>] [--json] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
   exit 1
 fi
 
@@ -183,7 +190,7 @@ case "$MODEL" in
     xbreed ask gemini --with "$SKILL" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   codex)
-    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "$PROMPT"
+    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "${OUTPUT_FLAGS[@]}" "${JSON_FLAGS[@]}" "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini or codex." >&2
