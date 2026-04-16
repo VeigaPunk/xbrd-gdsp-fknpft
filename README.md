@@ -9,7 +9,13 @@ See [`docs/command-flows.md`](docs/command-flows.md) for visual flow diagrams of
 
 ## Install
 
-    cargo install --path .
+    make install
+
+This builds `xbreed` in release mode, installs it to `~/.local/bin/xbreed`, and
+syncs `scripts/xask` → `~/.local/bin/xask` in one step. Run after any source or
+script change to keep the installed state fresh.
+
+Alternatively: `cargo install --path .` installs the Rust binary only (xask not synced).
 
 ## Usage
 
@@ -135,7 +141,7 @@ by default (no dir tree injection) unless `--rich` is explicit.
 
 **v0.4 install:**
 
-    cargo install --path .
+    make install
     for s in godspeed godspeed-team xbreed xbreed-team xgs xbgst; do
       mkdir -p ~/.agents/skills/$s
       cp templates/skills/$s/SKILL.md ~/.agents/skills/$s/SKILL.md
