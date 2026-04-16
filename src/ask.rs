@@ -84,15 +84,6 @@ fn clean_env_value(raw: &str) -> String {
     v[..end].trim().to_string()
 }
 
-pub fn build_claude_ask_with_loadout(prompt: &str, loadout: &Loadout) -> Command {
-    let mut c = Command::new("claude");
-    c.arg("-p").arg(prompt);
-    if !loadout.is_empty() {
-        c.arg("--append-system-prompt").arg(loadout.to_concat());
-    }
-    c
-}
-
 /// Build a codex Command with loadout injection and clean-dispatch suppression.
 ///
 /// Always applies contamination-suppression flags (`--skip-git-repo-check` +
@@ -317,7 +308,7 @@ fn is_quota_error(stderr: &[u8]) -> bool {
 
 /// Auth-failure detector. Distinct from quota exhaustion — triggers the
 /// cascade advance in `dispatch()` for gemini and the auth-hint error
-/// message for claude/codex.
+/// message for codex.
 fn is_auth_error(stderr: &[u8]) -> bool {
     let s = String::from_utf8_lossy(stderr);
     s.contains("401")
@@ -407,13 +398,6 @@ pub fn dispatch(
     }
 
     let mut cmd = match cli {
-        "claude" => {
-            let mut c = build_claude_ask_with_loadout(prompt, loadout);
-            if let Some(e) = effort {
-                c.arg("--effort").arg(e);
-            }
-            c
-        }
         "codex" => {
             let mut c = build_codex_ask_with_loadout(loadout, spark);
             if spark {
@@ -426,7 +410,7 @@ pub fn dispatch(
             c.arg(prompt);
             c
         }
-        other => anyhow::bail!("unknown cli: {other} (expected claude|codex|gemini)"),
+        other => anyhow::bail!("unknown cli: {other} (expected codex|gemini)"),
     };
     let output = cmd
         .output()
