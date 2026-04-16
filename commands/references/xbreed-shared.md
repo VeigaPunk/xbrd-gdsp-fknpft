@@ -24,7 +24,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 
 **Layer 1 — Gate (structural):**
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15; restore to `xask --effort medium gemini '<q>' 'context' 'librarian'` when quota returns.)*
-- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."`
+- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(Gemini rate-limited fallback 2026-04-15.)*
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(Gemini rate-limited fallback 2026-04-15.)*
@@ -71,6 +71,12 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
 | Test validation | `mutation-tester` | sonnet | `xask --spark codex` | All |
 | Documentation, audit trail | `scribe` | sonnet | CC native | All |
+
+**Gemini restoration canary (machine-checkable):** before restoring any `xask --effort * gemini` routing marked `*(gemini-rate-limited 2026-04-15)*`, run:
+```
+xask --effort low gemini "ping" 2>&1 | grep -qv "RESOURCE_EXHAUSTED\|429" && echo RESTORE || echo HOLD
+```
+Exit 0 + `RESTORE` → primary gemini routing is healthy; revert the `-rate-limited` fallback annotations in this table + scout/connector/the-revenger Layer-1 gates above + AGENTS.md Delegation bias column. Exit 1 or `HOLD` → keep codex fallback. **Caveat:** ask.rs gemini path has a 5-level auth cascade (OAuthProfile → fallback → OAuthDefault → ApiKey → fallback); the canary passing means *some* auth level succeeded, not primary OAuth. For strict primary-OAuth health, prepend `GEMINI_API_KEY=""` to force the OAuth-only path.
 
 ## Naming Convention
 

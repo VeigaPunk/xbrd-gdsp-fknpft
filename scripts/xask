@@ -32,7 +32,7 @@ while [[ "$1" == -* ]]; do
     --rich   | -r)   RICH=true; shift ;;
     --spark  | --spk) SPARK=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
-    *) shift ;;
+    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -e|--effort)" >&2; exit 1 ;;
   esac
 done
 
@@ -49,6 +49,16 @@ MODEL="$1"
 QUERY="$2"
 CONTEXT="${3:-No prior context.}"
 SKILL="${4:-godspeed}"
+
+# Validate MODEL before template construction to prevent path traversal
+# (previously: `xask -d ../../docs/xask-protocol probe` would exfil docs via
+# debug-mode early exit at line ~99). Whitelist approach — matches the
+# dispatch case statement below.
+case "$MODEL" in
+  gemini|codex|claude) ;;
+  *) echo "xask: unknown model '$MODEL'. Use gemini, codex, or claude." >&2; exit 1 ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
@@ -121,9 +131,9 @@ gemini_rich_setup() {
     mkdir -p "$RICH_TMPDIR/.config/xbreed"
     cp -r "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
     for profile_settings in "$RICH_TMPDIR/.config/xbreed/gemini-profiles"/*/.gemini/settings.json; do
-        [ -f "$profile_settings" ] && python3 -c "
-import json
-f='$profile_settings'
+        [ -f "$profile_settings" ] && XASK_PROFILE_SETTINGS="$profile_settings" python3 -c "
+import json, os
+f = os.environ['XASK_PROFILE_SETTINGS']
 with open(f) as fh: d=json.load(fh)
 d.setdefault('context',{})['includeDirectoryTree']=True
 with open(f,'w') as fh: json.dump(d,fh,indent=2)"

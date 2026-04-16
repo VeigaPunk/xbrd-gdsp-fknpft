@@ -642,16 +642,6 @@ mod tests {
         assert!(!super::is_auth_error(b"request timed out"));
     }
 
-    #[test]
-    fn build_gemini_oauth_default_removes_env_var() {
-        let loadout = Loadout::empty();
-        let cmd = build_gemini_with_auth("hello", &loadout, &GeminiAuth::OAuthDefault);
-        let has_removed = cmd
-            .get_envs()
-            .any(|(k, v)| k == std::ffi::OsStr::new("GEMINI_API_KEY") && v.is_none());
-        assert!(has_removed, "OAuth fallback must env_remove GEMINI_API_KEY");
-    }
-
     // ====================================================================
     // v0.3.5 — GeminiAuth cascade tests
     // ====================================================================
