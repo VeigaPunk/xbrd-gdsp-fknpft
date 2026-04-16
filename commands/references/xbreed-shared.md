@@ -26,7 +26,7 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<research question>'. No other tool before xask returns."` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
-- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
+- **connector**: `"Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns."` *(connector is locked to gemini high — does not fall back to codex; see feedback_connector_gemini_high.md)*
 - **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
 - **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
 - **critic**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."`
@@ -62,7 +62,7 @@ Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`)
 | Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
 | Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet | `xask --spark codex` | All |
-| Cross-axis patterns | `connector` | sonnet | `xask --effort medium codex` *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
+| Cross-axis patterns | `connector` | sonnet | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
 | Synthesis, dedup | `distiller` | sonnet | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet | CC native | All |
 | Reverse engineering | `the-revenger` | opus 4.7 max | `xask --effort medium codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |

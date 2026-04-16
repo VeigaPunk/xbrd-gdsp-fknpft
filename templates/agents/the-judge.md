@@ -23,7 +23,7 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Correctness, bugs, code review | `reviewer` | `xask --effort high codex "<q>"` | All |
 | Empirical probes, dry-runs | `labrat` (sonnet) | `xask --spark codex "<probe>"` | All |
 | Code execution, implementation | `executor` | `xask --spark codex "<task>"` | All |
-| Cross-axis patterns, breadth | `connector` | `xask --effort medium codex "<q>"` *(gemini-rate-limited 2026-04-15)* | All |
+| Cross-axis patterns, breadth | `connector` | `xask --effort high gemini "<q>"` *(locked — no codex fallback)* | All |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter; persistent across rounds | All |
 | Deletion, YAGNI | `simplifier` | direct analysis | All |
 | Reverse engineering, intent reconstruction | `the-revenger` | `xask gemini` for surface enum, direct recon | All |

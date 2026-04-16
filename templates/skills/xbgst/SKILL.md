@@ -52,7 +52,7 @@ Axis -> profile mapping (from the-judge.md dispatch table):
 - Correctness, bugs, code review -> `reviewer` (sonnet) — delegates to `xask codex`
 - Empirical probes, dry-runs -> `labrat` (sonnet) — delegates to `xask --spark codex`
 - Code execution, implementation -> `executor` (sonnet) — delegates to `xask --spark codex`
-- Cross-axis patterns, breadth -> `connector` (sonnet) — delegates to `xask gemini`
+- Cross-axis patterns, breadth -> `connector` (sonnet) — delegates to `xask --effort high gemini` (LOCKED, no codex fallback)
 - Findings synthesis, dedup -> `distiller` (sonnet) — in-session text synthesis (no xask)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet) — uses CC native tools
 
@@ -76,7 +76,7 @@ Each brief includes:
 - **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your probe hypothesis for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **connector** brief prefix: `"Your FIRST tool call MUST be Bash running: xask gemini '<your cross-axis pattern question>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **connector** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --effort high gemini '<your cross-axis pattern question>'. Do not call Read, Grep, or any other tool until xask returns. LOCKED — no codex fallback even on 429."`
 - **executor** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your implementation task for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **mutation-tester** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<generate mutation for this function>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **simplifier/distiller**: No xask gate. These use CC native tools or in-session synthesis.
