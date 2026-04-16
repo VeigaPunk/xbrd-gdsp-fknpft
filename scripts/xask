@@ -73,10 +73,12 @@ if [ -f "$TEMPLATE" ]; then
   QUERY_SAFE=$(printf '%s' "$QUERY" | sed 's/[&\\]/\\&/g')
   CONTEXT_SAFE=$(printf '%s' "$CONTEXT" | sed 's/[&\\]/\\&/g')
   SCOPE_SAFE=$(printf '%s' "$SCOPE" | sed 's/[&\\]/\\&/g')
-  PROMPT=$(awk -v q="$QUERY_SAFE" -v c="$CONTEXT_SAFE" -v s="$SCOPE_SAFE" '{
+  EFFORT_SAFE=$(printf '%s' "${EFFORT:-unset}" | sed 's/[&\\]/\\&/g')
+  PROMPT=$(awk -v q="$QUERY_SAFE" -v c="$CONTEXT_SAFE" -v s="$SCOPE_SAFE" -v e="$EFFORT_SAFE" '{
     gsub(/\{\{QUERY\}\}/, q)
     gsub(/\{\{CONTEXT\}\}/, c)
     gsub(/\{\{SCOPE_BOUNDARY\}\}/, s)
+    gsub(/\{\{EFFORT\}\}/, e)
     print
   }' "$TEMPLATE")
 else
@@ -142,11 +144,12 @@ d.setdefault('context',{})['includeDirectoryTree']=True
 with open(f,'w') as fh: json.dump(d,fh,indent=2)"
     done
   fi
-  python3 -c "
-import json, sys
-with open('$RICH_TMPDIR/.gemini/settings.json') as f: d = json.load(f)
+  XASK_RICH_SETTINGS="$RICH_TMPDIR/.gemini/settings.json" python3 -c "
+import json, os
+f = os.environ['XASK_RICH_SETTINGS']
+with open(f) as fh: d = json.load(fh)
 d.setdefault('context', {})['includeDirectoryTree'] = True
-with open('$RICH_TMPDIR/.gemini/settings.json', 'w') as f: json.dump(d, f, indent=2)
+with open(f, 'w') as fh: json.dump(d, fh, indent=2)
 " || { echo "xask: failed to set up rich mode" >&2; rm -rf "$RICH_TMPDIR"; return 1; }
 }
 gemini_rich_cleanup() {

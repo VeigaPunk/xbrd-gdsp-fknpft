@@ -11,7 +11,7 @@
 xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"] ["<skill>"]
 ```
 
-`<model>` is one of `gemini`, `codex`, or `claude`.  
+`<model>` is one of `gemini` or `codex`. (`claude` dispatch was removed in R2-A5 — advisor() with opus 4.7 max supersedes it.)  
 `<context>` defaults to `"No prior context."`.  
 `<skill>` defaults to `"godspeed"`.
 
@@ -25,14 +25,13 @@ xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"]
 | `--scope` | `-s` | Scope boundary injected into `{{SCOPE_BOUNDARY}}` in the dispatch template. Note: shadows gemini's `-s/--sandbox` (consumed by xask, no runtime conflict). | all | `"entire project"` |
 | `--rich` | `-r` | Restore `includeDirectoryTree: true` in a PID-namespaced gemini settings copy. Note: shadows gemini's `-r/--resume`. | gemini | `false` (tree suppressed) |
 | `--spark` | `--spk` | Pin codex to `gpt-5.3-codex-spark` + `model_reasoning_effort=low`. Mutually exclusive with `--effort` on codex. | codex | `false` |
-| `--effort` | `-e` | Reasoning effort level. **Codex/claude only** — gemini silently ignores this flag (warning emitted). Note: shadows gemini's `-e/--extensions` (consumed by xask, no dispatch conflict, but alias is meaningless on gemini path). See per-model mapping below. | claude, codex | unset |
-| `--direct` | — | **Deprecated.** No-op (suppression is always-on). Use `--effort` to control reasoning level. | — | — |
+| `--effort` | `-e` | Reasoning effort level. **Codex only** — gemini silently ignores this flag (warning emitted, see templates/dispatch/gemini.md for thinkingBudget hint). Note: shadows gemini's `-e/--extensions` (consumed by xask, no dispatch conflict, but alias is meaningless on gemini path). See per-model mapping below. | codex | unset |
+| `--direct` | — | **Removed in R2.** No longer accepted — xask hard-fails at the flag parser (`*) echo ... exit 1`). Suppression is always-on; use `--effort` to control reasoning level. | — | — |
 
 ### `--effort` per-model mapping
 
 | Model | Maps to |
 |-------|---------|
-| `claude` | `--effort <level>` (native Claude flag) |
 | `codex` | `-c model_reasoning_effort=<level>` (config key, not a flag) |
 | `gemini` | Warning emitted; flag ignored. Use `thinkingBudget` in the prompt template instead. |
 
@@ -82,7 +81,6 @@ These are injected by xask/xbreed regardless of user flags.
 |-------|---------------|---------------|--------------------------|
 | `gemini` | `xbreed ask gemini` | `build_gemini_with_auth` + `dispatch` | Prompt prepend: `<loadout>\n\n---\n\n<prompt>` |
 | `codex` | `xbreed ask codex` | `build_codex_ask_with_loadout` + `dispatch` | `-c developer_instructions=<toml-quoted-string>` |
-| `claude` | `xbreed ask claude` | `build_claude_ask_with_loadout` + `dispatch` | `--append-system-prompt <loadout>` |
 
 ### Gemini model
 

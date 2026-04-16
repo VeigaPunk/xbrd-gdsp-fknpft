@@ -126,7 +126,8 @@ stderr warning since it has no native `--effort` flag.
 | Operation | Wall time |
 |-----------|-----------|
 | `xask gemini` | ~14s (OAuth cascade) |
-| `xask codex` | ~6s (structured) / ~1s (`--direct`) |
+| `xask codex` | ~6s (structured) |
+| `xask --spark codex` | ~1s (spark path) |
 | Full xbgst round | ~29s |
 
 **Agent roster:** 8 agents using Inter-Model Communication Protocol v0.2
@@ -134,8 +135,8 @@ with structured `# State` / `# Unknowns` / `# Artifact` blocks and
 epistemic role constraint (at most one non-obvious claim per proposal).
 See [`AGENTS.md`](AGENTS.md).
 
-**xask dispatch wrapper** (`scripts/xask`): unified dispatch to claude, codex,
-and gemini with `--effort`, `--rich`/`--direct` modes, `--scope`, and
+**xask dispatch wrapper** (`scripts/xask`): unified dispatch to codex
+and gemini with `--effort`, `--rich` mode, `--scope`, and
 `--with` loadout pass-through. Contamination-aware: Gemini gets clean mode
 by default (no dir tree injection) unless `--rich` is explicit.
 

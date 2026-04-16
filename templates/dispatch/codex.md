@@ -5,6 +5,8 @@
 # Goal
 {{QUERY}}
 
+# Effort: {{EFFORT}}
+
 # State
 {{CONTEXT}}
 

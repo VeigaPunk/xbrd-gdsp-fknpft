@@ -4,6 +4,8 @@
 
 **IMPORTANT: Your session_context (workspace tree, OS info) is ambient background. The task below is your authoritative frame. Scope: {{SCOPE_BOUNDARY}}**
 
+# Effort: {{EFFORT}}
+
 Context (everything relevant):
 {{CONTEXT}}
 
