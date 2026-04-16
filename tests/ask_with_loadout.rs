@@ -233,6 +233,19 @@ fn ask_codex_route_preserves_full_unlock_contract() {
         Some("say hi"),
         "prompt must be the final argv element: {argv:?}"
     );
+
+    // M7 (mutation sentinels): --ephemeral and features.fast_mode=true must
+    // survive any refactor. Ephemeral ensures no session bleed across headless
+    // dispatches. fast_mode=true is the non-spark performance path for gpt-5.4
+    // family. Mutation-r1 confirmed both are live kill-switch targets.
+    assert!(
+        argv.iter().any(|a| a == "--ephemeral"),
+        "missing --ephemeral in argv: {argv:?}"
+    );
+    assert!(
+        argv.contains(&"features.fast_mode=true".to_string()),
+        "missing features.fast_mode=true in argv: {argv:?}"
+    );
 }
 
 /// M6 (codex #6) — gemini argv asserts budget stays prompt-side and yolo stays
