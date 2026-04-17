@@ -193,6 +193,8 @@ gemini_rich_cleanup() {
   [ -n "$RICH_TMPDIR" ] && rm -rf "$RICH_TMPDIR"
 }
 
+t_start_s=$(date +%s.%N)
+
 # Dispatch — contamination-aware per model
 case "$MODEL" in
   gemini)
@@ -211,3 +213,15 @@ case "$MODEL" in
     exit 1
     ;;
 esac
+RC=$?
+
+if [ -n "${XBREED_BENCH_LOG:-}" ]; then
+  t_end_s=$(date +%s.%N)
+  wall_s=$(awk -v s="$t_start_s" -v e="$t_end_s" 'BEGIN{printf "%.3f", e - s}')
+  t_complete_iso=$(date -Iseconds)
+  printf '{"t_complete_iso":"%s","cli":"%s","wall_s":%s,"exit_code":%d,"effort":"%s","teammate":"%s"}\n' \
+    "$t_complete_iso" "$MODEL" "$wall_s" "$RC" "${EFFORT:-default}" "${XBREED_BENCH_TEAMMATE:-null}" \
+    >> "$XBREED_BENCH_LOG"
+fi
+
+exit $RC
