@@ -260,3 +260,50 @@ be captured in a follow-on note if they materialize.
 - Telemetry: /tmp/xbgst-bench-mC-20260417-164521/
 - Hallucinations log: /tmp/xbgst-bench-mC-20260417-164521/hallucinations.jsonl
 - Next: no R2 for Mission C — new mission required for `--model` flag path characterization
+
+---
+
+## Appendix A — late-arriving evidence (judge append)
+
+Two pieces landed after the body above was committed. Verbatim, for the record.
+
+### A.1 — cdx-revenger-mC retry ELF-string surface map (v2.1.112)
+
+Revenger's first message was `[xask dry]` (xask timed out, Layer-3 fallback). On retry the xask landed with valid `<raw_output>`. Full surface map from live binary strings:
+
+| Var | Read | Emitted | Scope | Precedence note |
+|---|---|---|---|---|
+| `CLAUDE_CODE_SUBAGENT_MODEL` | ✓ parent | — | parent / session-global | top — resolver short-circuits on presence (ELF S2) |
+| `CLAUDE_CODE_EFFORT_LEVEL` | ✓ | ✓ | child-inherit | env wins unless `auto`/unset |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | ✓ | ✓ | child-inherit | always emitted by spawn builder (ELF S4) |
+| `CLAUDE_CODE_TEAMMATE_COMMAND` | ✓ parent | — | parent | overrides teammate spawn executable (ELF S8, new find) |
+| `CLAUDE_CODE_PLAN_MODE_REQUIRED` | ✓ child | — | child-local fallback | lowest-precedence env fallback |
+| `CLAUDE_CODE_DONT_INHERIT_ENV` | ✓ parent | — | parent | subprocess env inheritance gate (new find) |
+| `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` | ✓ parent | — | parent | env scrubbing control (new find) |
+| `CLAUDE_CODE_REMOTE` / `CLAUDE_CODE_REMOTE_MEMORY_DIR` | mixed | mixed | child-inherit | allowlist pass-through |
+| `CLAUDE_CODE_ENTRYPOINT` / `CLAUDE_CODE_EXECPATH` | parent only | parent only | parent | `EXECPATH` user-preset ignored |
+| `CLAUDE_CODE_CONFIG_PATH` | — | — | **DOES NOT EXIST in v2.1.112** — real var is `CLAUDE_CONFIG_DIR` (no `_CODE_`) |
+| `CLAUDE_CODE_PROJECT_DIR` | — | — | **DOES NOT EXIST** — real var is `CLAUDE_PROJECT_DIR` |
+| `CLAUDE_CODE_AGENT_NAME` | — | — | CLI-flag-only (`--agent-name`), not env |
+
+**Revised precedence chain:** `CLAUDE_CODE_SUBAGENT_MODEL` (top, model resolver short-circuit) > `CLAUDE_CODE_EFFORT_LEVEL` (per-spawn) > in-memory team/spawn state > `CLAUDE_CODE_PLAN_MODE_REQUIRED` (env fallback bottom).
+
+ELF strings cited:
+- S2: `function ZRH... if(process.env.CLAUDE_CODE_SUBAGENT_MODEL) return ...`
+- S4: `function jK$(){ let H=["CLAUDECODE=1","CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"]; ... }`
+- S8: `function psK/isK(){ if(process.env.CLAUDE_CODE_TEAMMATE_COMMAND) return ... }`
+
+**Two documented-but-nonexistent vars eliminated** (`CLAUDE_CODE_CONFIG_PATH`, `CLAUDE_CODE_PROJECT_DIR`). **Three new control vars surfaced** (`TEAMMATE_COMMAND`, `DONT_INHERIT_ENV`, `SUBPROCESS_ENV_SCRUB`).
+
+### A.2 — 4-layer xask protocol enforcement — first-mission-full-compliance
+
+Mission C was the first mission to enforce the 4-layer xask gate strictly (per auto-memory `feedback_xask_first_tool_call.md`, updated mid-Mission-B by user directive).
+
+- **cdx-revenger-mC**: xask failed → Layer-3 `[xask dry]` fallback (correct protocol). Then retried, Layer-2 `<raw_output>` valid — superseded own earlier finding. **Proper protocol full-cycle.**
+- **cdx-labrat-proc-mC**: Layer-1 gate honored. Layer-2 `<raw_output>` absent in first message (claimed true). M5 retry produced the counterfactual that turned "refuted" into "refined" — the protocol's iteration pattern worked.
+- **cdx-labrat-nomatch-mC**: Layer-1 gate honored. Layer-2 `<raw_output>` absent in message body despite `true` claim — flagged for future enforcement tightening.
+- **the-planner-mC**: Layer-0 `Skill(wwkd)` honored (no xask gate applies to planner per shared.md:45).
+
+**Judge self-correction logged** in `hallucinations.jsonl`: `HC_mission_premise_AMENDED`. The original `HC_mission_premise` entry was overstated. M5 closure and revenger's ELF-string evidence together refine the finding: the override path exists and propagates normally; it simply isn't written by any xbreed code path, so it looked absent from subagent environs in the first pass.
+
+**Methodology lesson:** single-probe "absent from environ" observations need an M5-style counterfactual test (set the var in parent, verify child inherits) before being labeled as a refutation. The 4-layer protocol's retry + fallback flow caught this — both pieces of evidence arrived AFTER the scribe wrote the main body, which is why this Appendix exists.
