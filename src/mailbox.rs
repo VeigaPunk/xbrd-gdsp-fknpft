@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::{Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 struct CompactJob {
     team_dir: PathBuf,
@@ -38,7 +38,9 @@ fn spawn_worker_thread(rx: std::sync::mpsc::Receiver<CompactJob>) -> std::thread
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     compact_events_sync(&job.team_dir, &job.keep_types, job.digest_older_than_secs)
                 }));
-                COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                if result.is_ok() {
+                    COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                }
                 if let Err(e) = result {
                     eprintln!(
                         "xbreed compact worker panic: {:?}",
@@ -190,6 +192,7 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
             Some(s) => s,
             None => continue,
         };
+        let source = entry.path();
         if name_str.ends_with(".tmp") {
             continue;
         }
@@ -199,13 +202,17 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
             // Only adopt orphan compact.<pid> if pid is dead. Avoids racing
             // a live compactor mid-rename.
             match s.parse::<u32>() {
-                Ok(pid) if !pid_is_alive(pid) => (s, true),
+                Ok(pid)
+                    if !pid_is_alive(pid)
+                        || orphan_file_has_stale_mtime(&source, Duration::from_secs(60)) =>
+                {
+                    (s, true)
+                }
                 _ => continue,
             }
         } else {
             continue;
         };
-        let source = entry.path();
         let drain_target =
             source.with_extension(format!("drained_by.{}.{}", std::process::id(), suffix));
         // Claim exclusive ownership via rename; another drain may have grabbed
@@ -237,6 +244,19 @@ fn pid_is_alive(pid: u32) -> bool {
         std::path::Path::new(&format!("/proc/{pid}")).exists()
     } else {
         true
+    }
+}
+
+fn orphan_file_has_stale_mtime(path: &Path, mtime_floor: Duration) -> bool {
+    match path.metadata() {
+        Ok(meta) => match meta.modified() {
+            Ok(modified) => match SystemTime::now().duration_since(modified) {
+                Ok(age) => age >= mtime_floor,
+                Err(_) => false,
+            },
+            Err(_) => false,
+        },
+        Err(_) => false,
     }
 }
 
@@ -456,6 +476,7 @@ pub(crate) fn __poison_compact_worker() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use filetime::FileTime;
     use std::sync::{Arc, Barrier};
     use std::thread;
     use tempfile::tempdir;
@@ -783,6 +804,70 @@ mod tests {
             tmp_sidecar.exists(),
             ".tmp sidecar must not be consumed by drain"
         );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn drain_adopts_orphan_compact_file_with_recycled_pid_after_60s() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        // Recreate a prior compactor's orphan file by using a currently alive
+        // pid with a stale mtime. If we only trusted /proc/<pid>, we'd never
+        // recover this after pid reuse; after 60s the floor allows safe adopt.
+        let orphan = path.with_extension(format!("compact.{}", std::process::id()));
+        let e = Event {
+            timestamp_ms: 1337,
+            from: "recycled-pid".to_string(),
+            event_type: "ping".to_string(),
+            payload: "recover-me".to_string(),
+        };
+        std::fs::write(&orphan, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+        let stale = std::time::SystemTime::now() - std::time::Duration::from_secs(61);
+        let stale_ft = FileTime::from_system_time(stale);
+        filetime::set_file_times(&orphan, stale_ft, stale_ft).unwrap();
+
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(
+            events.len(),
+            1,
+            "recycled-pid orphan compact file must be adopted"
+        );
+        assert_eq!(events[0].from, "recycled-pid");
+        assert!(
+            !orphan.exists(),
+            "adopted orphan file must be removed after drain"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn drain_skips_orphan_compact_file_with_recycled_pid_under_60s() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        let orphan = path.with_extension(format!("compact.{}", std::process::id()));
+        let e = Event {
+            timestamp_ms: 1338,
+            from: "fresh-recycled-pid".to_string(),
+            event_type: "ping".to_string(),
+            payload: "do-not-recover".to_string(),
+        };
+        std::fs::write(&orphan, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+        let fresh = std::time::SystemTime::now() - std::time::Duration::from_secs(59);
+        let fresh_ft = FileTime::from_system_time(fresh);
+        filetime::set_file_times(&orphan, fresh_ft, fresh_ft).unwrap();
+
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(
+            events.len(),
+            0,
+            "under-60s live-pid orphan must NOT be adopted"
+        );
+        assert!(orphan.exists(), "skipped orphan file must remain");
+        std::fs::remove_file(&orphan).unwrap();
     }
 
     #[test]
