@@ -97,6 +97,12 @@ When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-
 
 **Origin:** R2 ask-resilience-r2-0416 cco-critic-compile-gate (audit_hash cfe3e176...) coined "runtime-tier hardening with documented ceiling." R3 ask-resilience-r3-0416 cco-critic-r3-overclaim (heuer Layer 0 loaded) refined the tier set: dropped the harness-broker overclaim, added Build/CI as the third real tier where include_str! / cargo test / verify-docs.sh actually enforce.
 
+## Session Effort Configuration
+
+**Per-teammate `effort:` frontmatter is a no-op in teammate-mode** (confirmed harness-r2-0417 R2: `ccs-labrat-effort-mechobs-r2` + `xask --spark codex` docs anchor). CC propagates only `tools` + `model` into teammate-mode spawns; `effort:` is honored on the subagent-delegation path, not the teammate path. `src/sync.rs:20` forces `teammateMode: "tmux"`, so every teammate inherits the outer session's effort — which is `settings.json effortLevel`, which defaults to `xhigh` on this user's profile. Aspirational per-role effort memories (`feedback_sonnet_effort_tiers.md`, `feedback_cco_opus_high.md`, `feedback_the_planner_wwkd.md`) are **non-operative** until/unless CC exposes per-teammate effort in teammate-mode spawn args.
+
+**Reachable workaround (session-wide, not per-teammate):** set `CLAUDE_CODE_EFFORT_LEVEL=<tier>` in the shell env BEFORE invoking `claude`. The env var is documented to override `settings.json effortLevel` at session init and applies to every teammate in that session (env inheritance verified via `/proc/$PPID/environ` showing `CLAUDECODE=1` propagating into teammate processes — harness-r2-0417 R3 `ccs-labrat-effort-env-r3`). Example: `CLAUDE_CODE_EFFORT_LEVEL=medium claude` caps all teammates at medium; unset to return to `settings.json` default. There is no per-teammate override in this path — if you need opus-xhigh for `cco-critic-*` and sonnet-medium for `ccs-distiller` in the same session, that is currently **not reachable from user-space**.
+
 ## Naming Convention
 
 `{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
