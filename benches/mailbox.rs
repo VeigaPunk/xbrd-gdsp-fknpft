@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tempfile::tempdir;
 use xbreed::mailbox::{compact_events, drain_events, write_event, Event};
 
-const ITERATIONS: usize = 25;
+const ITERATIONS: usize = 100;
 const SIZES: [usize; 4] = [1, 100, 10_000, 100_000];
 
 fn mailbox_path(team_dir: &std::path::Path) -> PathBuf {
@@ -144,7 +144,17 @@ fn emit_functional_baseline() {
     write(&report_path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
 }
 
+fn setup_bench_env() {
+    let tmpdir = std::env::var("XBREED_BENCH_TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
+    // SAFETY: single-threaded bench setup; documents WSL2 /tmp=ext4 substrate assumption
+    #[allow(deprecated)]
+    unsafe {
+        std::env::set_var("TMPDIR", tmpdir);
+    }
+}
+
 fn bench_mailbox(c: &mut Criterion) {
+    setup_bench_env();
     emit_functional_baseline();
 
     for size in SIZES {
