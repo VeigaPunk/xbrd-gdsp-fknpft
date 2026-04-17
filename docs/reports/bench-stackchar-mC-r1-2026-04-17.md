@@ -4,25 +4,32 @@
 **Team:** bgst-stackbench-mC-0417
 **Mission:** characterize CLAUDE_CODE_SUBAGENT_MODEL override path (from handoff)
 **Stack:** sonnet-medium+godspeed-mode+templates-restored+bash-telemetry+4layer-xask-enforcement
-**Round gate:** PASS — premise refuted, actual mechanism characterized
+**Round gate:** PASS — premise refined, actual mechanism characterized
+**Amendment:** R1 report amended post-commit; M5 counterfactual closed the HC_mission_premise loop
 
 ---
 
 ## Headline finding
 
-CLAUDE_CODE_SUBAGENT_MODEL is **NOT** an env-var override path. CC subagent model
-selection is **CLI-flag-based** — `--model opus/sonnet/haiku` is visible in
-`/proc/$PID/cmdline` of spawned subagents. Scanned 7 live subagent pids:
-`CLAUDE_CODE_SUBAGENT_MODEL` is **ABSENT from all environs**.
+**AMENDED (post-commit, M5 counterfactual):** `CLAUDE_CODE_SUBAGENT_MODEL`
+**DOES propagate via standard env inheritance**. When a parent shell exports it,
+it appears in `/proc/$PID/environ` of spawned CC subagents (PID 135608,
+confirmed by labrat-proc M5 probe). CC does not strip it.
 
-The handoff's documented "precedence chain" (`frontmatter → DEBUG trap →
-CLAUDE_CODE_SUBAGENT_MODEL`) is wrong on the last element — the env-var path
-does not exist in the CC runtime.
+The initial report's "REFUTED" verdict was premature. The correct framing:
+
+- **What the scan showed:** var absent from all 7 live CC pids scanned
+- **Why it was absent:** no process in the xbreed spawn chain ever exports it — the DEBUG trap only sets `CLAUDE_CODE_EFFORT_LEVEL`, never `CLAUDE_CODE_SUBAGENT_MODEL`
+- **What M5 proved:** plain `export CLAUDE_CODE_SUBAGENT_MODEL=opus` in parent → child inherits it — standard POSIX env inheritance, no CC magic
+- **Revenger's "CLI flag translation" claim:** WRONG — not translated to `--model`; plain env inheritance
+
+The handoff's documented override path **exists and works**. It is just not
+exercised by xbreed's current DEBUG trap implementation.
 
 ```
 Source: docs/reports/handoff-sonnet-medium-godspeed-2026-04-17.md:105-108
 Claim:  "characterize the CLAUDE_CODE_SUBAGENT_MODEL override path"
-Status: REFUTED — var absent from /proc/$PID/environ across 7 live CC pids
+Status: REFINED — path exists; xbreed's DEBUG trap never writes it (EFFORT_LEVEL only)
 ```
 
 ---
@@ -36,14 +43,17 @@ Evidence from `proc-environ.jsonl`, probes 2a/2b/2c/2d (×2 runs each, determini
 | `CLAUDE_CODE_EFFORT_LEVEL` | `medium` | `high` |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | `1` |
 | `XBREED_EFFORT_SHIM_HIT` | `ccs-executor-flows:medium:18816` | `g-connector-docparity:high:20156` |
+| `CLAUDECODE` | `1` | `1` |
 | `CLAUDE_CODE_ENTRYPOINT` | absent | absent |
 | `CLAUDE_CODE_EXECPATH` | absent | absent |
-| `CLAUDE_CODE_SUBAGENT_MODEL` | absent | absent |
+| `CLAUDE_CODE_SUBAGENT_MODEL` | absent (not set by xbreed) | absent (not set by xbreed) |
 
-- **CLAUDE_CODE_EFFORT_LEVEL** — per-subagent override via DEBUG trap, confirmed ×7 pids. Values match prefix: `ccs-` → `medium`, `g-` → `high`.
+- **CLAUDE_CODE_EFFORT_LEVEL** — per-subagent override via DEBUG trap, confirmed ×7 pids. Cross-prefix table: `ccs-`/`cdx-` → `medium`, `g-` → `high` (connector mandatory high). `cco-` untested (no cco- proc running at scan time).
 - **CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1** — inherited by all subagents.
 - **XBREED_EFFORT_SHIM_HIT** — per-process witness, values correct for prefixed agents.
+- **CLAUDECODE=1** — present in all subagents; missed in initial grep pass (M2 finding, labrat-proc).
 - **CLAUDE_CODE_ENTRYPOINT / CLAUDE_CODE_EXECPATH** — present in parent bash env only (probe 3a/3b), stripped from subagent environs.
+- **CLAUDE_CODE_SUBAGENT_MODEL** — absent because xbreed never exports it; inherits normally if parent sets it (M5 confirmed).
 
 ---
 
@@ -108,8 +118,11 @@ Produced the Mission C plan with 5 milestones:
 - M4: characterize NOMATCH branch behavior
 - M5: live SUBAGENT_MODEL override probe (set var, verify model used)
 
-M5 was OBVIATED before execution — the finding from M3 (var absent from all environs)
-made a live override probe meaningless.
+M5 was initially marked OBVIATED in the R1 report — the finding from M3 (var absent
+from all environs) was read as "env-var path doesn't exist." **This was wrong.**
+labrat-proc executed M5 post-R1: manually exported `CLAUDE_CODE_SUBAGENT_MODEL=opus`
+in parent shell, spawned CC (PID 135608), confirmed var present in
+`/proc/135608/environ`. Path exists; xbreed's trap never writes it.
 
 ---
 
@@ -171,18 +184,40 @@ Contribution deferred to any follow-on session if team is reconvened.
 
 ## Hallucination log
 
+**Original entry (overstated — superseded by M5):**
+
 ```jsonl
 {"id":"HC_mission_premise","claim":"CLAUDE_CODE_SUBAGENT_MODEL is the env-var override path for subagent model selection","source":"handoff-sonnet-medium-godspeed-2026-04-17.md:105-108 Mission C target","refuted_by":"cdx-labrat-proc-mC 9-entry /proc/$PID/environ scan on 7 live CC subagent pids — var ABSENT from all environs","live_state":"Model routing is CLI-flag-based: --model opus/sonnet/haiku visible in /proc/$PID/cmdline. Env var path does not exist in CC runtime.","severity":"high","axis":"Mission_premise_invalidation"}
 ```
 
-HC rate for Mission C: 1 high-severity (mission premise), 0 low. Pre-bench rate context: 2 hallucinations in prior session (reviewer role). Post-sonnet-medium pivot: HC rate unchanged at mission-premise level, but code-state HCs appear reduced (no "already fixed" claims this mission).
+**Amended entry (HC_mission_premise_AMENDED):**
+
+```jsonl
+{"id":"HC_mission_premise_AMENDED","original_verdict":"REFUTED","corrected_verdict":"REFINED","original_error":"scribe over-inferred from absence — 'var not found in live pids' was read as 'var stripped by CC runtime'","m5_counterfactual":"export CLAUDE_CODE_SUBAGENT_MODEL=opus in parent → /proc/135608/environ contains it — plain POSIX inheritance, no stripping","revenger_secondary_error":"claimed var is translated to --model CLI flag — also wrong, M5 shows direct env inheritance","corrected_live_state":"SUBAGENT_MODEL inherits normally; absent in xbreed spawns because DEBUG trap never writes it; --model CLI flag is how CC uses it downstream, not how it propagates","severity":"medium (was high)","axis":"Mission_premise_refinement"}
+```
+
+**Methodology lesson — single-probe refutation risk:**
+
+A scan proving "var absent from N live pids" supports "nobody writes it in this spawn chain."
+It does NOT support "CC strips it" or "the path doesn't exist." The distinguishing test is
+the M5 counterfactual: manually export → verify child inherits. Without the counterfactual,
+absence-from-scan is evidence of "not written," never evidence of "not writable."
+
+**Rule for future missions:** any "REFUTED" verdict on an env-var path MUST include a
+counterfactual probe (manually set → confirm child sees it or doesn't) before the verdict
+is entered in hallucinations.jsonl.
+
+HC rate for Mission C: 1 medium-severity (amended from high), 0 low. The amendment itself
+is a protocol artifact, not a new hallucination — the original R1 scribe over-inferred.
+Post-sonnet-medium pivot: code-state HCs remain reduced; mission-premise inference errors
+still present but now caught by M5 counterfactual pattern.
 
 ---
 
 ## Rejected / deferred
 
-- **M5 live SUBAGENT_MODEL probe** (set env var, verify model used) — OBVIATED by finding that the var is not env-based. Running the probe would test non-existent behavior.
-- **Cross-doc cleanup of `docs/command-flows.md:434-444`** (stale "SUBAGENT_MODEL overrides everything" precedence claim) — DEFERRED to subsequent session. The stale claim is wrong but harmless as a dead code path.
+- **M5 live SUBAGENT_MODEL probe** — EXECUTED (not obviated as originally stated). labrat-proc ran the counterfactual post-R1 commit; finding incorporated in amendment.
+- **Cross-doc cleanup of `docs/command-flows.md:434-444`** ("SUBAGENT_MODEL overrides everything" precedence claim) — DEFERRED to subsequent session. Claim is now confirmed directionally correct (env inheritance works); wording may need nuance but is not wrong.
 - **cdx-revenger-mC completion** — pending xask `-R` run not incorporated; deferred.
 - **Layer-2 compliance hardening for labrat-nomatch** — the raw_output block absence is a protocol gap; enforcement feedback deferred to orchestrator.
 
@@ -192,10 +227,11 @@ HC rate for Mission C: 1 high-severity (mission premise), 0 low. Pre-bench rate 
 
 **R2 not launched for Mission C.**
 
-The premise refutation is the primary finding and saturates the mission objective.
-Iterating further (R2) would require a new mission scope (e.g., "characterize the
-`--model` CLI flag injection path") — which is a distinct mission, not a round of
-this one.
+The premise refinement saturates the mission objective: the override path exists and
+works via plain env inheritance; xbreed's trap just never writes SUBAGENT_MODEL.
+Iterating further (R2) would require a new mission scope (e.g., "wire SUBAGENT_MODEL
+into the DEBUG trap alongside EFFORT_LEVEL") — which is implementation work, not
+characterization.
 
 Team disbanding post-report. `cdx-revenger-mC` may complete async; findings should
 be captured in a follow-on note if they materialize.
@@ -208,7 +244,7 @@ be captured in a follow-on note if they materialize.
 |------|------|-------|
 | `proc-environ.jsonl` | 9 | All non-deterministic=false |
 | `per-teammate.jsonl` | 1 (nomatch only) | planner/revenger rows absent |
-| `hallucinations.jsonl` | 1 | HC_mission_premise, severity=high |
+| `hallucinations.jsonl` | 2 | HC_mission_premise (original, amended) + HC_mission_premise_AMENDED |
 | `roster.jsonl` | 4 | All spawned at same timestamp |
 | `rounds.jsonl` | 1 | mC_init only |
 | `skill-load.log` | 0 | No entries — skill-load witness gap |
