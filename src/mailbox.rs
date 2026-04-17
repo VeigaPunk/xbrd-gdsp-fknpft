@@ -14,6 +14,8 @@ struct CompactJob {
     digest_older_than_secs: u64,
     /// When true the worker exits after this job — used only by tests.
     poison_after: bool,
+    /// When true the worker panics inside catch_unwind — used only by tests (M4).
+    panic_in_worker: bool,
 }
 
 struct WorkerState {
@@ -24,6 +26,8 @@ struct WorkerState {
 static COMPACT_WORKER: OnceLock<Mutex<Option<WorkerState>>> = OnceLock::new();
 /// Number of jobs sent but not yet completed (enqueued + in-flight).
 static COMPACT_PENDING: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+/// Monotonically increasing counter for unique compact/sidecar filename suffixes (M5).
+static COMPACT_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn worker_mutex() -> &'static Mutex<Option<WorkerState>> {
     COMPACT_WORKER.get_or_init(|| Mutex::new(None))
@@ -36,16 +40,26 @@ fn spawn_worker_thread(rx: std::sync::mpsc::Receiver<CompactJob>) -> std::thread
             Ok(job) => {
                 let poison = job.poison_after;
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    if job.panic_in_worker {
+                        panic!("injected test panic");
+                    }
                     compact_events_sync(&job.team_dir, &job.keep_types, job.digest_older_than_secs)
                 }));
-                if result.is_ok() {
-                    COMPACT_PENDING.fetch_sub(1, Ordering::Release);
-                }
-                if let Err(e) = result {
-                    eprintln!(
-                        "xbreed compact worker panic: {:?}",
-                        e.downcast::<&str>().unwrap_or(Box::new("unknown"))
-                    );
+                match result {
+                    Ok(Ok(_)) => {
+                        COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                    }
+                    Ok(Err(e)) => {
+                        eprintln!("xbreed compact worker io error: {e}");
+                        COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                    }
+                    Err(panic) => {
+                        eprintln!(
+                            "xbreed compact worker panic: {:?}",
+                            panic.downcast::<&str>().unwrap_or(Box::new("unknown"))
+                        );
+                        COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                    }
                 }
                 if poison {
                     break;
@@ -110,8 +124,28 @@ pub fn write_event(team_dir: &Path, from: &str, event_type: &str, payload: &str)
     Ok(())
 }
 
+/// Returns the bytes-floor threshold for the M2 cadence trigger.
+/// Reads CADENCE_FLOOR_BYTES env var; u64::MAX (disabled) if unset.
+fn cadence_floor_bytes() -> u64 {
+    std::env::var("CADENCE_FLOOR_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(u64::MAX)
+}
+
 pub fn drain_events(team_dir: &Path) -> Result<Vec<Event>> {
     let path = mailbox_path(team_dir);
+    // M2 cadence trigger: fire async compact before rename if mailbox >= floor.
+    // compact_events is fire-and-forget (sub-ms caller cost). Limbo window: if
+    // worker wins the rename race, drain may return empty; sidecar on next drain.
+    let floor = cadence_floor_bytes();
+    if floor < u64::MAX
+        && std::fs::metadata(&path)
+            .map(|m| m.len() >= floor)
+            .unwrap_or(false)
+    {
+        let _ = compact_events(team_dir, &[], 0);
+    }
     // Atomic drain: rename the live mailbox so new writers create a fresh
     // file (O_CREAT in write_event), then read and delete the renamed copy.
     //
@@ -199,10 +233,12 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
         let (suffix, is_orphan) = if let Some(s) = name_str.strip_prefix(&sidecar_prefix) {
             (s, false)
         } else if let Some(s) = name_str.strip_prefix(&orphan_prefix) {
-            // Only adopt orphan compact.<pid> if pid is dead. Avoids racing
-            // a live compactor mid-rename.
-            match s.parse::<u32>() {
-                Ok(pid)
+            // Only adopt orphan compact.<pid>[.<seq>] if pid is dead. Avoids racing
+            // a live compactor mid-rename. Split on '.' to handle both the old
+            // compact.<pid> format and the new compact.<pid>.<seq> format (M5).
+            let pid_opt = s.split('.').next().and_then(|p| p.parse::<u32>().ok());
+            match pid_opt {
+                Some(pid)
                     if !pid_is_alive(pid)
                         || orphan_file_has_stale_mtime(&source, Duration::from_secs(60)) =>
                 {
@@ -312,7 +348,8 @@ fn compact_events_sync(
     let now_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
     let cutoff_ms = now_ms.saturating_sub(digest_older_than_secs * 1000);
 
-    let compact_path = path.with_extension(format!("compact.{}", std::process::id()));
+    let seq = COMPACT_SEQ.fetch_add(1, Ordering::Relaxed);
+    let compact_path = path.with_extension(format!("compact.{}.{}", std::process::id(), seq));
     match std::fs::rename(&path, &compact_path) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((0, 0)),
@@ -375,8 +412,8 @@ fn compact_events_sync(
     // any concurrent write_event call that races with this compaction lands
     // in a fresh inode at `path` and survives untouched.
     let pid = std::process::id();
-    let sidecar_tmp = path.with_extension(format!("compact_ready.{pid}.tmp"));
-    let sidecar_path = path.with_extension(format!("compact_ready.{pid}"));
+    let sidecar_tmp = path.with_extension(format!("compact_ready.{pid}.{seq}.tmp"));
+    let sidecar_path = path.with_extension(format!("compact_ready.{pid}.{seq}"));
     {
         let mut f = OpenOptions::new()
             .create(true)
@@ -428,6 +465,7 @@ pub fn compact_events(
         keep_types: keep_types.to_vec(),
         digest_older_than_secs,
         poison_after: false,
+        panic_in_worker: false,
     };
     match state.tx.try_send(job) {
         Ok(()) => {
@@ -451,25 +489,46 @@ pub(crate) fn __wait_compact_idle() {
     }
 }
 
-/// Poison the worker (make it exit) and clear the global state.
-/// The next compact_events call will respawn and fall back to sync for that call.
+/// RED-TEST VERSION: blocking send — used only to capture hang evidence.
+#[cfg(test)]
+pub(crate) fn __send_panicking_job() {
+    let tx = {
+        let guard = worker_mutex().lock().unwrap();
+        guard
+            .as_ref()
+            .filter(|s| !s.handle.is_finished())
+            .map(|s| s.tx.clone())
+    };
+    if let Some(tx) = tx {
+        COMPACT_PENDING.fetch_add(1, Ordering::Release);
+        if tx.send(CompactJob {
+            team_dir: PathBuf::new(),
+            keep_types: vec![],
+            digest_older_than_secs: 0,
+            poison_after: false,
+            panic_in_worker: true,
+        }).is_err() {
+            COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+        }
+    }
+}
+
+/// Drain the worker (make it exit) and clear the global state.
+/// Closes the sender side of the channel so the worker exits after processing
+/// any already-queued jobs. The next compact_events call will respawn.
+/// Does NOT use try_send(poison) — that races when the channel is full and
+/// causes handle.join() to deadlock waiting for a worker that never sees EOF.
 #[cfg(test)]
 pub(crate) fn __poison_compact_worker() {
     let mutex = worker_mutex();
     let mut guard = mutex.lock().unwrap();
-    let state_opt = guard.take(); // set inner = None
+    let state_opt = guard.take(); // set inner = None, release
     drop(guard);
-    if let Some(state) = state_opt {
-        // Balance the worker's unconditional COMPACT_PENDING.fetch_sub(1).
-        COMPACT_PENDING.fetch_add(1, Ordering::Release);
-        let _ = state.tx.try_send(CompactJob {
-            team_dir: PathBuf::new(),
-            keep_types: vec![],
-            digest_older_than_secs: 0,
-            poison_after: true,
-        });
-        let _ = state.handle.join();
-        // After join, PENDING is back to 0 (worker decremented it).
+    if let Some(WorkerState { tx, handle }) = state_opt {
+        drop(tx); // close sender → worker exits after draining pending jobs
+        let _ = handle.join();
+        // Worker decremented COMPACT_PENDING for every job it processed before
+        // seeing the channel close — no manual balance needed here.
     }
 }
 
@@ -932,18 +991,37 @@ mod tests {
         __wait_compact_idle();
         drain_events(warmup.path()).unwrap();
 
-        let dir = tempdir().unwrap();
-        for i in 0..10_000 {
-            write_old_event(dir.path(), &format!("old-{i}"), "keepalive", "x");
+        // Retry loop: compact_worker_panic_falls_back_to_sync runs in parallel and
+        // can kill the global worker between our warmup and the timed call. We detect
+        // sync fallback via the (0,0) discriminator — async always returns Ok((0,0)),
+        // sync with 10k events returns Ok((1, 10000)). Re-warm and retry on sync hits.
+        for _ in 0..5 {
+            let dir = tempdir().unwrap();
+            for i in 0..10_000 {
+                write_old_event(dir.path(), &format!("old-{i}"), "keepalive", "x");
+            }
+            let start = std::time::Instant::now();
+            let result = compact_events(dir.path(), &[], 1).unwrap();
+            let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+            if result == (0, 0) {
+                // Async path confirmed — timing assertion is valid.
+                assert!(
+                    elapsed_ms < 2.0,
+                    "compact_events caller latency {elapsed_ms:.2}ms > 2ms (async path not active?)"
+                );
+                __wait_compact_idle();
+                return;
+            }
+            // Sync fallback (worker was just respawned) — re-warm then retry.
+            __wait_compact_idle();
+            drain_events(dir.path()).unwrap();
+            let w = tempdir().unwrap();
+            write_old_event(w.path(), "w", "keepalive", "x");
+            compact_events(w.path(), &[], 1).unwrap();
+            __wait_compact_idle();
+            drain_events(w.path()).unwrap();
         }
-        let start = std::time::Instant::now();
-        compact_events(dir.path(), &[], 1).unwrap();
-        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
-        assert!(
-            elapsed_ms < 2.0,
-            "compact_events caller latency {elapsed_ms:.2}ms > 2ms (async path not active?)"
-        );
-        __wait_compact_idle();
+        panic!("compact_events never dispatched async after 5 attempts — async path broken");
     }
 
     /// Poison the async worker; compact must still succeed via sync fallback.
@@ -967,6 +1045,76 @@ mod tests {
         assert_eq!(events.len(), 1, "compact must produce a digest");
         assert_eq!(events[0].event_type, "digest");
         assert!(events[0].payload.contains("compacted 1"));
+    }
+
+    /// M4: Worker panic must not leak COMPACT_PENDING.
+    /// Proof: send a panic job, then immediately issue a real compact and call
+    /// __wait_compact_idle. If the panic arm leaked the counter (no decrement),
+    /// __wait_compact_idle would spin forever because PENDING never reaches 0.
+    #[test]
+    fn compact_worker_panic_does_not_leak_pending_counter() {
+        // Ensure worker is alive and idle before the test.
+        let warmup = tempdir().unwrap();
+        write_old_event(warmup.path(), "w", "keepalive", "x");
+        compact_events(warmup.path(), &[], 1).unwrap();
+        __wait_compact_idle();
+        drain_events(warmup.path()).unwrap();
+
+        // Inject a panicking job. Worker catches the panic via catch_unwind and
+        // must decrement COMPACT_PENDING in the Err arm — otherwise the next
+        // __wait_compact_idle call will spin forever.
+        __send_panicking_job();
+
+        // Issue a normal compact and wait for idle. This will hang if the panic
+        // job leaked COMPACT_PENDING (counter stuck at ≥1 indefinitely).
+        let dir = tempdir().unwrap();
+        write_old_event(dir.path(), "after-panic", "keepalive", "z");
+        compact_events(dir.path(), &[], 1).unwrap();
+        __wait_compact_idle(); // hangs here iff M4 counter-leak is present
+        let events = drain_events(dir.path()).unwrap();
+        assert!(
+            events.iter().any(|e| e.event_type == "digest"),
+            "compact after panic must still produce a digest"
+        );
+    }
+
+    /// M5: Two sequential compact rounds from the same PID must produce distinct
+    /// sidecar names so the second does not atomically overwrite the first.
+    /// Old code: both produce `compact_ready.<pid>` — second rename clobbers first.
+    /// New code: `compact_ready.<pid>.<seq>` — both survive and drain sees 2 digests.
+    #[test]
+    fn compact_sync_fallback_does_not_clobber_worker_snapshot() {
+        // Warmup: ensure worker is alive so both compacts below go async.
+        let warmup = tempdir().unwrap();
+        write_old_event(warmup.path(), "w", "keepalive", "x");
+        compact_events(warmup.path(), &[], 1).unwrap();
+        __wait_compact_idle();
+        drain_events(warmup.path()).unwrap();
+
+        let dir = tempdir().unwrap();
+
+        // Round 1: write events + async compact (sidecar compact_ready.<pid>.N).
+        for i in 0..3 {
+            write_old_event(dir.path(), &format!("r1-{i}"), "keepalive", "x");
+        }
+        compact_events(dir.path(), &[], 1).unwrap();
+        __wait_compact_idle(); // job 1 done, sidecar exists
+
+        // Round 2: write more events + async compact.
+        // Old code: renames compact_ready.<pid> again → overwrites round-1 sidecar.
+        // New code: compact_ready.<pid>.N+1 — distinct, both survive.
+        for i in 0..3 {
+            write_old_event(dir.path(), &format!("r2-{i}"), "keepalive", "y");
+        }
+        compact_events(dir.path(), &[], 1).unwrap();
+        __wait_compact_idle();
+
+        let events = drain_events(dir.path()).unwrap();
+        let digest_count = events.iter().filter(|e| e.event_type == "digest").count();
+        assert_eq!(
+            digest_count, 2,
+            "same-PID sidecar clobbered? expected 2 digests, got {digest_count}"
+        );
     }
 
     /// During async compact's limbo window drain may return empty.
