@@ -7,7 +7,7 @@ fails=0
 
 # SELF-INTEGRITY: guard against silent-drop mutations (mut3 class)
 # If a check() call is commented out, count drops below floor and script aborts immediately.
-EXPECTED_CHECK_FLOOR=12
+EXPECTED_CHECK_FLOOR=13
 ACTUAL_CHECK_COUNT=$(grep -cE '^\s*check "' "${BASH_SOURCE[0]}")
 if [[ "$ACTUAL_CHECK_COUNT" -lt "$EXPECTED_CHECK_FLOOR" ]]; then
   echo "FAIL: fixture integrity — $ACTUAL_CHECK_COUNT check() calls, floor is $EXPECTED_CHECK_FLOOR"
@@ -42,6 +42,10 @@ check "xhigh co-located with opus 4.7" \
 # 4. xask --direct absent OR immediately preceded by a historical/removed annotation
 check "--direct absent or annotated" \
   "! grep -qE 'xask --direct' \"$DOC\" || grep -B2 'xask --direct' \"$DOC\" | grep -qiE 'historical|removed|deprecated'"
+
+# 4c. No bare '--direct' token in prose without annotation (catches prose refs that skip the 'xask' prefix)
+check "no bare '--direct' in prose (unannotated)" \
+  "! grep -qE ' --direct([^a-z]|$)' \"$DOC\" || grep -B2 ' --direct' \"$DOC\" | grep -qiE 'historical|removed|deprecated'"
 
 # 4b. --direct table row must NOT claim exit 0 (cdx-labrat confirmed: exits 1, flag doesn't exist)
 check "--direct row does not claim exit 0" \
