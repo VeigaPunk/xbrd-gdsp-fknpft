@@ -75,11 +75,10 @@ case "$MODEL" in
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# Dispatch-template dir (optional). templates/ was removed 2026-04-17 per user
-# directive ("~/.claude/agents/ is the canonical source"). xask falls back to
-# raw $QUERY when TEMPLATE file is absent — the substitution block below is
-# guarded by `if [ -f "$TEMPLATE" ]`. Override via XBREED_DISPATCH_DIR to
-# restore templated dispatch (e.g. a local checkout of the removed templates/).
+# Dispatch-template dir. templates/ was briefly removed 2026-04-17 but restored
+# the same day — dispatch substitution (gemini {{THINKING_BUDGET}} injection) is
+# load-bearing for multi-level effort routing, and xask's raw-$QUERY fallback
+# drops that behavior silently. Override via XBREED_DISPATCH_DIR if needed.
 TEMPLATE_DIR="${XBREED_DISPATCH_DIR:-$SCRIPT_DIR/../templates/dispatch}"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
