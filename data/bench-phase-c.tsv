@@ -1,0 +1,8 @@
+team	teammate	model	wall_s	out_tokens	tok_per_s	tool_count	tool_breakdown	input_tokens	cache_read_tokens	assistant_msgs	file
+bench-noop-0417	ccs-probe-sonnet-low	claude-sonnet-4-6	195.7	14522	74.2	7	Read:3,SendMessage:3,ToolSearch:1	25	280472	11	d854c8d3-6cba-4cf5-ae53-ee2675cb1f05.jsonl
+bench-noop-0417	ccs-probe-sonnet-med	claude-sonnet-4-6	193.8	13024	67.2	9	Read:3,SendMessage:3,Glob:2,ToolSearch:1	27	335296	13	758f43fb-b4ea-4978-9c22-4d3c3070cdf2.jsonl
+bench-noop-0417	ccs-probe-sonnet-high	claude-sonnet-4-6	184.6	12967	70.3	7	Read:3,SendMessage:3,ToolSearch:1	24	338464	12	ca28d380-734d-46e0-8393-fe13877d4ced.jsonl
+bench-noop-0417	cco-probe-opus-low	claude-opus-4-7	182.9	11514	62.9	7	Read:3,SendMessage:3,ToolSearch:1	30	309554	10	f3aab2f5-cade-45fd-ba25-4dcc0db543da.jsonl
+bench-noop-0417	cco-probe-opus-med	claude-opus-4-7	178.3	12923	72.5	7	Read:3,SendMessage:3,ToolSearch:1	36	374597	11	fda43df2-c734-4b80-9154-67e5ce0f4830.jsonl
+bench-noop-0417	cco-probe-opus-high	claude-opus-4-7	174.7	13309	76.2	7	Read:3,SendMessage:3,ToolSearch:1	36	387161	11	fd22d997-886f-493e-ab9b-099201679044.jsonl
+bench-noop-0417	cco-probe-opus-xhigh	claude-opus-4-7	170.1	13999	82.3	10	Read:3,Bash:3,SendMessage:3,ToolSearch:1	39	486733	14	c37e3643-60a4-42d4-8652-2013c8abf55c.jsonl
