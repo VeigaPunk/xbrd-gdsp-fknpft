@@ -144,6 +144,75 @@ fn emit_functional_baseline() {
     write(&report_path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
 }
 
+/// Iterations for cadence bench (fewer than full baseline for speed).
+const CADENCE_ITERS: usize = 50;
+const CADENCE_FLOORS: [(u64, &str); 3] = [
+    (256 * 1024, "256k"),
+    (512 * 1024, "512k"),
+    (1024 * 1024, "1m"),
+];
+
+fn collect_drain_cadence_ms(count: usize, floor_bytes: u64) -> (f64, f64) {
+    #[allow(deprecated)]
+    unsafe {
+        std::env::set_var("CADENCE_FLOOR_BYTES", floor_bytes.to_string());
+    }
+    let mut samples = Vec::with_capacity(CADENCE_ITERS);
+    for _ in 0..CADENCE_ITERS {
+        let dir = tempdir().unwrap();
+        seed_events(dir.path(), count);
+        let start = Instant::now();
+        black_box(drain_events(dir.path()).unwrap());
+        samples.push(to_ms(start.elapsed()));
+    }
+    #[allow(deprecated)]
+    unsafe {
+        std::env::remove_var("CADENCE_FLOOR_BYTES");
+    }
+    let p50 = percentile_ms(&mut samples, 0.50);
+    let p95 = percentile_ms(&mut samples, 0.95);
+    (p50, p95)
+}
+
+fn emit_cadence_baseline() {
+    let count = 100_000;
+    let (base_p50, base_p95) = collect_drain_events_ms(count);
+    let mut stats: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+    stats.insert(
+        "no_floor".to_string(),
+        serde_json::json!({"p50_ms": base_p50, "p95_ms": base_p95}),
+    );
+    for (floor_bytes, label) in &CADENCE_FLOORS {
+        let (p50, p95) = collect_drain_cadence_ms(count, *floor_bytes);
+        stats.insert(
+            label.to_string(),
+            serde_json::json!({
+                "floor_bytes": floor_bytes,
+                "p50_ms": p50,
+                "p95_ms": p95,
+                "delta_p50_ms": p50 - base_p50,
+                "delta_p95_ms": p95 - base_p95,
+            }),
+        );
+        println!(
+            "cadence floor={label}: p50={:.3}ms p95={:.3}ms delta_p50={:+.3}ms delta_p95={:+.3}ms",
+            p50,
+            p95,
+            p50 - base_p50,
+            p95 - base_p95
+        );
+    }
+    println!("cadence baseline (no_floor): p50={base_p50:.3}ms p95={base_p95:.3}ms");
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let report_path = PathBuf::from(manifest_dir).join("docs/reports/mailbox-bench-baseline.json");
+    let mut report: serde_json::Value = read_to_string(&report_path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    report["cadence_floor_ms"] = serde_json::json!({"n=100000": stats});
+    write(&report_path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
+}
+
 fn setup_bench_env() {
     let tmpdir = std::env::var("XBREED_BENCH_TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
     // SAFETY: single-threaded bench setup; documents WSL2 /tmp=ext4 substrate assumption
@@ -155,7 +224,11 @@ fn setup_bench_env() {
 
 fn bench_mailbox(c: &mut Criterion) {
     setup_bench_env();
-    emit_functional_baseline();
+    if std::env::var("CADENCE_BENCH").is_ok() {
+        emit_cadence_baseline();
+    } else {
+        emit_functional_baseline();
+    }
 
     for size in SIZES {
         let bid = format!("write_event/{size}");
