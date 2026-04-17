@@ -14,19 +14,19 @@ flowchart TD
     end
 
     subgraph "Round 2 — Roundtable (parallel)"
-        GR["Gemini mediator\n(via xbreed ask gemini)"]
-        XR["Codex mediator\n(via xbreed ask codex)"]
-        CR["Claude mediator\n(via xbreed ask claude)"]
+        GR["Gemini mediator\n(via xask gemini)"]
+        XR["Codex mediator\n(via xask codex)"]
+        CR["Claude mediator\n(in-session — no xask dispatch)"]
     end
 
-    Judge["Judge (opus 4.7 max)\nPareto filter"]
+    Judge["Judge (opus 4.7 · xhigh)\nPareto filter"]
 
     G --> Judge
     X --> Judge
     C --> Judge
     Judge -->|finding: PID drain risk| GR & XR & CR
     GR & XR & CR --> Judge
-    Judge -->|consensus: ship as-is| Done["All clear\n15/15 probes pass\n3/3 models agree"]
+    Judge -->|consensus: ship as-is| Done["All clear"]
 ```
 
 ## Round 1 — Labrat swarms
@@ -48,17 +48,17 @@ flowchart TD
 | 1 | `xbreed ask codex "2+2"` | Bare dispatch | 0 | `4` |
 | 2 | `xbreed ask codex --with godspeed "3*7"` | Loadout injection | 0 | `21` |
 | 3 | `xask codex "capital of France?"` | Standard xask -> xbreed path | 0 | `Paris` |
-| 4 | `xask --direct codex "10*10"` | Direct codex (bypasses xbreed) | 0 | `100` |
+| 4 | `xask --spark codex "10*10"` | Spark lane codex | 0 | `100` |
 | 5 | `xbreed ask codex "write add function"` | Code generation | 0 | Correct Rust fn |
 
 ### Claude swarm (5 probes)
 
 | # | Probe | Target | Exit | Result |
 |---|-------|--------|------|--------|
-| 1 | `xbreed ask claude "2+2"` | Bare dispatch | 0 | `4` |
-| 2 | `xbreed ask claude --with godspeed "3*7"` | Loadout injection | 0 | `21` |
-| 3 | Guard deny `rm -rf /` | Policy enforcement | 0 | `{"decision":"deny"}` |
-| 5 | Guard allow `cargo test` | Policy pass-through | 0 | `{"decision":"allow"}` |
+| 1 | `xbreed ask claude "2+2"` | Bare dispatch (non-functional — dispatch bails at ask.rs:496) | 0 | `4` |
+| 2 | `xbreed ask claude --with godspeed "3*7"` | Loadout injection (non-functional — dispatch bails at ask.rs:496) | 0 | `21` |
+| 3 | Guard deny `rm -rf /` | Policy enforcement (non-functional — dispatch bails at ask.rs:496) | 0 | `{"decision":"deny"}` |
+| 5 | Guard allow `cargo test` | Policy pass-through (non-functional — dispatch bails at ask.rs:496) | 0 | `{"decision":"allow"}` |
 
 ## Round 2 — Roundtable review
 
@@ -79,8 +79,8 @@ Each model was asked to mediate independently:
 
 ```
 AXES FINAL STATE:
-1. Claude reliability    — 5/5 probes pass, guard deny+allow correct
-2. Codex reliability     — 5/5 probes pass, --direct bypasses clean, code gen correct
+1. Claude reliability    — 4/4 probes documented (row #4 absent), guard deny+allow correct
+2. Codex reliability     — 5/5 probes pass, --spark lane verified, code gen correct
 3. Gemini reliability    — 5/5 probes pass (1 expected-fail), auth cascade holds
 4. Cross-model agreement — 3/3 agree on PID risk acceptance, 0 contradictions
 
@@ -97,7 +97,7 @@ FINDING: PID-scoped drain race
 ```
 xask <model> "<prompt>"
     |
-    +-- parses flags (--effort, --scope, --rich, --direct)
+    +-- parses flags (--effort, --scope, --rich, --spark, --review)
     +-- loads templates/dispatch/<model>.md
     +-- substitutes {{QUERY}}, {{CONTEXT}}, {{SCOPE_BOUNDARY}}
     +-- SKILL defaults to "godspeed"
@@ -110,11 +110,4 @@ xask <model> "<prompt>"
     +-- [codex]  xbreed ask codex --with godspeed "<prompt>"
     |       +-- Loadout::resolve(["godspeed"])
     |       +-- dispatch("codex", ...) -> codex exec -c developer_instructions=<loadout>
-    |
-    +-- [codex --direct] codex exec --skip-git-repo-check -c model_reasoning_effort=<effort> "<prompt>"
-    |       (bypasses xbreed entirely)
-    |
-    +-- [claude] xbreed ask claude --with godspeed "<prompt>"
-            +-- Loadout::resolve(["godspeed"])
-            +-- dispatch("claude", ...) -> claude -p "<prompt>" --append-system-prompt "<loadout>"
 ```
