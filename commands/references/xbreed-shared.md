@@ -8,7 +8,9 @@ Referenced by `/xbreed`, `/xbt`, `/xgs`, `/xbgst`. Do not duplicate — load thi
 
 The single-token suffix IS the whole directive. Sonnet-medium teammates read it as: iterate cheap in parallel, no clarifying questions, no verbose plans, act via tool calls, drop philosophical reasoning. Any teammate needing more than that marker is mis-cast for the lane.
 
-Rationale: user directive 2026-04-17 — "opus is terrible for being the intermediator; make sure that all teammate (agent) dispatches inherit godspeed in their prompt in the purest form". The prior long "GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent..." preamble burned reasoning cycles before the task even started. The marker replaces it.
+**Skill backing (2026-04-17):** The `godspeed` posture is also a user-scoped Claude Code skill at `~/.claude/skills/godspeed/SKILL.md`. Any session that mentions "godspeed", passes `--with godspeed`, or carries godspeed framing auto-surfaces the skill via CC's description-match discovery. The skill content IS the four-line posture (name the axes / iterate cheap in parallel / keep axis-improving moves only / don't aim — let the frontier walk itself); loading it is idempotent with the ` | godspeed` marker. Teammates spawned via Agent() with the suffix will discover the skill at turn-start if it's listed in the session's skill manifest; the suffix alone still suffices when the skill isn't loaded (the marker encodes the posture).
+
+Rationale: user directive 2026-04-17 — "opus is terrible for being the intermediator; make sure that all teammate (agent) dispatches inherit godspeed in their prompt in the purest form". The prior long "GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent..." preamble burned reasoning cycles before the task even started. The marker replaces it; the skill makes it auto-surfacing at session scope.
 
 ## Escalation: advisor() (Layer 0)
 
