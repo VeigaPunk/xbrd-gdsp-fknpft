@@ -3,96 +3,30 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Two-slot holder for Gemini API keys loaded from `.env.local`.
-///
-/// Kept as distinct slots (not a flattened Vec) so that an empty primary
-/// value does NOT silently promote the fallback to primary — the retry path
-/// preserves the user's declared primary/fallback intent.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct GeminiKeys {
-    pub primary: Option<String>,
-    pub fallback: Option<String>,
-}
-
-/// Reads `.env.local` from cwd.
-pub fn load_gemini_keys() -> GeminiKeys {
-    load_gemini_keys_from(Path::new(".env.local"))
-}
-
-/// Reads a `.env.local`-style file and extracts GEMINI_API_KEY /
-/// GEMINI_API_KEY_FALLBACK. Parser behavior:
-/// - Strips UTF-8 BOM at start of file
-/// - Skips blank lines and full-line comments (`# ...`)
-/// - Splits each line on the first `=`, trims whitespace from both sides
-///   (handles `KEY=value`, `KEY =value`, `KEY= value`, `KEY = value`)
-/// - Strips matched single- or double-quotes around the value
-/// - Strips inline comments (first `#` preceded by whitespace in unquoted values)
-/// - Discards empty values (`KEY=` or `KEY=""`) — leaves the slot as None
-pub fn load_gemini_keys_from(path: &Path) -> GeminiKeys {
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return GeminiKeys::default();
-    };
-    let content = content.strip_prefix('\u{FEFF}').unwrap_or(&content);
-    let mut out = GeminiKeys::default();
-    for line in content.lines() {
-        let Some((key, value)) = parse_env_line(line) else {
-            continue;
-        };
-        if value.is_empty() {
-            continue;
-        }
-        match key.as_str() {
-            "GEMINI_API_KEY" => out.primary = Some(value),
-            "GEMINI_API_KEY_FALLBACK" => out.fallback = Some(value),
-            _ => {}
-        }
-    }
-    out
-}
-
-fn parse_env_line(line: &str) -> Option<(String, String)> {
-    let trimmed = line.trim_start();
-    if trimmed.is_empty() || trimmed.starts_with('#') {
-        return None;
-    }
-    let (raw_key, raw_value) = trimmed.split_once('=')?;
-    let key = raw_key.trim().to_string();
-    if key.is_empty() {
-        return None;
-    }
-    Some((key, clean_env_value(raw_value)))
-}
-
-fn clean_env_value(raw: &str) -> String {
-    let v = raw.trim();
-    if let Some(inner) = v.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
-        return inner.to_string();
-    }
-    if let Some(inner) = v.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')) {
-        return inner.to_string();
-    }
-    // Unquoted: strip inline comment (first `#` preceded by whitespace).
-    let mut end = v.len();
-    let mut prev_was_space = false;
-    for (i, ch) in v.char_indices() {
-        if prev_was_space && ch == '#' {
-            end = i;
-            break;
-        }
-        prev_was_space = ch.is_whitespace();
-    }
-    v[..end].trim().to_string()
-}
+// API-key auth path retired 2026-04-17 (user directive): xbreed is OAuth-exclusive
+// (ChatGPT account for codex, Sign-in-with-Google for gemini). See
+// `user_oauth_exclusive.md` auto-memory. Gemini auth cascade below is OAuth-only.
 
 /// Build a codex Command with loadout injection and clean-dispatch suppression.
 ///
+/// Three lanes select the codex model family:
+/// - `spark=true`  → [`CODEX_SPARK_MODEL`] + `model_reasoning_effort=low` (no fast_mode).
+/// - `review=true` → [`CODEX_DEFAULT_MODEL`] (`gpt-5.4` full) + `features.fast_mode=true`.
+///   Reserved for reviewer/critic/sentinel/the-revenger where the extra capacity
+///   of full 5.4 earns the cost; see AGENTS.md for the routing table.
+/// - otherwise     → [`CODEX_MINI_MODEL`] (`gpt-5.4-mini`) + `features.fast_mode=true`
+///   as the default non-spark lane (user directive 2026-04-17 — mini handles
+///   execution/labrat/scout/etc. at a fraction of the cost; review still routes
+///   through the full model).
+///
+/// `spark` and `review` are mutually exclusive; if both are true, `spark` wins
+/// (labrat probes are cheaper than reviews and should short-circuit).
+///
 /// Always applies contamination-suppression flags (`--skip-git-repo-check` +
 /// `include_permissions/apps/environment_context=false`) for epistemic
-/// equivalence across models. When `spark` is true, pins the model to
-/// [`CODEX_SPARK_MODEL`] and forces `model_reasoning_effort=low`. When `json`
-/// is true, passes `--json` to codex exec for structured output. When
-/// `output_last_message` is Some(path), passes `-o <path>` to write the final
-/// assistant message to disk.
+/// equivalence across models. When `json` is true, passes `--json` for
+/// structured output. When `output_last_message` is `Some(path)`, passes
+/// `-o <path>` to write the final assistant message to disk.
 ///
 /// NOTE: does NOT append the prompt — caller must append it AFTER any `-c`
 /// flags (effort, etc.) since `codex exec` treats the prompt as a trailing
@@ -100,6 +34,7 @@ fn clean_env_value(raw: &str) -> String {
 pub fn build_codex_ask_with_loadout(
     loadout: &Loadout,
     spark: bool,
+    review: bool,
     json: bool,
     output_last_message: Option<&Path>,
 ) -> Command {
@@ -133,14 +68,13 @@ pub fn build_codex_ask_with_loadout(
     if spark {
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
-    } else {
-        // Pin the default model explicitly (CODEX_DEFAULT_MODEL = "gpt-5.4"
-        // per ~/.codex/config.toml SSoT). Previously inferred via fast_mode;
-        // pinning makes a codex default-model change visible at argv audit
-        // time rather than silently drifting.
+    } else if review {
+        // Review lane: full gpt-5.4 for adversarial/deep reviews.
         c.arg("-m").arg(CODEX_DEFAULT_MODEL);
-        // fast_mode is a codex feature flag for gpt-5.4 family (default model).
-        // Not applicable to spark (gpt-5.3-codex-spark).
+        c.arg("-c").arg("features.fast_mode=true");
+    } else {
+        // Default lane: gpt-5.4-mini + fast_mode (user directive 2026-04-17).
+        c.arg("-m").arg(CODEX_MINI_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
     }
 
@@ -177,15 +111,20 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
 /// The codex model used for spark (cheap/fast/expendable) probes.
 pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
 
-/// The codex model used for non-spark dispatch (reviewer/critic/sentinel/
-/// the-revenger/etc.). `gpt-5.4` is codex's native default in v0.120.0 per
-/// `~/.codex/config.toml` SSoT (`# gpt-5.4 is the native default ... declared
-/// for SSoT alignment with models.yaml`). We pin it explicitly via `-m` in
-/// the non-spark branch for drift detection and argv audit clarity —
-/// previously the model was only inferred server-side via `features.fast_mode
-/// =true`, which makes regressions invisible until a codex version bump
-/// changes the default.
+/// The codex model used for the review lane (reviewer/critic/sentinel/
+/// the-revenger/etc.). `gpt-5.4` is codex's full-capacity model in v0.120.0.
+/// Previously this was the default for every non-spark dispatch; as of
+/// 2026-04-17 it's reserved for `review=true` callers, with
+/// [`CODEX_MINI_MODEL`] handling the rest.
 pub const CODEX_DEFAULT_MODEL: &str = "gpt-5.4";
+
+/// The codex model used for the default (non-spark, non-review) lane —
+/// `gpt-5.4-mini`, introduced as the standing default 2026-04-17. The mini
+/// variant handles execution/labrat/scout/planning/synthesis work at a
+/// fraction of the cost and round-time of full 5.4, while still supporting
+/// `features.fast_mode=true`. Review-class roles escalate via the `review`
+/// parameter on [`build_codex_ask_with_loadout`] to reach [`CODEX_DEFAULT_MODEL`].
+pub const CODEX_MINI_MODEL: &str = "gpt-5.4-mini";
 
 // ========================================================================
 // v0.3.5 — Gemini auth cascade with multi-profile OAuth
@@ -193,20 +132,22 @@ pub const CODEX_DEFAULT_MODEL: &str = "gpt-5.4";
 
 /// Auth method for a single gemini dispatch attempt.
 ///
-/// The cascade in `dispatch()` tries these in order (OAuth-first by design):
+/// The cascade in `dispatch()` tries these in order (OAuth-exclusive as of
+/// 2026-04-17 — user directive, see `user_oauth_exclusive.md`):
 ///
-///   1. `OAuthProfile("primary")`   — HOME override to
+///   1. `OAuthProfile("primary")`  — HOME override to
 ///      `~/.config/xbreed/gemini-profiles/primary/` so gemini reads that
 ///      profile's `.gemini/oauth_creds.json` instead of the user's default
-///   2. `OAuthProfile("fallback")`  — same mechanism, fallback profile
-///   3. `OAuthDefault`              — user's real HOME, no API key env
-///      injection; gemini uses `~/.gemini/oauth_creds.json`
-///   4. `ApiKey(<primary>)`         — `GEMINI_API_KEY` from `.env.local`
-///   5. `ApiKey(<fallback>)`        — `GEMINI_API_KEY_FALLBACK` from `.env.local`
+///   2. `OAuthProfile("fallback")` — same mechanism, fallback profile
+///   3. `OAuthDefault`             — user's real HOME; gemini uses
+///      `~/.gemini/oauth_creds.json`. Any inherited `GEMINI_API_KEY` env
+///      var is explicitly stripped from the subprocess env to force the
+///      OAuth path (prevents accidental API-key fallback if the user's
+///      shell exports one).
 ///
-/// OAuth is preferred because subscription-gated model variants (e.g. the
-/// `-customtools` preview) require an OAuth session, not an API key, and
-/// free-tier API keys have stricter per-account QPS limits.
+/// OAuth is required because subscription-gated model variants (e.g. the
+/// `-customtools` preview) need an OAuth session, and the user's plan-tier
+/// quotas apply to OAuth dispatch only.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GeminiAuth {
     /// Named OAuth profile. xbreed overrides HOME to
@@ -216,8 +157,6 @@ pub enum GeminiAuth {
     /// Default OAuth from the user's real `~/.gemini/oauth_creds.json`.
     /// Does NOT override HOME; strips any `GEMINI_API_KEY` env injection.
     OAuthDefault,
-    /// API key injected via the `GEMINI_API_KEY` env var on the subprocess.
-    ApiKey(String),
 }
 
 impl GeminiAuth {
@@ -226,7 +165,6 @@ impl GeminiAuth {
         match self {
             Self::OAuthProfile(name) => format!("oauth:{name}"),
             Self::OAuthDefault => "oauth:default".to_string(),
-            Self::ApiKey(_) => "api-key".to_string(),
         }
     }
 }
@@ -268,9 +206,9 @@ fn default_gemini_oauth_exists() -> bool {
 
 /// Build the ordered cascade chain of auth methods to try.
 ///
-/// Returns only auth methods that plausibly *could* work based on disk +
-/// `.env.local` state. Iterates: named OAuth profiles (primary, fallback)
-/// → default OAuth → API key primary → API key fallback.
+/// Returns only auth methods that plausibly *could* work based on disk state.
+/// Iterates: named OAuth profiles (primary, fallback) → default OAuth.
+/// OAuth-exclusive as of 2026-04-17 — no API-key fallback.
 pub fn gemini_auth_chain() -> Vec<GeminiAuth> {
     let mut chain = Vec::new();
 
@@ -286,24 +224,15 @@ pub fn gemini_auth_chain() -> Vec<GeminiAuth> {
         chain.push(GeminiAuth::OAuthDefault);
     }
 
-    // API keys — last-resort fallback
-    let keys = load_gemini_keys();
-    if let Some(primary) = keys.primary {
-        chain.push(GeminiAuth::ApiKey(primary));
-    }
-    if let Some(fallback) = keys.fallback {
-        chain.push(GeminiAuth::ApiKey(fallback));
-    }
-
     chain
 }
 
-/// Build a gemini Command configured for a specific auth method.
+/// Build a gemini Command configured for a specific OAuth auth method.
 ///
-/// The env manipulation per variant:
+/// The env manipulation per variant (both strip any inherited
+/// `GEMINI_API_KEY` to force the OAuth path):
 /// - `OAuthProfile(name)`: sets `HOME=<profile-dir>`, env_removes `GEMINI_API_KEY`
 /// - `OAuthDefault`: env_removes `GEMINI_API_KEY` only (inherits real HOME)
-/// - `ApiKey(k)`: sets `GEMINI_API_KEY=k` on the subprocess
 pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth) -> Command {
     let mut c = Command::new("gemini");
     let final_prompt = if loadout.is_empty() {
@@ -326,9 +255,6 @@ pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth
         }
         GeminiAuth::OAuthDefault => {
             c.env_remove("GEMINI_API_KEY");
-        }
-        GeminiAuth::ApiKey(key) => {
-            c.env("GEMINI_API_KEY", key);
         }
     }
     c
@@ -460,12 +386,14 @@ pub fn execute_with_timeout(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn dispatch(
     cli: &str,
     prompt: &str,
     loadout: &Loadout,
     effort: Option<&str>,
     spark: bool,
+    review: bool,
     json: bool,
     output_last_message: Option<&Path>,
 ) -> Result<String> {
@@ -486,10 +414,9 @@ pub fn dispatch(
         let chain = gemini_auth_chain();
         if chain.is_empty() {
             anyhow::bail!(
-                "gemini: no auth methods available. Set up at least one of:\n  \
+                "gemini: no OAuth auth methods available. Set up at least one of:\n  \
                  - default OAuth:       run `gemini login` (populates ~/.gemini/oauth_creds.json)\n  \
-                 - named OAuth profile: HOME=~/.config/xbreed/gemini-profiles/primary gemini login\n  \
-                 - API key:             add GEMINI_API_KEY=<key> to .env.local at the repo root"
+                 - named OAuth profile: HOME=~/.config/xbreed/gemini-profiles/primary gemini login"
             );
         }
 
@@ -523,9 +450,8 @@ pub fn dispatch(
 
         anyhow::bail!(
             "gemini failed at every auth level ({} tried, last={}, exit {:?}): {}\n\
-             hint: verify ~/.gemini/oauth_creds.json, \
-             ~/.config/xbreed/gemini-profiles/*/.gemini/oauth_creds.json, \
-             or .env.local GEMINI_API_KEY values",
+             hint: verify ~/.gemini/oauth_creds.json or \
+             ~/.config/xbreed/gemini-profiles/*/.gemini/oauth_creds.json",
             chain.len(),
             last_label,
             last_code,
@@ -535,11 +461,18 @@ pub fn dispatch(
 
     let cmd = match cli {
         "codex" => {
-            let mut c = build_codex_ask_with_loadout(loadout, spark, json, output_last_message);
+            let mut c =
+                build_codex_ask_with_loadout(loadout, spark, review, json, output_last_message);
             if spark {
                 warn_codex_spark_effort(effort);
             } else if let Some(e) = effort {
                 c.arg("-c").arg(format!("model_reasoning_effort={e}"));
+            } else if !review {
+                // Default (mini) lane: user directive 2026-04-17 — reasoning high
+                // unless the caller overrides via `-e/--effort`. Review lane
+                // inherits codex's own default (xhigh per ~/.codex/config.toml)
+                // so the extra capacity isn't starved by a mid-tier effort cap.
+                c.arg("-c").arg("model_reasoning_effort=high");
             }
             // User directive: codex ALWAYS inherits the godspeed posture
             // through xask in its purest form. Structural guarantee at the
@@ -607,18 +540,12 @@ mod tests {
         l
     }
 
-    fn write_env(body: &str) -> (tempfile::TempDir, std::path::PathBuf) {
-        use std::fs;
-        use tempfile::tempdir;
-        let tmp = tempdir().unwrap();
-        let p = tmp.path().join(".env.local");
-        fs::write(&p, body).unwrap();
-        (tmp, p)
-    }
-
     #[test]
-    fn codex_ask_empty_loadout_has_suppression_and_approval_flags() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, false, None);
+    fn codex_ask_default_lane_uses_mini_model() {
+        // Default lane (spark=false, review=false) = gpt-5.4-mini + fast_mode.
+        // User directive 2026-04-17 — mini is the standing default; review
+        // escalates to full 5.4 via the separate `review=true` branch.
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, false, false, None);
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
         let args = cmd_args(&c);
@@ -630,10 +557,10 @@ mod tests {
         assert!(args.contains(&"include_environment_context=false".to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert!(args.contains(&"--ephemeral".to_string()));
-        // Non-spark path pins CODEX_DEFAULT_MODEL explicitly for drift detection —
-        // codex's native default in v0.120.0 is gpt-5.4 per ~/.codex/config.toml.
+        // Default lane pins CODEX_MINI_MODEL (gpt-5.4-mini) explicitly.
         assert!(args.contains(&"-m".to_string()));
-        assert!(args.contains(&CODEX_DEFAULT_MODEL.to_string()));
+        assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
+        assert!(!args.contains(&CODEX_DEFAULT_MODEL.to_string()));
         // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
         assert!(args.contains(&"--sandbox".to_string()));
         assert!(args.contains(&"danger-full-access".to_string()));
@@ -643,8 +570,20 @@ mod tests {
     }
 
     #[test]
+    fn codex_ask_review_lane_uses_full_model() {
+        // Review lane: full gpt-5.4 for reviewer/critic/sentinel/the-revenger.
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, None);
+        c.arg("review this").arg(""); // second arg is a no-op placeholder
+        let args = cmd_args(&c);
+        assert!(args.contains(&"-m".to_string()));
+        assert!(args.contains(&CODEX_DEFAULT_MODEL.to_string()));
+        assert!(!args.contains(&CODEX_MINI_MODEL.to_string()));
+        assert!(args.contains(&"features.fast_mode=true".to_string()));
+    }
+
+    #[test]
     fn codex_ask_spark_adds_model_and_low_effort() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true, false, None);
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true, false, false, None);
         c.arg("probe"); // caller appends prompt
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -661,7 +600,7 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let mut c = build_codex_ask_with_loadout(&l, false, false, None);
+        let mut c = build_codex_ask_with_loadout(&l, false, false, false, None);
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
@@ -680,72 +619,9 @@ mod tests {
     #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
-        let err = dispatch("unknown-cli", "hello", &l, None, false, false, None).unwrap_err();
+        let err =
+            dispatch("unknown-cli", "hello", &l, None, false, false, false, None).unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
-    }
-
-    #[test]
-    fn load_gemini_keys_simple() {
-        let (_tmp, p) =
-            write_env("GEMINI_API_KEY=primary-key\nGEMINI_API_KEY_FALLBACK=fallback-key\n");
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary.as_deref(), Some("primary-key"));
-        assert_eq!(keys.fallback.as_deref(), Some("fallback-key"));
-    }
-
-    #[test]
-    fn load_gemini_keys_handles_crlf_bom_quotes_and_trailing_ws() {
-        let content =
-            "\u{FEFF}GEMINI_API_KEY=\"primary-key\"  \r\nGEMINI_API_KEY_FALLBACK=fallback-key \r\n";
-        let (_tmp, p) = write_env(content);
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary.as_deref(), Some("primary-key"));
-        assert_eq!(keys.fallback.as_deref(), Some("fallback-key"));
-    }
-
-    #[test]
-    fn load_gemini_keys_handles_spaces_around_equals() {
-        let (_tmp, p) = write_env("GEMINI_API_KEY = primary\nGEMINI_API_KEY_FALLBACK =fallback\n");
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary.as_deref(), Some("primary"));
-        assert_eq!(keys.fallback.as_deref(), Some("fallback"));
-    }
-
-    #[test]
-    fn load_gemini_keys_strips_inline_comments() {
-        let (_tmp, p) = write_env(
-            "GEMINI_API_KEY=primary # my primary key\nGEMINI_API_KEY_FALLBACK=fallback#no-space-preserved\n",
-        );
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary.as_deref(), Some("primary"));
-        assert_eq!(
-            keys.fallback.as_deref(),
-            Some("fallback#no-space-preserved")
-        );
-    }
-
-    #[test]
-    fn load_gemini_keys_skips_full_line_comments_and_blanks() {
-        let (_tmp, p) = write_env(
-            "# top comment\n\nGEMINI_API_KEY=primary\n  # indented comment\nGEMINI_API_KEY_FALLBACK=fallback\n\n",
-        );
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary.as_deref(), Some("primary"));
-        assert_eq!(keys.fallback.as_deref(), Some("fallback"));
-    }
-
-    #[test]
-    fn load_gemini_keys_empty_primary_does_not_promote_fallback() {
-        let (_tmp, p) = write_env("GEMINI_API_KEY=\nGEMINI_API_KEY_FALLBACK=only-one\n");
-        let keys = load_gemini_keys_from(&p);
-        assert_eq!(keys.primary, None);
-        assert_eq!(keys.fallback.as_deref(), Some("only-one"));
-    }
-
-    #[test]
-    fn load_gemini_keys_missing_file_returns_default() {
-        let keys = load_gemini_keys_from(std::path::Path::new("/nonexistent-file-abc-123"));
-        assert_eq!(keys, GeminiKeys::default());
     }
 
     #[test]
@@ -792,7 +668,6 @@ mod tests {
             "oauth:alice"
         );
         assert_eq!(GeminiAuth::OAuthDefault.label(), "oauth:default");
-        assert_eq!(GeminiAuth::ApiKey("sk-abc".into()).label(), "api-key");
     }
 
     #[test]
@@ -834,29 +709,6 @@ mod tests {
             .get_envs()
             .any(|(k, v)| k == std::ffi::OsStr::new("GEMINI_API_KEY") && v.is_none());
         assert!(has_removed, "OAuthProfile must env_remove GEMINI_API_KEY");
-    }
-
-    #[test]
-    fn build_gemini_with_auth_api_key_injects_env_var() {
-        let loadout = Loadout::empty();
-        let cmd = build_gemini_with_auth(
-            "hello",
-            &loadout,
-            &GeminiAuth::ApiKey("test-key-xyz".into()),
-        );
-        let has_key = cmd.get_envs().any(|(k, v)| {
-            k == std::ffi::OsStr::new("GEMINI_API_KEY")
-                && v == Some(std::ffi::OsStr::new("test-key-xyz"))
-        });
-        assert!(
-            has_key,
-            "ApiKey auth must set GEMINI_API_KEY on the Command"
-        );
-        // ApiKey should NOT touch HOME
-        let touches_home = cmd
-            .get_envs()
-            .any(|(k, _)| k == std::ffi::OsStr::new("HOME"));
-        assert!(!touches_home, "ApiKey auth must NOT override HOME");
     }
 
     #[test]
@@ -961,6 +813,7 @@ mod tests {
             "test prompt",
             &super::Loadout::empty(),
             None,
+            false,
             false,
             false,
             None,

@@ -1,18 +1,24 @@
 #!/bin/bash
 # xask — minimal routing protocol for cross-model orchestration
-# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"] ["<skill>"]
+# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-R] [-e <level>] <model> "<query>" ["<context>"] ["<skill>"]
 #
 # All dispatches route through `xbreed ask`. Always-on: suppression, approval bypass,
-# auth cascade, godspeed forwarding, fast_mode (gpt-5.4). See docs/xask-protocol.md.
+# auth cascade, godspeed forwarding, fast_mode (gpt-5.4 family). See docs/xask-protocol.md.
 #
-# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -e (effort)
+# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -R (review) | -e (effort)
+#
+# codex model lanes:
+#   default: gpt-5.4-mini + fast_mode + reasoning=high (user directive 2026-04-17)
+#   --spark: gpt-5.3-codex-spark + reasoning=low (labrat probes)
+#   --review / -R: gpt-5.4 (full) + fast_mode (reviewer/critic/sentinel/the-revenger)
 #
 # Examples:
 #   xask gemini "What patterns exist?"              # clean, godspeed loaded
 #   xask -s "src/ask.rs" gemini "Review this"       # scoped clean dispatch
 #   xask -r gemini "Explore the codebase"           # full context, dir tree ON
 #   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
-#   xask -e high codex "Deep review"                # high reasoning effort
+#   xask -R codex "Adversarial review of <diff>"    # review lane — full gpt-5.4
+#   xask -e high codex "Deep question"              # explicit reasoning effort
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 
 # Handle flags
@@ -20,10 +26,12 @@ DEBUG=false
 SCOPE="entire project"
 RICH=false
 SPARK=false
+REVIEW=false
 EFFORT=""
 OUTPUT_LAST_MESSAGE=""
 EFFORT_FLAGS=()
 SPARK_FLAGS=()
+REVIEW_FLAGS=()
 OUTPUT_FLAGS=()
 JSON_FLAGS=()
 while [[ "$1" == -* ]]; do
@@ -32,10 +40,11 @@ while [[ "$1" == -* ]]; do
     --scope  | -s)   SCOPE="$2"; shift 2 ;;
     --rich   | -r)   RICH=true; shift ;;
     --spark  | --spk) SPARK=true; shift ;;
+    --review | -R)   REVIEW=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
     --output-last-message | -o) OUTPUT_LAST_MESSAGE="$2"; shift 2 ;;
     --json) JSON=true; shift ;;
-    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
+    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -R|--review, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
   esac
 done
 
@@ -47,6 +56,7 @@ if [ -n "$EFFORT" ]; then
 fi
 [ -n "$EFFORT" ] && EFFORT_FLAGS=(--effort "$EFFORT")
 [ "$SPARK" = true ] && SPARK_FLAGS=(--spark)
+[ "$REVIEW" = true ] && REVIEW_FLAGS=(--review)
 [ -n "$OUTPUT_LAST_MESSAGE" ] && OUTPUT_FLAGS=(--output-last-message "$OUTPUT_LAST_MESSAGE")
 [ "$JSON" = true ] && JSON_FLAGS=(--json)
 
@@ -69,7 +79,7 @@ TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
 if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
-  echo "Usage: xask [-d|--debug] [-s|--scope <boundary>] [-r|--rich] [--spk|--spark] [-e|--effort <level>] [-o|--output-last-message <FILE>] [--json] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
+  echo "Usage: xask [-d|--debug] [-s|--scope <boundary>] [-r|--rich] [--spk|--spark] [-R|--review] [-e|--effort <level>] [-o|--output-last-message <FILE>] [--json] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
   exit 1
 fi
 
@@ -119,6 +129,7 @@ if [ "$DEBUG" = true ]; then
   echo "MODEL: $MODEL"
   echo "MODE: $([ "$RICH" = true ] && echo RICH || echo CLEAN)"
   echo "SPARK: $SPARK"
+  echo "REVIEW: $REVIEW"
   echo "EFFORT: ${EFFORT:-<unset>}"
   echo "SCOPE: $SCOPE"
   echo "SKILL: $SKILL"
@@ -190,7 +201,7 @@ case "$MODEL" in
     xbreed ask gemini --with "$SKILL" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   codex)
-    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "${OUTPUT_FLAGS[@]}" "${JSON_FLAGS[@]}" "$PROMPT"
+    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${REVIEW_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "${OUTPUT_FLAGS[@]}" "${JSON_FLAGS[@]}" "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini or codex." >&2

@@ -24,12 +24,12 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 
 **Layer 1 — Gate (structural):**
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>' 'librarian'. No other tool before xask returns."` (default — gemini medium = `# ThinkingBudget: 4096`, librarian loadout for taste-filtered discovery; if gemini 429s, scout may fall back to `xask --effort medium codex` + flag as `[xask dry — gemini 429 fallback]` per Layer 3)
-- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<review question>'. No other tool before xask returns."` For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
+- **reviewer**: `"Your FIRST tool call MUST be Bash: xask -R codex '<review question>'. No other tool before xask returns."` (`-R` = review lane → full gpt-5.4 via `CODEX_DEFAULT_MODEL`; reasoning inherits codex's own default xhigh per `~/.codex/config.toml`. Pass `-e high` to explicitly cap reasoning below xhigh.) For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns."` *(connector is locked to gemini high — does not fall back to codex; see feedback_connector_gemini_high.md)*
-- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<surface enumeration question>'. No other tool before xask returns."` (when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering) *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)*
-- **sentinel**: `"Your FIRST tool call MUST be Bash: xask --effort high codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."`
-- **critic**: For `cco-critic-*` (opus): `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --effort high codex '<design review question>'. No other tool before xask returns."` For `ccs-critic-*` (sonnet): skip Layer 0; first tool call is the xask gate as written here. See `feedback_cco_critic_heuer.md`.
+- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask -R codex '<surface enumeration question>'. No other tool before xask returns."` (`-R` = review lane; when dispatched for recon on unfamiliar systems; skip gate for in-repo reverse engineering)
+- **sentinel**: `"Your FIRST tool call MUST be Bash: xask -R codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."` (`-R` = review lane)
+- **critic**: `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask -R codex '<design review question>'. No other tool before xask returns."` (all critic teammates now run opus 4.7 high per unified scheme 2026-04-17; the ccs-/cco- prefix split is retired — the on_spawn_skill frontmatter handles heuer-planning load.)
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash, EITHER: (a) `xask --spark codex '<generate mutation for this function>'` for a single targeted mutation (fast spot-check), OR (b) `xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>. Vary the angle per mutation (boundary, operator-flip, return-swap, etc). Report each in HYPOTHESIS/METHOD/RESULT.'` for systematic 10-probe coverage (gemini low = `# ThinkingBudget: 512`). No other tool before xask returns. Pick (a) for ≤4 mutation targets, (b) for ≥3 or for breadth discovery."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns."`
 - **the-planner**: `"Your FIRST tool call MUST be Skill(skill='wwkd') — this is Layer 0 (loads the What Would Karpathy Do planning posture: data-walk-first, end-to-end skeleton before capacity, overfit-one-case before generalizing, structural verification at every step). After the skill loads, proceed to Phase 0 data-walk + WWKD skeleton per the-planner.md template. NO Layer-1 xask gate — CC-native planning."` See `feedback_the_planner_wwkd.md`.
@@ -57,27 +57,41 @@ Include in every teammate brief:
 
 Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
 
+**Unified scheme (2026-04-17):** Claude teammates uniformly run opus 4.7; effort
+tiers split by role (judge xhigh, critic/connector/planner high, rest medium).
+Distiller is the lone sonnet holdout (synthesis work is pattern-match throughput).
+Codex dispatches default to gpt-5.4-mini + fast_mode + reasoning high; review-class
+roles escalate to full gpt-5.4 via `xask -R codex` (handled by src/ask.rs
+`CODEX_MINI_MODEL` / `CODEX_DEFAULT_MODEL` split).
+
+**Mandatory connector on every round:** the-judge MUST spawn a `connector`
+teammate on each Pareto round (including Round 1), no exceptions. Cross-axis
+pattern matching catches second-order effects, contradictions between axis
+proposals, and whole-table regressions that the focused specialists miss by
+construction. Skipping connector is a structural gap, not a speed optimization.
+
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | sonnet | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
-| Correctness, bugs | `reviewer` | sonnet | `xask --effort high codex` | All |
-| Empirical probes | `labrat` | sonnet | `xask --spark codex` | All |
-| Code execution | `executor` | sonnet | `xask --spark codex` | All |
-| Cross-axis patterns | `connector` | sonnet | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
-| Synthesis, dedup | `distiller` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | in-session | All |
-| Deletion, YAGNI | `simplifier` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
-| Reverse engineering | `the-revenger` | opus 4.7 high | `xask --effort high codex` for surface enum *(gemini-rate-limited 2026-04-15; restore when canary in §Axis→Profile table footnote passes)* | All |
-| Security auditing | `sentinel` | sonnet | `xask --effort high codex` + `xask gemini` | All |
-| Planning, Phase 0, WWKD sequencing | `the-planner` | opus 4.7 high · Layer-0 wwkd skill load (LOCKED — see `feedback_the_planner_wwkd.md`) | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
-| Adversarial design | `critic` | sonnet | `xask --effort high codex` | All |
-| Test validation | `mutation-tester` | sonnet | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) — see Layer-1 gate above for selection rule | All |
-| Documentation, audit trail | `scribe` | sonnet · medium (LOCKED — see `feedback_sonnet_effort_tiers.md`) | CC native | All |
+| Research, prior art | `scout` | opus 4.7 · medium | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
+| Correctness, bugs | `reviewer` | opus 4.7 · medium | `xask -R codex` (review lane — full gpt-5.4) | All |
+| Empirical probes | `labrat` | opus 4.7 · medium | `xask --spark codex` | All |
+| Code execution | `executor` | opus 4.7 · medium | `xask --spark codex` | All |
+| Cross-axis patterns | `connector` | opus 4.7 · high | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
+| Synthesis, dedup | `distiller` | sonnet · medium (holdout — pattern-match throughput, see `feedback_sonnet_effort_tiers.md`) | in-session | All |
+| Deletion, YAGNI | `simplifier` | opus 4.7 · medium | CC native | All |
+| Reverse engineering | `the-revenger` | opus 4.7 · medium | `xask -R codex` for surface enum (review lane) | All |
+| Security auditing | `sentinel` | opus 4.7 · medium | `xask -R codex` + `xask gemini` | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` | opus 4.7 · high · Layer-0 wwkd skill load | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
+| Adversarial design | `critic` | opus 4.7 · high · Layer-0 heuer-planning skill load (cco- prefix only) | `xask -R codex` | All |
+| Test validation | `mutation-tester` | opus 4.7 · medium | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) | All |
+| Documentation, audit trail | `scribe` | opus 4.7 · medium | CC native | All |
+| Orchestration, arbitration | `the-judge` | opus 4.7 · xhigh | top-of-stack; dispatches specialists | All |
 
-**Gemini restoration canary (machine-checkable):** before restoring any `xask --effort * gemini` routing marked `*(gemini-rate-limited 2026-04-15)*`, run:
+**Gemini health canary (machine-checkable):** confirm primary gemini routing is healthy before dispatching gemini-primary roles:
 ```
-xask --effort low gemini "ping" 2>&1 | grep -qv "RESOURCE_EXHAUSTED\|429" && echo RESTORE || echo HOLD
+xask --effort low gemini "ping" 2>&1 | grep -qv "RESOURCE_EXHAUSTED\|429" && echo OK || echo DEGRADED
 ```
-Exit 0 + `RESTORE` → primary gemini routing is healthy; revert the `-rate-limited` fallback annotations in this table + scout/connector/the-revenger Layer-1 gates above + AGENTS.md Delegation bias column. Exit 1 or `HOLD` → keep codex fallback. **Caveat:** ask.rs gemini path has a 5-level auth cascade (OAuthProfile → fallback → OAuthDefault → ApiKey → fallback); the canary passing means *some* auth level succeeded, not primary OAuth. For strict primary-OAuth health, prepend `GEMINI_API_KEY=""` to force the OAuth-only path.
+Exit 0 + `OK` → primary gemini routing is healthy. Exit 1 or `DEGRADED` → fall back to codex (scout: `xask --effort medium codex`; the-revenger: `xask -R codex` is already the primary). **Caveat:** ask.rs gemini path has a 3-level OAuth cascade (profile:primary → profile:fallback → default); the canary passing means *some* OAuth level succeeded, not necessarily the primary profile. For strict primary-OAuth health, ensure the `~/.config/xbreed/gemini-profiles/primary/.gemini/oauth_creds.json` is valid.
 
 ## Enforcement Tiers
 

@@ -109,9 +109,12 @@ fn ask_gemini_with_loadout_prepends_to_prompt() {
     write_skill(home, "godspeed", "GO FAST NOW");
     write_stub(&bin_dir, "gemini", &log);
 
-    // Write a .env.local so gemini_auth_chain() has at least one ApiKey entry.
-    // The stub exits 0 immediately so the key value doesn't need to be real.
-    fs::write(home.join(".env.local"), "GEMINI_API_KEY=test-key\n").unwrap();
+    // Create a fake OAuth creds file so gemini_auth_chain() returns the
+    // OAuthDefault entry (xbreed is OAuth-exclusive as of 2026-04-17). The
+    // stub gemini binary exits 0 immediately so the creds don't need to be
+    // valid — only the file's existence is checked by default_gemini_oauth_exists.
+    fs::create_dir_all(home.join(".gemini")).unwrap();
+    fs::write(home.join(".gemini/oauth_creds.json"), "{}\n").unwrap();
 
     let out = run_xbreed_ask_in_dir(
         home,
@@ -251,19 +254,21 @@ fn ask_codex_route_preserves_full_unlock_contract() {
         "missing features.fast_mode=true in argv: {argv:?}"
     );
 
-    // M10 (explicit codex default model pin): non-spark dispatch must include
-    // -m gpt-5.4 so a codex version bump that shifts the default model is
-    // caught at argv audit time, not silently. Pairs with ask.rs constant
-    // CODEX_DEFAULT_MODEL and ~/.codex/config.toml SSoT.
+    // M10 (explicit codex default model pin): the default (non-spark, non-review)
+    // dispatch lane must include -m gpt-5.4-mini so a codex version bump that
+    // shifts the default model is caught at argv audit time, not silently.
+    // Pairs with ask.rs constant CODEX_MINI_MODEL and ~/.codex/config.toml SSoT.
+    // User directive 2026-04-17: mini is the standing default; review lane
+    // (`xask -R codex`) is the path to full gpt-5.4.
     let m_idx = argv.iter().position(|a| a == "-m");
     assert!(
         m_idx.is_some(),
-        "missing -m flag in non-spark argv: {argv:?}"
+        "missing -m flag in default-lane argv: {argv:?}"
     );
     assert_eq!(
         argv[m_idx.unwrap() + 1],
-        "gpt-5.4",
-        "non-spark path must pin -m gpt-5.4: {argv:?}"
+        "gpt-5.4-mini",
+        "default (non-spark, non-review) path must pin -m gpt-5.4-mini: {argv:?}"
     );
 }
 
@@ -279,7 +284,8 @@ fn ask_gemini_uses_yolo_and_no_native_effort_flag() {
     let log = home.join("gemini.log");
 
     write_stub(&bin_dir, "gemini", &log);
-    fs::write(home.join(".env.local"), "GEMINI_API_KEY=test-key\n").unwrap();
+    fs::create_dir_all(home.join(".gemini")).unwrap();
+    fs::write(home.join(".gemini/oauth_creds.json"), "{}\n").unwrap();
 
     let out = run_xbreed_ask_in_dir(
         home,

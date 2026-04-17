@@ -53,6 +53,12 @@ pub enum Commands {
         /// Equivalent to: -m gpt-5.3-codex-spark + model_reasoning_effort=low
         #[arg(long)]
         spark: bool,
+        /// Use the full gpt-5.4 review lane (codex only) instead of the
+        /// default gpt-5.4-mini. Reserved for reviewer/critic/sentinel/
+        /// the-revenger-class work where the extra capacity earns the cost.
+        /// Mutually exclusive with --spark; --spark wins if both are set.
+        #[arg(long, short = 'R')]
+        review: bool,
         /// Emit raw JSON from codex exec responses (codex only).
         /// Passes --json to codex exec; no-op for gemini.
         #[arg(long)]
