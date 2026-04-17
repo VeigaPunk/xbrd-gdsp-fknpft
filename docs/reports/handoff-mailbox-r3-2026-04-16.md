@@ -18,7 +18,7 @@ Per prior handoff §R3+ candidates (Option E idle-thread compact, serde_json_bor
 | **L-p50** | ↓ | 42.2ms drain @ n=100k | unchanged | CLOSED — CPU-parse empirically exhausted |
 | **L-p95** | ↓ | ~44ms drain @ n=100k | unchanged | CLOSED — same |
 | **A-decouple** | ↑ | 24.5ms sync caller | **57µs async caller (430×)** | SHIPPED (opt-in `compact_async`) |
-| **C-invariants** | maintain | 13 tests | 15 tests | 2 new + 4 mutation vectors killed |
+| **C-invariants** | maintain | 13 tests | **17 tests** | 2 sidecar + 2 orphan-recovery + 3 Option E tests added |
 | **R-refactor** | ↓ | baseline | 0 breakage | additive-only (compact_events unchanged) |
 | **S-simplicity** | maintain | +225 mmap LOC | **−225 LOC + 1 dep** | mmap cluster + memmap2 dropped |
 | **M-methodology** | ↑ | ±20ms @ IT=25 | 2.93% variance @ IT=100 | ITERATIONS 25→100 + TMPDIR |
@@ -27,6 +27,9 @@ Per prior handoff §R3+ candidates (Option E idle-thread compact, serde_json_bor
 ## Commits this session
 
 ```
+8216eb4 style(mailbox): cargo fmt on orphan recovery block
+24b1538 fix(mailbox): R3 Gate 4 — orphan recovery for crashed compactors
+f563165 docs(handoff): mailbox-r3-0416 mission complete — R0→R3 summary (this file, pre-Gate-4)
 50d1803 chore(mailbox): R3 follow-up — Cargo.lock memmap2 drop + baseline JSON refresh
 335aae4 perf(mailbox): R3 M2 Option E — async compact worker, 430× caller latency reduction
 b9893e3 docs(mailbox): R3 round-1 findings report — 9 moves, M2 Option E accepted w/ critic conditions
@@ -34,6 +37,8 @@ e598400 perf(bench): R3 M1 methodology — ITERATIONS 25→100, explicit TMPDIR
 f189d43 test(mailbox): R3 M-tests — cover concurrent-drain ownership + .tmp sidecar filter
 27c7e97 perf(mailbox): R3 M-deletion — drop mmap cluster (REJECTED R2, ~225 LOC + 1 dep)
 ```
+
+**Gate 4 audit note:** Post-ship distiller audit caught Gate 4 (orphan recovery) missing from 335aae4. Landed in 24b1538 (+93 LOC to `collect_compact_sidecars` + 2 tests). Final test count: **17/17 mailbox tests green**. All four Option E gates confirmed landed.
 
 ## Quick verify (next session, ≤60s)
 
