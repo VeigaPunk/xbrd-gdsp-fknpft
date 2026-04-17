@@ -160,6 +160,13 @@ fn parse_events_string(contents: &str) -> Result<Vec<Event>> {
 /// Rename each `events.compact_ready.*` sidecar into a drain-scoped temp file,
 /// read it, then delete. Uses rename to claim exclusive ownership so concurrent
 /// drains don't double-count the same sidecar. Returns concatenated contents.
+///
+/// Also recovers orphan `events.compact.<dead_pid>` files — the in-flight
+/// rename target that `compact_events_sync` uses between `rename(events.ndjson,
+/// events.compact.<pid>)` and the sidecar publish. If the owning process
+/// panicked or was killed in that window, the compact file is orphaned and
+/// its events would vanish without this recovery path. Only adopted if the
+/// owning pid is confirmed dead (Linux: `/proc/<pid>` absent).
 fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
     let parent = match mailbox_path.parent() {
         Some(p) => p,
@@ -170,6 +177,7 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
         .and_then(|s| s.to_str())
         .unwrap_or("events");
     let sidecar_prefix = format!("{stem}.compact_ready.");
+    let orphan_prefix = format!("{stem}.compact.");
     let entries = match std::fs::read_dir(parent) {
         Ok(e) => e,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(String::new()),
@@ -182,27 +190,53 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
             Some(s) => s,
             None => continue,
         };
-        if !name_str.starts_with(&sidecar_prefix) || name_str.ends_with(".tmp") {
+        if name_str.ends_with(".tmp") {
             continue;
         }
-        let sidecar = entry.path();
-        let drain_sidecar = sidecar.with_extension(format!(
+        let (suffix, is_orphan) = if let Some(s) = name_str.strip_prefix(&sidecar_prefix) {
+            (s, false)
+        } else if let Some(s) = name_str.strip_prefix(&orphan_prefix) {
+            // Only adopt orphan compact.<pid> if pid is dead. Avoids racing
+            // a live compactor mid-rename.
+            match s.parse::<u32>() {
+                Ok(pid) if !pid_is_alive(pid) => (s, true),
+                _ => continue,
+            }
+        } else {
+            continue;
+        };
+        let source = entry.path();
+        let drain_target = source.with_extension(format!(
             "drained_by.{}.{}",
             std::process::id(),
-            name_str.trim_start_matches(&sidecar_prefix)
+            suffix
         ));
         // Claim exclusive ownership via rename; another drain may have grabbed
         // it between the readdir and this rename — that's fine, skip silently.
-        if std::fs::rename(&sidecar, &drain_sidecar).is_err() {
+        if std::fs::rename(&source, &drain_target).is_err() {
             continue;
         }
-        match std::fs::read_to_string(&drain_sidecar) {
+        match std::fs::read_to_string(&drain_target) {
             Ok(c) => collected.push_str(&c),
-            Err(err) => eprintln!("xbreed mailbox: sidecar read failed: {err}"),
+            Err(err) => {
+                let kind = if is_orphan { "orphan compact" } else { "sidecar" };
+                eprintln!("xbreed mailbox: {kind} read failed: {err}");
+            }
         }
-        let _ = std::fs::remove_file(&drain_sidecar);
+        let _ = std::fs::remove_file(&drain_target);
     }
     Ok(collected)
+}
+
+/// Check whether a process with `pid` is still running. On Linux, probes
+/// `/proc/<pid>`; on other platforms, returns `true` conservatively so orphan
+/// recovery never races a potentially-live compactor.
+fn pid_is_alive(pid: u32) -> bool {
+    if cfg!(target_os = "linux") {
+        std::path::Path::new(&format!("/proc/{pid}")).exists()
+    } else {
+        true
+    }
 }
 
 /// Format drained events as Claude Code hook JSON for UserPromptSubmit
@@ -748,6 +782,57 @@ mod tests {
             tmp_sidecar.exists(),
             ".tmp sidecar must not be consumed by drain"
         );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn drain_adopts_orphan_compact_file_with_dead_pid() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        // Simulate a crashed compactor: write an events.compact.<dead_pid>
+        // with events that were in-flight when the owner was killed.
+        // 999999999 is well above Linux max pid (/proc/999999999 absent).
+        let orphan = path.with_extension("compact.999999999");
+        let e = Event {
+            timestamp_ms: 42,
+            from: "orphaned".to_string(),
+            event_type: "ping".to_string(),
+            payload: "recover-me".to_string(),
+        };
+        std::fs::write(&orphan, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(events.len(), 1, "orphan compact file must be adopted");
+        assert_eq!(events[0].from, "orphaned");
+        assert!(
+            !orphan.exists(),
+            "adopted orphan file must be removed after drain"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn drain_skips_orphan_compact_file_with_live_pid() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        // Own pid is definitively alive — drain must not race a live compactor
+        // by adopting its in-flight rename target.
+        let live = path.with_extension(format!("compact.{}", std::process::id()));
+        let e = Event {
+            timestamp_ms: 1,
+            from: "live-compactor".to_string(),
+            event_type: "ping".to_string(),
+            payload: "do-not-race".to_string(),
+        };
+        std::fs::write(&live, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(events.len(), 0, "live-pid orphan must NOT be adopted");
+        assert!(live.exists(), "live-pid file must be left untouched");
     }
 
     /// Structural latency gate: async compact path must return in under 2ms
