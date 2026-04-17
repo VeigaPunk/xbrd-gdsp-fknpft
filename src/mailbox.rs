@@ -529,4 +529,78 @@ mod tests {
         }
         assert!(!raw.is_empty(), "expected mailbox output");
     }
+
+    #[test]
+    fn compact_sidecar_consumed_exactly_once_under_concurrent_drain() {
+        let dir = tempdir().unwrap();
+        // Pre-place a compact_ready sidecar with 10 events.
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let sidecar = path.with_extension("compact_ready.99999");
+        let mut contents = String::new();
+        for i in 0..10 {
+            let e = Event {
+                timestamp_ms: 1000 + i,
+                from: format!("pre-{i}"),
+                event_type: "sidecar".to_string(),
+                payload: "x".to_string(),
+            };
+            contents.push_str(&serde_json::to_string(&e).unwrap());
+            contents.push('\n');
+        }
+        std::fs::write(&sidecar, &contents).unwrap();
+
+        let gate = Arc::new(Barrier::new(2));
+        let dir1 = dir.path().to_path_buf();
+        let dir2 = dir.path().to_path_buf();
+        let gate1 = Arc::clone(&gate);
+        let gate2 = Arc::clone(&gate);
+
+        let t1 = thread::spawn(move || {
+            gate1.wait();
+            drain_events(&dir1).unwrap()
+        });
+        let t2 = thread::spawn(move || {
+            gate2.wait();
+            drain_events(&dir2).unwrap()
+        });
+
+        let r1 = t1.join().unwrap();
+        let r2 = t2.join().unwrap();
+        let total = r1.len() + r2.len();
+        assert_eq!(total, 10, "sidecar must be consumed exactly once: got {total}");
+    }
+
+    #[test]
+    fn drain_skips_compact_ready_tmp_sidecars() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        // Place a .tmp sidecar (in-progress write, must be ignored).
+        let tmp_sidecar = path.with_extension("compact_ready.12345.tmp");
+        let e = Event {
+            timestamp_ms: 1,
+            from: "ghost".to_string(),
+            event_type: "ghost".to_string(),
+            payload: "should-not-appear".to_string(),
+        };
+        std::fs::write(&tmp_sidecar, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+
+        // Place a real sidecar with one event.
+        let real_sidecar = path.with_extension("compact_ready.12346");
+        let e2 = Event {
+            timestamp_ms: 2,
+            from: "real".to_string(),
+            event_type: "real".to_string(),
+            payload: "should-appear".to_string(),
+        };
+        std::fs::write(&real_sidecar, serde_json::to_string(&e2).unwrap() + "\n").unwrap();
+
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(events.len(), 1, "only real sidecar event should appear");
+        assert_eq!(events[0].from, "real");
+        // .tmp sidecar must still exist (not consumed).
+        assert!(tmp_sidecar.exists(), ".tmp sidecar must not be consumed by drain");
+    }
 }
