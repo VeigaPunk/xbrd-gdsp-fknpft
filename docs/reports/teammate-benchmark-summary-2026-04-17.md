@@ -10,7 +10,7 @@
 
 ## Headline findings
 
-1. **Teammate-mode `effort:` frontmatter is a no-op** (confirmed empirically, 7 distinct labels → identical behaviour at session xhigh).
+1. **Teammate-mode `effort:` frontmatter is a no-op** (user-confirmed at dispatch; consistent with Phase C's labels-vs-behaviour audit trail but n=3-4 per cohort is too small to prove independently — Phase A's identical-config cohort had wider tok/s variance than Phase C's differently-labelled one).
 2. **Opus vs sonnet on a hard design task (xhigh, n=6):** opus is 6% faster wall-time, produces 67% fewer output tokens, 45% fewer tokens per quality point, and 5× less variance on tok/s. Opus mean quality 16.00 vs sonnet 14.67 (4-axis judge rubric, 1-5 each).
 3. **11/13 teammates converged on PATH-shim + env-injection** as the design for per-teammate effort. Separation was rigor of failure-mode treatment, not architectural novelty. The 2 outliers (sonnet-high, sonnet-b) proposed heavier architectures with bigger load-bearing unknowns and scored lower.
 
@@ -55,7 +55,7 @@ Bottom tier (3):
 | tok/s stddev       | 21.1   | 9.0    |
 | quality mean       | 15.33  | 17.00  |
 | quality stddev     | 1.21   | 2.08   |
-| input_tokens mean  | 25.5   | 2,549  (skewed by opus-c at 14,645) |
+| input_tokens mean  | 25.5   | 2,121  (skewed by opus-c at 14,645; trimmed median ≈ 32) |
 | cache_read mean    | 328,173 | 410,017 |
 
 Notes:
@@ -64,6 +64,13 @@ Notes:
 - Opus-c's 14,645 input_tokens is a single-run outlier (read-all-context spiral) and did NOT buy higher quality.
 
 ---
+
+## Methodology caveats (advisor-flagged)
+
+- **Single-judge bias.** All 13 proposals were scored in one pass by one opus judge. 11/13 had converged on PATH-shim, which may have primed "shim = correct" framing; the 2 non-shim outliers (sonnet-b's TeamCreate bypass, sonnet-high's multi-session bucketing) got soundness-docked for "unverified load-bearing assumption" — but `pane_title = teammate name` is an equivalent unverified load-bearing assumption inside every shim proposal and wasn't penalized as hard. sonnet-b at 13 may be unfair on merit. For strong comparisons, re-score with a second independent judge.
+- **"Tokens per quality point" is a rough heuristic, not a metric.** Quality totals are small-integer sums (range 4-20); treating them as continuous is an abuse of the scale. Use as cost direction-of-travel only.
+- **Tool-count is nearly constant on this task.** 11/13 teammates produced identical 7-call signatures (3 Reads mapping to the 3 files the brief named + 3 SendMessages + 1 ToolSearch). Future benchmarks should choose tasks where tool selection genuinely differentiates model behavior.
+- **n=3-4 per cohort is too small for variance claims to carry independent weight.** The direction-of-travel (opus lower variance, lower tokens, higher quality on this task) is consistent across both phases but shouldn't be treated as tested with statistical power.
 
 ## Observations for future xbgst missions
 
@@ -97,7 +104,9 @@ Best implementation suggested by the top-2 proposals: **Rust shim binary** (not 
 - Skeleton-first metrics (scripts/bench-metrics.py validated on a known R1 jsonl with EXACT value match) meant the Phase C + Phase A rows were trustworthy on first pass.
 - Commit-per-phase cadence preserved auditability.
 
-All three wwkd biases (data-first, skeleton-first, overfit-first) fired correctly. The only rework was a 2-minute locator regex fix after shell swallowed Python backticks.
+All three wwkd biases (data-first, skeleton-first, overfit-first) fired correctly. The M2 single-teammate smoke specifically caught the locator regex shell-escaping issue against the orchestrator's own jsonl (two hits when one expected) — fixing it there cost 2 minutes; missing it would have mis-attributed all 7 Phase-C jsonls and corrupted the entire TSV. Direct wwkd overfit-one-before-scaling win.
+
+**Convention deviation:** report-writing this session was done inline by the orchestrator, not via a `ccs-scribe` subagent per `feedback_scribe_per_round.md`. Minor; noted for retrospective.
 
 ---
 

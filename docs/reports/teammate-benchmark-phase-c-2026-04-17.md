@@ -12,9 +12,11 @@
 
 `effort:` frontmatter in teammate-mode is a **no-op** — all 7 teammates spawned with intentionally-distinct `effort:` labels will actually run at the session's `effortLevel: xhigh` (from `~/.claude/settings.json`).
 
-## Confirmation
+## Confirmation (primary evidence)
 
-User-confirmed at dispatch time: *"they still spawned with predetermined effort set by global configs on claude code cli settings"*. The TSV below shows within-model variance consistent with baseline stochasticity, not effort-driven differentiation.
+**User FYI at dispatch time** (strongest evidence): *"they still spawned with predetermined effort set by global configs on claude code cli settings"*.
+
+The TSV below shows within-model variance that is **consistent with** baseline stochasticity. It is NOT independently dispositive: n=3-4 per cohort has no statistical power to distinguish effort-driven variance from pure run-to-run noise, and Phase A's identical-config cohort shows wider tok/s variance (±26% for sonnet) than Phase C's (±5%). The noop conclusion rests on the user's dispatch-time confirmation plus the pre-existing memory claim (`feedback_teammate_mode_effort_caveat.md`, empirically grounded in R2's `ccs-labrat-effort-mechobs-r2` + Probe B). Phase C's role here is documenting the intended-labels-vs-actual-behaviour audit trail, not producing independent proof.
 
 ---
 
@@ -46,7 +48,7 @@ Raw data: `data/bench-phase-c.tsv`
 - tok/s: 62.9 – 82.3 → ±12%
 - tool_count: 7 / 7 / 7 / 10 — the "xhigh"-labelled teammate uniquely ran 3 Bash calls
 
-All within-model variance falls **under the ±20% plan-gate threshold** for declaring the effort frontmatter a no-op. Memory `feedback_teammate_mode_effort_caveat.md` **confirmed empirically**.
+All within-model variance falls **under the ±20% plan-gate threshold** for proceeding to M4. This gate is for proceed/halt decision-making, not independent statistical proof (see §Confirmation above — Phase A's baseline-noise variance was wider than Phase C's, so the ±20% clean result in isolation is not strong evidence either way). Memory `feedback_teammate_mode_effort_caveat.md` remains the load-bearing claim; Phase C is **consistent with** it, not an independent empirical replication.
 
 ## Quality scores (advisor-as-judge, 4-axis, 1-5 integer)
 
@@ -74,8 +76,8 @@ Proposals: `data/proposals/*.md`
 ## Gate verdict
 
 - ✅ 7 teammates all sent PROPOSAL + SYNTHESIS_READY inside the 8-minute godspeed window (longest wall 195.7s).
-- ✅ Within-model variance under ±20% threshold for all metrics.
-- ✅ Memory claim `feedback_teammate_mode_effort_caveat.md` confirmed.
+- ✅ Within-model variance under ±20% plan-gate threshold for all metrics (proceed gate satisfied — see §Confirmation on what this gate does and does not demonstrate).
+- ✅ User FYI at dispatch + prior memory claim agree: teammates ran at session xhigh regardless of frontmatter label.
 - ✅ No halt — M4 Phase A proceeded directly.
 
 No tasks remain for Phase C.
