@@ -50,8 +50,10 @@ pub fn run(team_size: u32) -> anyhow::Result<CapResult> {
 }
 
 fn get_pane_count() -> anyhow::Result<u32> {
+    // Per-window scope: the cap formula is derived from one window's height being
+    // split across panes inside that window. `-a` would over-count across sessions.
     let output = std::process::Command::new("tmux")
-        .args(["list-panes", "-a"])
+        .args(["list-panes"])
         .output()
         .map_err(|_| anyhow::anyhow!("tmux not found"))?;
     if !output.status.success() {

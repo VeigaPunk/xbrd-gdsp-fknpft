@@ -114,8 +114,48 @@ Added "**Session Effort Configuration**" section to `commands/references/xbreed-
 
 ## Commit plan (R3)
 
-Single commit staged:
+R3 primary commit `910e01f` — shipped before advisor review:
 - `commands/references/xbreed-shared.md` (M-E2-R2 doc fix — Session Effort Configuration section)
-- `docs/reports/xbreed-harness-r3-2026-04-17.md` (this report)
+- `docs/reports/xbreed-harness-r3-2026-04-17.md` (this report — pre-advisor version)
 
-Exits mission: TeamDelete `xhc-r2-0417` after R3 commit lands.
+R3 follow-up commit (post-advisor review) — pending as of this section:
+- `src/precheck.rs` — per-window scope fix (changed `tmux list-panes -a` → `tmux list-panes`). Formula was derived from a single-window empirical measurement (R1 labrat: 9 panes in 46-row window); `-a` would over-count across sessions and trigger false-positives. One-line comment added.
+- `docs/reports/xbreed-harness-r3-2026-04-17.md` — this §Known gaps / post-mission follow-ups section.
+
+---
+
+## Known gaps / post-mission follow-ups
+
+Three gaps surfaced by post-R3 opus 4.7 max advisor review. None block mission closure; all three should be tracked as follow-up items per ceiling-honesty discipline.
+
+### Gap 1 — precheck per-window scope (FIXED in R3 follow-up commit)
+
+`src/precheck.rs:54` originally used `tmux list-panes -a` (all sessions across all windows). The R1 empirical formula was derived from a single 46-row window with 9 panes — per-window, not cross-session. With `-a`, other sessions' panes would over-count and trigger a false-positive rejection. Fixed in R3 follow-up: switched to `tmux list-panes` (current window only) with a one-line comment.
+
+### Gap 2 — preflight is a tool, not a wired-in gate (OPEN)
+
+`xbreed precheck pane-cap --team-size N` is shipped but **nothing auto-invokes it**. A user running `/xbgst` with N=10 teammates will still hit "no space for new pane" unless they remember to run the precheck first. This is a protocol-tier gap (per the 3-tier framework): the binary *can* enforce, but the dispatch workflow doesn't invoke it.
+
+**Reachable fix paths:**
+1. Add to xbgst/xbt/xgs skill instructions: "Before spawning N teammates, run `xbreed precheck pane-cap --team-size N` and halt if exit=1."
+2. Add as a PreToolUse hook for the Agent tool (harness-side) — currently not a documented CC extension point for batch-spawn inspection.
+3. Wrap `TeamCreate` in a bash helper that invokes precheck first.
+
+Path 1 is lowest-friction; path 3 is closest to build/CI-tier enforcement.
+
+### Gap 3 — CLAUDE_CODE_EFFORT_LEVEL empirical confirmation (OPEN)
+
+R3 labrat confirmed the env var as documented + documented as precedence-override, with env-inheritance mechanics verified via `/proc/$PPID/environ`. Codex-spark framed propagation as "functionally yes" rather than explicit OS-inheritance guarantee. **The empirical close requires a session restart** with `CLAUDE_CODE_EFFORT_LEVEL=medium claude` + re-running the R2 mechanical observation probe to confirm teammates report medium effective effort (or confirm continued no-self-observation with the override taking effect through session-init).
+
+Follow-up probe design (for future session):
+```bash
+CLAUDE_CODE_EFFORT_LEVEL=medium claude  # (or session-invoke with the var set)
+# then in a teammate brief, task: "printenv | grep CLAUDE_CODE_EFFORT_LEVEL"
+# expect: CLAUDE_CODE_EFFORT_LEVEL=medium propagated to teammate env
+```
+
+If the env var shows up in teammate `printenv` → empirical confirmation complete. If not → the env var overrides via an internal harness setting that doesn't propagate to subprocess env, and a different verification path is needed.
+
+---
+
+Exits mission: TeamDelete `xhc-r2-0417` completed at R3 primary commit `910e01f`. R3 follow-up commit is a minor cleanup to the accepted R3 state; no new team work.
