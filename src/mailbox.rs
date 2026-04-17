@@ -206,11 +206,8 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
             continue;
         };
         let source = entry.path();
-        let drain_target = source.with_extension(format!(
-            "drained_by.{}.{}",
-            std::process::id(),
-            suffix
-        ));
+        let drain_target =
+            source.with_extension(format!("drained_by.{}.{}", std::process::id(), suffix));
         // Claim exclusive ownership via rename; another drain may have grabbed
         // it between the readdir and this rename — that's fine, skip silently.
         if std::fs::rename(&source, &drain_target).is_err() {
@@ -219,7 +216,11 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
         match std::fs::read_to_string(&drain_target) {
             Ok(c) => collected.push_str(&c),
             Err(err) => {
-                let kind = if is_orphan { "orphan compact" } else { "sidecar" };
+                let kind = if is_orphan {
+                    "orphan compact"
+                } else {
+                    "sidecar"
+                };
                 eprintln!("xbreed mailbox: {kind} read failed: {err}");
             }
         }
