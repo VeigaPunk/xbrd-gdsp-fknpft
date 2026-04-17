@@ -1,0 +1,7 @@
+team	teammate	model	wall_s	out_tokens	tok_per_s	tool_count	tool_breakdown	input_tokens	cache_read_tokens	assistant_msgs	file
+bench-model-0417	ccs-bench-sonnet-a	claude-sonnet-4-6	201.1	18578	92.4	7	Read:3,SendMessage:3,ToolSearch:1	24	340580	12	3d8e8102-8295-48f9-b953-0d6eae7a3432.jsonl
+bench-model-0417	ccs-bench-sonnet-b	claude-sonnet-4-6	196.1	24987	127.4	7	Read:3,SendMessage:3,ToolSearch:1	28	392058	14	34e3b52d-51f3-4ff3-9bd5-fb793e441f95.jsonl
+bench-model-0417	ccs-bench-sonnet-c	claude-sonnet-4-6	191.9	12867	67.1	7	Read:3,SendMessage:3,ToolSearch:1	25	282169	11	873c92d3-5a8c-4638-bad9-9b68a62213d9.jsonl
+bench-model-0417	cco-bench-opus-a	claude-opus-4-7	188.3	10182	54.1	7	Read:3,SendMessage:3,ToolSearch:1	31	413576	11	278f905e-3566-49bf-9c07-1bfc6302d786.jsonl
+bench-model-0417	cco-bench-opus-b	claude-opus-4-7	186.2	12341	66.3	7	Read:3,SendMessage:3,ToolSearch:1	31	414605	11	7cb32186-4052-4144-9c30-02214ce2b049.jsonl
+bench-model-0417	cco-bench-opus-c	claude-opus-4-7	178.3	11339	63.6	10	Read:4,SendMessage:3,Bash:2,ToolSearch:1	14645	483894	14	49fbbe8f-4de6-4fef-823d-68c8d1e0efc2.jsonl

@@ -1,0 +1,145 @@
+[
+  {
+    "teammate": "ccs-probe-sonnet-low",
+    "phase": "C",
+    "model": "sonnet",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 4,
+    "reasoning_depth": 4,
+    "total": 16,
+    "notes": "PATH-shim + effort-map + pane_title lookup; explicitly flags pane_title assumption needs labrat verification; R3 Gap 3 listed as failure mode; zero-LoC prefix-derivation alternative mentioned with tradeoff."
+  },
+  {
+    "teammate": "ccs-probe-sonnet-med",
+    "phase": "C",
+    "model": "sonnet",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 4,
+    "reasoning_depth": 4,
+    "total": 16,
+    "notes": "Wrapper + effort-rules.json keyed on CLAUDE_CODE_TEAMMATE_NAME or argv --name scan; flags name-signal as critical unknown with cheap probe; protocol-tier brief-injection named as ceiling fallback."
+  },
+  {
+    "teammate": "ccs-probe-sonnet-high",
+    "phase": "C",
+    "model": "sonnet",
+    "soundness": 3,
+    "completeness": 4,
+    "implementability": 4,
+    "reasoning_depth": 5,
+    "total": 16,
+    "notes": "Effort-bucketed multi-session architecture — heavier than shim approaches; cross-session SendMessage routing is a big load-bearing unknown (honestly flagged); pane-cap amplification real; names protocol-tier zero-code alternative."
+  },
+  {
+    "teammate": "cco-probe-opus-low",
+    "phase": "C",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 5,
+    "implementability": 5,
+    "reasoning_depth": 4,
+    "total": 18,
+    "notes": "PATH-shim with fullest failure-mode treatment: 6 modes each with detection+rollback; R3 Gap 3 explicitly named as load-bearing and gating; 6 specific Build/CI tests; ship-gate on empirical Gap-3 close."
+  },
+  {
+    "teammate": "cco-probe-opus-med",
+    "phase": "C",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 5,
+    "reasoning_depth": 4,
+    "total": 17,
+    "notes": "argv[0]-dispatch shim via xbreed binary; 7 failure modes; 8 new tests with names; dry-run-first ship order; CLAUDE_TEAMMATE_NAME flagged unverified but Gap-3 less central than opus-low."
+  },
+  {
+    "teammate": "cco-probe-opus-high",
+    "phase": "C",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 5,
+    "implementability": 5,
+    "reasoning_depth": 5,
+    "total": 19,
+    "notes": "Rust shim binary with longest-prefix match + per-pane settings-dir fallback for Gap-3 failure; 6 honest failure modes; ≥6 tests; best ceiling-honesty and explicit mitigation for the critical unknown."
+  },
+  {
+    "teammate": "cco-probe-opus-xhigh",
+    "phase": "C",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 5,
+    "reasoning_depth": 4,
+    "total": 17,
+    "notes": "PATH shim with argv --teammate/--agent flag scan (not pane_title); mtime staleness check; 6 failure modes; 6 tests; 'standard POSIX' closing slightly overclaims; argv-format assumption is the load-bearing unknown."
+  },
+  {
+    "teammate": "ccs-bench-sonnet-a",
+    "phase": "A",
+    "model": "sonnet",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 4,
+    "reasoning_depth": 4,
+    "total": 16,
+    "notes": "PATH-intercepting wrapper + pane-title lookup; F1 (pane-title == teammate-name) explicitly labeled LINCHPIN unverified; pre-implementation labrat gate mandatory; 3 tests (fewer than peers)."
+  },
+  {
+    "teammate": "ccs-bench-sonnet-b",
+    "phase": "A",
+    "model": "sonnet",
+    "soundness": 2,
+    "completeness": 3,
+    "implementability": 4,
+    "reasoning_depth": 4,
+    "total": 13,
+    "notes": "xbreed team-spawn bypasses CC's TeamCreate entirely — relies on undocumented CC mailbox routing internals; Option A races, Option B fragile against version drift; higher architectural-break risk than shim approaches."
+  },
+  {
+    "teammate": "ccs-bench-sonnet-c",
+    "phase": "A",
+    "model": "sonnet",
+    "soundness": 3,
+    "completeness": 4,
+    "implementability": 5,
+    "reasoning_depth": 3,
+    "total": 15,
+    "notes": "~/.local/bin/claude wrapper with --teammate-id argv parsing + prefix fallback; empirical unknown acknowledged but single-path design; 6 specific tests named; limited alternative analysis."
+  },
+  {
+    "teammate": "cco-bench-opus-a",
+    "phase": "A",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 5,
+    "implementability": 5,
+    "reasoning_depth": 5,
+    "total": 19,
+    "notes": "Rust shim binary with 3-tier name-resolution cascade (env → pane title → argv) each called out 'best-case'; 7 failure modes; 7 tests; xbreed effort-shim verify subcommand; opt-in install; most complete surface."
+  },
+  {
+    "teammate": "cco-bench-opus-b",
+    "phase": "A",
+    "model": "opus",
+    "soundness": 4,
+    "completeness": 4,
+    "implementability": 4,
+    "reasoning_depth": 4,
+    "total": 16,
+    "notes": "Bash shim with cascade (XBREED_AGENT_NAME → pane title → argv); pane_title flagged empirical unknown; 6 failure modes; 4 tests (fewer); explicit ship-blocker gate; concise."
+  },
+  {
+    "teammate": "cco-bench-opus-c",
+    "phase": "A",
+    "model": "opus",
+    "soundness": 3,
+    "completeness": 3,
+    "implementability": 4,
+    "reasoning_depth": 3,
+    "total": 13,
+    "notes": "PATH shim per-team via settings.env injection; pane_title asserted in code comment without equal rigor in failure-mode flagging; recursion guard solid; fewer alternatives surfaced than peers."
+  }
+]
