@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# M9 — axis_family frontmatter in templates/agents/*.md must be members of the
+# M9 — axis_family frontmatter in ~/.claude/agents/*.md must be members of the
 # closed enum declared in commands/references/xbreed-shared.md line 58.
 # Baseline must pass; a mutation injecting a bogus axis_family must be caught;
 # after restore, baseline must re-pass.
+#
+# Canonical agent dir is ~/.claude/agents/ (user directive 2026-04-17 —
+# repo templates/ dir removed to kill ambiguity). Override via XBREED_AGENTS_DIR.
 #
 # Trap covers EXIT/INT/TERM/HUP so the repo is never left broken.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SSOT="$REPO_ROOT/commands/references/xbreed-shared.md"
-AGENTS_DIR="$REPO_ROOT/templates/agents"
+AGENTS_DIR="${XBREED_AGENTS_DIR:-$HOME/.claude/agents}"
 TARGET="$AGENTS_DIR/executor.md"
 BAK="$TARGET.m9-bak"
 
@@ -122,4 +125,4 @@ if [[ $STATUS -ne 0 ]]; then
   exit 1
 fi
 echo "STEP 4 OK: baseline re-passes after restore"
-echo "PASS: axis_family_schema_check catches enum drift in templates/agents/*.md"
+echo "PASS: axis_family_schema_check catches enum drift in $AGENTS_DIR/*.md"

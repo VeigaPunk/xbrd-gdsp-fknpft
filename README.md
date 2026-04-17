@@ -45,18 +45,8 @@ turns the lead session into a Tier-1 Pareto-walking orchestrator.
 **Setup:**
 
 1. Add `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` to the `env` block of `~/.claude/settings.json`
-2. Copy the perspective agents:
-
-       mkdir -p ~/.claude/agents
-       cp templates/agents/*.md ~/.claude/agents/
-
-3. Copy the skills:
-
-       for s in godspeed godspeed-team xbreed xbreed-team xgs xbgst; do
-         mkdir -p ~/.agents/skills/$s
-         cp templates/skills/$s/SKILL.md ~/.agents/skills/$s/SKILL.md
-       done
-
+2. Install perspective agents into `~/.claude/agents/` (user-managed — `templates/agents/` was removed 2026-04-17 to kill source-of-truth ambiguity). Recover a historical snapshot via `git show 0ac5571:templates/agents/` if starting fresh.
+3. Install skills into `~/.agents/skills/` (canonical). Historical snapshot: `git show 0ac5571:templates/skills/`.
 4. Restart Claude Code (env var only takes effect on new sessions)
 
 **Use:**
@@ -117,7 +107,8 @@ v0.4 is a configuration + protocol release. The binary version is `0.4.0`.
       codex:   reasoning_effort: xhigh
       gemini:  thinkingBudget via xask --effort → low=512 / medium=4096 / high=8192 / xhigh=16384
                (no native CLI flag; budget injected into prompt template by scripts/xask
-                and rendered as `# ThinkingBudget: <N>` in templates/dispatch/gemini.md)
+                and rendered as `# ThinkingBudget: <N>`. Dispatch template is optional
+                post-2026-04-17 — xask falls back to raw $QUERY when absent.)
 
 `xbreed claude` passes `--effort <level>` to the Claude Code CLI.
 `xbreed ask` routes effort to each CLI's native flag. Gemini emits a
@@ -145,11 +136,9 @@ by default (no dir tree injection) unless `--rich` is explicit.
 **v0.4 install:**
 
     make install
-    for s in godspeed godspeed-team xbreed xbreed-team xgs xbgst; do
-      mkdir -p ~/.agents/skills/$s
-      cp templates/skills/$s/SKILL.md ~/.agents/skills/$s/SKILL.md
-    done
-    cp templates/agents/*.md ~/.claude/agents/
+    # agents and skills are user-managed under ~/.claude/agents/ and
+    # ~/.agents/skills/ respectively — templates/ removed 2026-04-17.
+    # Historical snapshot: git show 0ac5571:templates/
 
 **Other v0.4 changes:**
 

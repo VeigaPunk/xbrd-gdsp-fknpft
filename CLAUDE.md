@@ -31,7 +31,7 @@ Multi-model meta-launcher orchestrating Claude Code, Codex CLI, and Gemini CLI w
 - `src/` — Rust source (lib.rs + main.rs + modules)
 - `config/` — policy.yaml and per-CLI config templates
 - `scripts/` — shell helpers (xask, xbreed wrappers)
-- `templates/agents/` — perspective agent definitions (copy to ~/.claude/agents/)
+- `~/.claude/agents/` — canonical perspective agent definitions (user-managed; templates/ dir removed 2026-04-17 to kill source-of-truth ambiguity)
 - `commands/` — CC slash command symlinks
 - `docs/` — design specs, flow diagrams
 - `tests/` — integration tests

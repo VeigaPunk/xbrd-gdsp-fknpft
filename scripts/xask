@@ -75,7 +75,12 @@ case "$MODEL" in
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TEMPLATE_DIR="$SCRIPT_DIR/../templates/dispatch"
+# Dispatch-template dir (optional). templates/ was removed 2026-04-17 per user
+# directive ("~/.claude/agents/ is the canonical source"). xask falls back to
+# raw $QUERY when TEMPLATE file is absent — the substitution block below is
+# guarded by `if [ -f "$TEMPLATE" ]`. Override via XBREED_DISPATCH_DIR to
+# restore templated dispatch (e.g. a local checkout of the removed templates/).
+TEMPLATE_DIR="${XBREED_DISPATCH_DIR:-$SCRIPT_DIR/../templates/dispatch}"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
 if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
@@ -93,9 +98,8 @@ if [ -f "$TEMPLATE" ]; then
   EFFORT_SAFE=$(printf '%s' "${EFFORT:-unset}" | sed 's/[&\\]/\\&/g')
   # Map abstract effort tier → numeric thinkingBudget. Only gemini's dispatch
   # template substitutes this — gemini-CLI has no native --effort flag, so the
-  # budget is injected as prompt-text directive (see templates/dispatch/gemini.md).
-  # codex template doesn't reference {{THINKING_BUDGET}}, so substitution is
-  # a no-op there.
+  # budget is injected as prompt-text directive. codex template doesn't
+  # reference {{THINKING_BUDGET}}, so substitution is a no-op there.
   case "${EFFORT:-}" in
     low)    THINKING_BUDGET="512" ;;
     medium) THINKING_BUDGET="4096" ;;

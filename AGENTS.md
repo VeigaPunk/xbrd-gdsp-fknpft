@@ -1,7 +1,10 @@
 # Agent Roster
 
-xbreed ships 14 perspective agents in `templates/agents/`. Copy them to
-`~/.claude/agents/` for Claude Code to discover them as subagent types.
+xbreed uses 14 perspective agents. Canonical definitions live in
+`~/.claude/agents/` (user-managed). Claude Code discovers them there as
+subagent types. The former `templates/agents/` mirror was removed 2026-04-17
+to kill source-of-truth ambiguity; recover a historical snapshot via
+`git show 0ac5571:templates/agents/<name>.md` if needed.
 
 ## Agents
 
@@ -43,7 +46,7 @@ Examples: `ccs-scout-docs`, `g-labrat-probe`, `cdx-reviewer-auth`, `ccs-executor
 
 All agents produce structured output using only the blocks appropriate to their
 role. Minimal valid message = `[GOAL]` + one other block. See individual agent
-files in `templates/agents/` for per-role return formats.
+files in `~/.claude/agents/` for per-role return formats.
 
 ## Escalation protocol
 

@@ -55,7 +55,7 @@ Include in every teammate brief:
 
 **This table is the single source of truth for agent routing.** AGENTS.md and the-judge.md carry read-only copies for discoverability. On any edit here, update those two.
 
-Allowed `axis_family` values (must match frontmatter in `templates/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
+Allowed `axis_family` values (must match frontmatter in `~/.claude/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
 
 **Unified scheme (2026-04-17):** Claude teammates uniformly run opus 4.7; effort
 tiers split by role (judge xhigh, critic/connector/planner high, rest medium).
@@ -275,6 +275,6 @@ After parallel execution rounds (multiple executors editing files concurrently),
 
 1. **Cross-file reference consistency** — dispatch tables, xask gate strings, and tool lists agree across xbreed-shared.md, AGENTS.md, the-judge.md, and skill templates
 2. **Stale agent name/model references** — no haiku/sonnet mismatches, no removed agent names, delegation targets current
-3. **Template-vs-installed sync** — `templates/agents/*.md` matches `~/.claude/agents/*.md`
+3. **Canonical agent state** — `~/.claude/agents/*.md` is the single source of truth (formerly mirrored in `templates/agents/*.md`; repo mirror removed 2026-04-17 to kill source-of-truth ambiguity)
 
 This is not a blocking gate — the judge decides when the scope of changes warrants it. Multi-file parallel edits always warrant it.

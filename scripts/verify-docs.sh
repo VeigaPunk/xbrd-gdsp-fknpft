@@ -4,12 +4,16 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SSOT="$REPO_ROOT/commands/references/xbreed-shared.md"
 
+# Canonical agent definitions live in ~/.claude/agents/
+# (user directive 2026-04-17 — repo templates/ dir removed to kill ambiguity).
+# The xbgst slash-command skill lives at commands/xbgst.md in-repo.
+AGENTS_DIR="${XBREED_AGENTS_DIR:-$HOME/.claude/agents}"
+
 COPY_FILES=(
   "$REPO_ROOT/AGENTS.md"
-  "$REPO_ROOT/templates/agents/the-judge.md"
-  "$REPO_ROOT/templates/agents/connector.md"
+  "$AGENTS_DIR/the-judge.md"
+  "$AGENTS_DIR/connector.md"
   "$REPO_ROOT/commands/xbgst.md"
-  "$REPO_ROOT/templates/skills/xbgst/SKILL.md"
 )
 
 # Extract canonical connector routing from SSoT routing table (connector row)

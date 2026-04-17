@@ -30,8 +30,8 @@ Multi-model meta-launcher orchestrating Claude Code, Codex CLI, and Gemini CLI w
 - `src/` — Rust source (lib.rs + main.rs + modules)
 - `config/` — policy.yaml, models.yaml, per-CLI config templates
 - `scripts/` — shell helpers (xask, xbreed wrappers)
-- `templates/agents/` — perspective agent definitions
-- `templates/dispatch/` — inter-model dispatch templates (codex.md, gemini.md)
+- `~/.claude/agents/` — canonical perspective agent definitions (user-managed; repo templates/ dir removed 2026-04-17)
+- dispatch templates (codex.md, gemini.md) — optional; xask falls back to raw $QUERY when absent. Set `XBREED_DISPATCH_DIR` to re-enable templated dispatch.
 - `commands/` — CC slash command symlinks
 - `docs/` — design specs, flow diagrams
 - `tests/` — integration tests
