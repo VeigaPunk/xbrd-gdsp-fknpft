@@ -78,6 +78,108 @@ pub fn drain_events(team_dir: &Path) -> Result<Vec<Event>> {
     parse_events_string(&contents)
 }
 
+/// Memory-mapped drain variant. Same atomic-rename contract as `drain_events`
+/// but reads the renamed snapshot via `memmap2::Mmap` + per-line `from_slice`
+/// instead of `read_to_string` + `from_str`. Preserves the malformed-line
+/// skip invariant.
+///
+/// # Performance regime — empirically REJECTED for xbreed's workload
+///
+/// R2 mailbox-latency-0416 dual-regime bench (`drain_dual_regime_ms` in
+/// `docs/reports/mailbox-bench-baseline.json`, n=100000, ITERATIONS=25):
+///
+/// | Regime | baseline p50 / p95 | mmap p50 / p95 | mmap Δ p50 / p95 |
+/// |---|---|---|---|
+/// | cold-cache (per-iter tempdir) | 30.41 / 32.44 ms | 38.96 / 42.13 ms | **+28.1% / +29.9%** |
+/// | warm-cache (fixed reused dir) | 30.91 / 32.20 ms | 40.07 / 41.06 ms | **+29.6% / +27.5%** |
+///
+/// mmap is ~28-30% SLOWER than `read_to_string` + `from_str` in both
+/// regimes on WSL2 ext4. Warm page cache already eliminates the kernel-copy
+/// cost that mmap saves on cold-cache disk-backed I/O; mmap's additional
+/// setup (mmap syscall, per-page TLB fault, munmap) dominates at xbreed's
+/// payload sizes. R1 `ccs-labrat-drain-h10`'s fixed-path reversal
+/// (claimed -16 to -22% win) did not survive dual-regime replication.
+///
+/// This function is **retained for empirical reproducibility** — the bench
+/// harness at `benches/mailbox.rs::collect_drain_dual_regime_ms` uses it
+/// as the mmap arm. Production callers should use `drain_events`.
+///
+/// # Safety
+///
+/// The mailbox file is renamed to a PID-scoped `.drain.<pid>` path before
+/// mapping, so no concurrent writer can truncate or delete it during the
+/// mapping's lifetime — SIGBUS from an unexpected shrink is not reachable.
+/// Empty files are short-circuited before `Mmap::map` because `mmap(2)`
+/// with `length == 0` returns `EINVAL` on Linux.
+///
+/// # Safety
+///
+/// The mailbox file is renamed to a PID-scoped `.drain.<pid>` path before
+/// mapping, so no concurrent writer can truncate or delete it during the
+/// mapping's lifetime — SIGBUS from an unexpected shrink is not reachable.
+/// Empty files are short-circuited before `Mmap::map` because `mmap(2)`
+/// with `length == 0` returns `EINVAL` on Linux.
+pub fn drain_events_mmap(team_dir: &Path) -> Result<Vec<Event>> {
+    let path = mailbox_path(team_dir);
+    let drain_path = path.with_extension(format!("drain.{}", std::process::id()));
+    let mut live_events = match std::fs::rename(&path, &drain_path) {
+        Ok(()) => parse_drain_file_mmap(&drain_path)?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => return Err(e.into()),
+    };
+    let sidecar_contents = collect_compact_sidecars(&path)?;
+    live_events.extend(parse_events_string(&sidecar_contents)?);
+    Ok(live_events)
+}
+
+fn parse_drain_file_mmap(drain_path: &Path) -> Result<Vec<Event>> {
+    let file = match std::fs::File::open(drain_path) {
+        Ok(f) => f,
+        Err(e) => {
+            let _ = std::fs::remove_file(drain_path);
+            return Err(e.into());
+        }
+    };
+    let file_len = match file.metadata() {
+        Ok(m) => m.len(),
+        Err(e) => {
+            drop(file);
+            let _ = std::fs::remove_file(drain_path);
+            return Err(e.into());
+        }
+    };
+    if file_len == 0 {
+        drop(file);
+        let _ = std::fs::remove_file(drain_path);
+        return Ok(Vec::new());
+    }
+    // SAFETY: see fn doc comment — rename-scoped snapshot, no concurrent
+    // writers can shrink the mapped file.
+    let mmap = match unsafe { memmap2::Mmap::map(&file) } {
+        Ok(m) => m,
+        Err(e) => {
+            drop(file);
+            let _ = std::fs::remove_file(drain_path);
+            return Err(e.into());
+        }
+    };
+    let events: Vec<Event> = mmap
+        .split(|&b| b == b'\n')
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| match serde_json::from_slice(line) {
+            Ok(event) => Some(event),
+            Err(err) => {
+                eprintln!("xbreed mailbox: skipping malformed line: {err}");
+                None
+            }
+        })
+        .collect();
+    drop(mmap);
+    drop(file);
+    let _ = std::fs::remove_file(drain_path);
+    Ok(events)
+}
+
 fn parse_events_string(contents: &str) -> Result<Vec<Event>> {
     let events = contents
         .lines()
@@ -487,6 +589,49 @@ mod tests {
         // Second drain returns empty — sidecar consumed.
         let second = drain_events(dir.path()).unwrap();
         assert!(second.is_empty());
+    }
+
+    #[test]
+    fn drain_events_mmap_round_trip_and_empty() {
+        let dir = tempdir().unwrap();
+        // Empty mailbox: mmap's zero-byte path returns Ok(vec![]).
+        let empty = drain_events_mmap(dir.path()).unwrap();
+        assert!(empty.is_empty());
+        write_event(dir.path(), "alice", "ping", "ok").unwrap();
+        write_event(dir.path(), "bob", "pong", "ok").unwrap();
+        let events = drain_events_mmap(dir.path()).unwrap();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].from, "alice");
+        assert_eq!(events[1].from, "bob");
+    }
+
+    #[test]
+    fn drain_events_mmap_skips_malformed_lines() {
+        let dir = tempdir().unwrap();
+        write_event(dir.path(), "alice", "ping", "ok").unwrap();
+        let path = mailbox_path(dir.path());
+        {
+            let mut f = OpenOptions::new().append(true).open(&path).unwrap();
+            f.write_all(b"this is not JSON\n").unwrap();
+            f.write_all(b"{\"missing\":\"fields\"}\n").unwrap();
+        }
+        write_event(dir.path(), "bob", "pong", "ok2").unwrap();
+        let events = drain_events_mmap(dir.path()).unwrap();
+        assert_eq!(events.len(), 2);
+        let froms: Vec<&str> = events.iter().map(|e| e.from.as_str()).collect();
+        assert!(froms.contains(&"alice"));
+        assert!(froms.contains(&"bob"));
+    }
+
+    #[test]
+    fn drain_events_mmap_merges_compact_sidecar() {
+        let dir = tempdir().unwrap();
+        write_old_event(dir.path(), "x", "keepalive", "old");
+        write_old_event(dir.path(), "y", "keepalive", "older");
+        compact_events(dir.path(), &[], 1).unwrap();
+        let events = drain_events_mmap(dir.path()).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, "digest");
     }
 
     #[test]
