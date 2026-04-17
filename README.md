@@ -123,7 +123,7 @@ stderr warning since it has no native `--effort` flag.
 | `xask --spark codex` | ~1s (spark path) |
 | Full xbgst round | ~29s |
 
-**Agent roster:** 8 agents using Inter-Model Communication Protocol v0.2
+**Agent roster:** 14 xbreed-managed agents (excluding `the-musketeer` / `the-puppeteer`, which are user-invoked on demand) using Inter-Model Communication Protocol v0.2
 with structured `# State` / `# Unknowns` / `# Artifact` blocks and
 epistemic role constraint (at most one non-obvious claim per proposal).
 See [`AGENTS.md`](AGENTS.md).

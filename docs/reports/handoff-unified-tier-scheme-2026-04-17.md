@@ -243,3 +243,19 @@ tier scheme landed in commit 0ac5571:
 
 No code changes.
 ```
+
+---
+
+## Empirical verification during execution (2026-04-17)
+
+Executor (`ccs-executor-flows`) ran all six handoff sanity checks (lines 186-208) before starting the `docs/command-flows.md` rewrite. Observed state:
+
+- **Agent count drift (handoff miscount):** Handoff line 138 prose enumerates 14 agent names but labels them as "13 xbreed agent definitions"; line 189 grep expects 13. Actual `ls ~/.claude/agents/*.md | grep -v the-musketeer | grep -v the-puppeteer | wc -l` returns **14**. Resolution: the `docs/command-flows.md` rewrite lands `14 xbreed-managed definitions` (with a parenthetical note that `the-musketeer` and `the-puppeteer` are user-invoked on demand, not xbreed-orchestrated, and are therefore excluded from the count).
+- **All 6 sanity checks verified green:**
+  - `ls ~/.claude/agents/*.md | grep -v the-musketeer | grep -v the-puppeteer | wc -l` → **14** (handoff expected 13; see drift note above).
+  - `grep -A3 'pub enum GeminiAuth' src/ask.rs` → enum carries only `OAuthProfile(String)` + `OAuthDefault` variants (confirmed `ApiKey` variant removed).
+  - `grep -E 'CODEX_MINI_MODEL|CODEX_DEFAULT_MODEL|CODEX_SPARK_MODEL' src/ask.rs` → `CODEX_SPARK_MODEL = "gpt-5.3-codex-spark"`, `CODEX_DEFAULT_MODEL = "gpt-5.4"`, `CODEX_MINI_MODEL = "gpt-5.4-mini"`; dispatch dispatches spark→SPARK, review→DEFAULT (full), otherwise→MINI.
+  - `bash scripts/xask -d -R codex "probe" | grep REVIEW` → `REVIEW: true`.
+  - `sed -n '234,266p' ~/.bashrc` → `__xbreed_effort_trap` with role-keyword case block: `*the-judge*` → xhigh, `*critic*|*connector*|*planner*` → high, `cco-*|ccs-*|cdx-*|g-*` → medium, catch-all → NOMATCH. First-match-wins ordering confirmed (role patterns precede prefix patterns).
+  - `grep -c 'gemini-rate-limited' ~/.claude/commands/references/xbreed-shared.md` → **0**; `grep -c 'Mandatory connector on every round' ~/.claude/commands/references/xbreed-shared.md` → **1**.
+- **No other drift found** between handoff claims and live state as of this execution timestamp (2026-04-17).

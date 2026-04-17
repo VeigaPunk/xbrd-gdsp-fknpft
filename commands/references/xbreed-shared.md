@@ -2,11 +2,13 @@
 
 Referenced by `/xbreed`, `/xbt`, `/xgs`, `/xbgst`. Do not duplicate — load this file.
 
-## Godspeed Mode Block
+## Godspeed Mode — Purest Form (2026-04-17)
 
-Append to every teammate brief when operating in godspeed:
+**Purest form directive.** Every godspeed teammate dispatch appends the literal string ` | godspeed` to the Agent() prompt. No preamble, no explanation block. The executor lane uses ` | godspeed-impl` instead (red-before-green evidence discipline).
 
-> **GODSPEED MODE (inherited from judge):** You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls.
+The single-token suffix IS the whole directive. Sonnet-medium teammates read it as: iterate cheap in parallel, no clarifying questions, no verbose plans, act via tool calls, drop philosophical reasoning. Any teammate needing more than that marker is mis-cast for the lane.
+
+Rationale: user directive 2026-04-17 — "opus is terrible for being the intermediator; make sure that all teammate (agent) dispatches inherit godspeed in their prompt in the purest form". The prior long "GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent..." preamble burned reasoning cycles before the task even started. The marker replaces it.
 
 ## Escalation: advisor() (Layer 0)
 
@@ -57,12 +59,21 @@ Include in every teammate brief:
 
 Allowed `axis_family` values (must match frontmatter in `~/.claude/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
 
-**Unified scheme (2026-04-17):** Claude teammates uniformly run opus 4.7; effort
-tiers split by role (judge xhigh, critic/connector/planner high, rest medium).
-Distiller is the lone sonnet holdout (synthesis work is pattern-match throughput).
-Codex dispatches default to gpt-5.4-mini + fast_mode + reasoning high; review-class
-roles escalate to full gpt-5.4 via `xask -R codex` (handled by src/ask.rs
-`CODEX_MINI_MODEL` / `CODEX_DEFAULT_MODEL` split).
+**Sonnet-medium unified scheme (2026-04-17 pivot — supersedes opus-medium):**
+All teammate dispatches run **sonnet medium** uniformly. Only `the-judge`
+itself stays opus-xhigh (orchestrator depth required). User directive
+2026-04-17: "opus is terrible for being the intermediator" — sonnet at
+medium effort is fast enough for the Pareto loop and avoids the
+reasoning-cycle overhead opus imposes in teammate-mode. Effort tiers
+collapse to a single `medium` value across the board; frontmatter
+`effort:` on individual agent files still reads `medium` (per earlier
+unified scheme work). The ~/.bashrc DEBUG trap maps every teammate prefix
+(`cco-`, `ccs-`, `cdx-`, `g-`) to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the
+judge keyword still maps to `xhigh`.
+
+Codex dispatches default to gpt-5.4-mini + fast_mode + reasoning high;
+review-class roles escalate to full gpt-5.4 via `xask -R codex` (handled
+by src/ask.rs `CODEX_MINI_MODEL` / `CODEX_DEFAULT_MODEL` split).
 
 **Mandatory connector on every round:** the-judge MUST spawn a `connector`
 teammate on each Pareto round (including Round 1), no exceptions. Cross-axis
@@ -72,20 +83,20 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | opus 4.7 · medium | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
-| Correctness, bugs | `reviewer` | opus 4.7 · medium | `xask -R codex` (review lane — full gpt-5.4) | All |
-| Empirical probes | `labrat` | opus 4.7 · medium | `xask --spark codex` | All |
-| Code execution | `executor` | opus 4.7 · medium | `xask --spark codex` | All |
-| Cross-axis patterns | `connector` | opus 4.7 · high | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
-| Synthesis, dedup | `distiller` | sonnet · medium (holdout — pattern-match throughput, see `feedback_sonnet_effort_tiers.md`) | in-session | All |
-| Deletion, YAGNI | `simplifier` | opus 4.7 · medium | CC native | All |
-| Reverse engineering | `the-revenger` | opus 4.7 · medium | `xask -R codex` for surface enum (review lane) | All |
-| Security auditing | `sentinel` | opus 4.7 · medium | `xask -R codex` + `xask gemini` | All |
-| Planning, Phase 0, WWKD sequencing | `the-planner` | opus 4.7 · high · Layer-0 wwkd skill load | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
-| Adversarial design | `critic` | opus 4.7 · high · Layer-0 heuer-planning skill load (cco- prefix only) | `xask -R codex` | All |
-| Test validation | `mutation-tester` | opus 4.7 · medium | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) | All |
-| Documentation, audit trail | `scribe` | opus 4.7 · medium | CC native | All |
-| Orchestration, arbitration | `the-judge` | opus 4.7 · xhigh | top-of-stack; dispatches specialists | All |
+| Research, prior art | `scout` | sonnet · medium | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
+| Correctness, bugs | `reviewer` | sonnet · medium | `xask -R codex` (review lane — full gpt-5.4) | All |
+| Empirical probes | `labrat` | sonnet · medium | `xask --spark codex` | All |
+| Code execution | `executor` | sonnet · medium | `xask --spark codex` | All |
+| Cross-axis patterns | `connector` | sonnet · medium | `xask --effort high gemini` *(locked — does not fall back to codex even on 429; emit `obs: xask BLOCKED [reason]` and compose from in-session Grep within reasoning cap)* | All |
+| Synthesis, dedup | `distiller` | sonnet · medium | in-session | All |
+| Deletion, YAGNI | `simplifier` | sonnet · medium | CC native | All |
+| Reverse engineering | `the-revenger` | sonnet · medium | `xask -R codex` for surface enum (review lane) | All |
+| Security auditing | `sentinel` | sonnet · medium | `xask -R codex` + `xask gemini` | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet · medium · Layer-0 wwkd skill load | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
+| Adversarial design | `critic` | sonnet · medium · Layer-0 heuer-planning skill load | `xask -R codex` | All |
+| Test validation | `mutation-tester` | sonnet · medium | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) | All |
+| Documentation, audit trail | `scribe` | sonnet · medium | CC native | All |
+| Orchestration, arbitration | `the-judge` | **opus 4.7 · xhigh** (orchestrator exception) | top-of-stack; dispatches specialists | All |
 
 **Gemini health canary (machine-checkable):** confirm primary gemini routing is healthy before dispatching gemini-primary roles:
 ```

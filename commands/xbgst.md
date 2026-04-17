@@ -48,14 +48,14 @@ Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; 
 
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
-Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details):
-- Research, prior art → `scout` (sonnet) — `xask --effort medium gemini`
-- Correctness, bugs → `reviewer` (sonnet) — `xask --effort high codex`
-- Empirical probes → `labrat` (sonnet) — `xask --spark codex`
-- Code execution → `executor` (sonnet) — `xask --spark codex`
-- Cross-axis patterns → `connector` (sonnet) — `xask --effort high gemini` (LOCKED — no codex fallback)
-- Synthesis, dedup → `distiller` (sonnet) — in-session
-- Complexity reduction → `simplifier` (sonnet) — CC native
+Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-xhigh for orchestrator depth):
+- Research, prior art → `scout` — `xask --effort medium gemini`
+- Correctness, bugs → `reviewer` — `xask -R codex`
+- Empirical probes → `labrat` — `xask --spark codex`
+- Code execution → `executor` — `xask --spark codex`
+- Cross-axis patterns → `connector` — `xask --effort high gemini` (LOCKED — no codex fallback)
+- Synthesis, dedup → `distiller` — in-session
+- Complexity reduction → `simplifier` — CC native
 
 Cap: <=12 teammates per round.
 
@@ -64,13 +64,13 @@ Cap: <=12 teammates per round.
 Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment
-3. **Godspeed mode** (always — /xbgst is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+3. **Godspeed marker — purest form:** append ` | godspeed` (literal, with leading space) to the prompt. No preamble, no explanation block. The single-token marker is the whole directive — sonnet-medium teammates read it as "iterate cheap in parallel, no clarifying questions, no verbose plans, act via tool calls". Any teammate who needs more than that is the wrong role for the lane.
 4. **Structural xask gate** (per-role, three layers)
 5. Task: propose ONE move (<=200 words) **with a structured `evidence:` field** (see Evidence Schema in `xbreed-shared.md`)
 6. After proposing, DM each peer with one-line critique
 7. Mark task completed
 
-**Executor lane — `|godspeed-impl` suffix variant:** when spawning `executor` teammates, append `|godspeed-impl` instead of plain `|godspeed`. Adds to the godspeed directive: *"A move is a complete red-before-green cycle — `evidence:` must include failing-test output AND passing-test output (two test runs, no commit SHAs). If no test harness exists in the scope, attach diff + rationale as evidence. Non-executable axes are not eligible for the executor lane."* All other roles inherit plain `|godspeed`; TDD ordering is out-of-scope for research/critique lanes by domain, not waived.
+**Executor lane — ` | godspeed-impl` suffix variant:** when spawning `executor` teammates, append ` | godspeed-impl` instead of ` | godspeed`. The `-impl` suffix alone signals red-before-green evidence discipline to the executor — no preamble needed. Non-executable axes are not eligible for the executor lane (by role, not by directive).
 
 #### xask gate, epistemic constraints
 

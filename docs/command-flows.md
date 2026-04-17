@@ -61,6 +61,13 @@ flowchart TD
     E --> F[Claude Code TUI session]
 ```
 
+**Per-teammate effort override:** `~/.bashrc` installs a `__xbreed_effort_trap`
+DEBUG trap that inspects `$BASH_COMMAND` for `--agent-name` + `--team-name` on
+every spawn and exports `CLAUDE_CODE_EFFORT_LEVEL` based on role-keyword
+matching. This env var **takes precedence over agent frontmatter `effort:`**
+per Claude Code's model-config precedence rules (see shared.md §Session Effort
+Configuration) — the trap is the authoritative per-teammate effort control.
+
 **Config sources:**
 - `~/.config/xbreed/policy.yaml` — deny-list rules
 - `~/.config/xbreed/models.yaml` — model + effort per CLI
@@ -68,13 +75,15 @@ flowchart TD
 
 ---
 
-### `xbreed ask <cli> <prompt> [--with skills]`
+### `xbreed ask <cli> <prompt> [--with skills] [--review|-R] [--spark]`
 
-Headless one-shot dispatch to any supported CLI.
+Headless one-shot dispatch to any supported CLI. The `--review` / `-R` and
+`--spark` flags select the codex dispatch lane (see `src/cli.rs`
+`Commands::Ask`).
 
 ```mermaid
 flowchart TD
-    A["xbreed ask <cli> <prompt> --with godspeed,librarian"]
+    A["xbreed ask <cli> <prompt> --with godspeed,librarian [-R|--spark]"]
     A --> B{--with provided?}
     B -->|yes| C[resolve loadout from skill dirs]
     B -->|no| D[empty loadout]
@@ -82,32 +91,30 @@ flowchart TD
     D --> E
 
     E -->|claude| F["claude -p <prompt> \n--append-system-prompt <loadout>"]
-    E -->|codex| G["codex exec \n-c developer_instructions=<loadout> \n<prompt>"]
+    E -->|codex| Cdx{codex lane}
     E -->|gemini| H[Gemini auth cascade]
 
-    H --> I["1. OAuth profile: primary"]
+    Cdx -->|--spark| Csp["codex exec -m gpt-5.3-codex-spark \n-c model_reasoning_effort=low \n(no fast_mode)"]
+    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4 (full) \n-c features.fast_mode=true \n(reasoning: xhigh from ~/.codex/config.toml)"]
+    Cdx -->|default| Cdf["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n-c model_reasoning_effort=high"]
+
+    H --> I["L1. OAuth profile: primary \n(HOME → ~/.config/xbreed/gemini-profiles/primary/)"]
     I --> Ia{success?}
     Ia -->|yes| P[stdout: response]
-    Ia -->|"429/401/403/PERMISSION_DENIED"| J["2. OAuth profile: fallback"]
+    Ia -->|"429/401/403/PERMISSION_DENIED \nUNAUTHENTICATED/API_KEY_INVALID"| J["L2. OAuth profile: fallback"]
     Ia -->|other error| R[bail immediately]
     J --> Ja{success?}
     Ja -->|yes| P
-    Ja -->|"429/401/403/PERMISSION_DENIED"| K["3. OAuth default ~/.gemini/"]
+    Ja -->|"429/401/403/PERMISSION_DENIED \nUNAUTHENTICATED/API_KEY_INVALID"| K["L3. OAuth default ~/.gemini/ \n(env_remove GEMINI_API_KEY)"]
     Ja -->|other error| R
     K --> Ka{success?}
     Ka -->|yes| P
-    Ka -->|"429/401/403/PERMISSION_DENIED"| L["4. API key from .env.local"]
-    Ka -->|other error| R
-    L --> La{success?}
-    La -->|yes| P
-    La -->|"429/401/403/PERMISSION_DENIED"| M["5. Fallback API key"]
-    La -->|other error| R
-    M --> Ma{success?}
-    Ma -->|yes| P
-    Ma -->|no| R
+    Ka -->|no| R
 
     F --> P
-    G --> P
+    Csp --> P
+    Crv --> P
+    Cdf --> P
 ```
 
 **Loadout injection per CLI:**
@@ -118,11 +125,23 @@ flowchart TD
 | codex | Developer instructions (TOML) | `-c developer_instructions=` |
 | gemini | Prompt prepend (no native flag) | Loadout + `\n---\n` + prompt |
 
-**Gemini auth cascade** (v0.3.5): tries up to 5 auth methods **sequentially**
-(not in parallel). Each attempt blocks on `cmd.output()` before the next starts.
-Cascades on: 429 (quota), 401, 403, PERMISSION_DENIED, UNAUTHENTICATED,
-API_KEY_INVALID. Non-retriable errors bail immediately per-attempt without
-trying remaining auth levels. Empirical timing: OAuth ~14s, API key ~5-7s.
+**Codex dispatch lanes** (see `src/ask.rs` `build_codex_ask_with_loadout`):
+
+| Flag | Model | Reasoning | fast_mode | Used by |
+|------|-------|-----------|-----------|---------|
+| `--spark` | `gpt-5.3-codex-spark` | low | off | labrat, xask-gate probes |
+| `-R` / `--review` | `gpt-5.4` (full) | xhigh (inherited) | on | reviewer, critic, sentinel, the-revenger |
+| default | `gpt-5.4-mini` | high | on | executor, scout-fallback, labrat-non-spark |
+
+**Gemini auth cascade** (v0.4+, OAuth-exclusive): tries up to **3 OAuth levels**
+**sequentially** (not in parallel). Each attempt blocks on `cmd.output()` before
+the next starts. Cascades on: 429 (quota), 401, 403, PERMISSION_DENIED,
+UNAUTHENTICATED, API_KEY_INVALID. Non-retriable errors bail immediately
+per-attempt without trying remaining auth levels. The `GeminiAuth::ApiKey`
+variant and all `.env.local` / `GEMINI_API_KEY` / `GEMINI_API_KEY_FALLBACK`
+parsing were removed in v0.4 — `env_remove("GEMINI_API_KEY")` is applied on
+every OAuth attempt to strip any inherited shell env. Empirical timing: OAuth
+~14s per attempt.
 
 ---
 
@@ -171,7 +190,7 @@ flowchart TD
     A["/xbreed <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
     B --> C[Adopt judge persona]
     C --> E{need sub-roles?}
-    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask codex, labrat→xask --spark codex)"]
+    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask -R codex, labrat→xask --spark codex)"]
     E -->|no| G[DRAFT output]
     F --> H["xask gate: first tool call = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     H --> I[aggregate findings]
@@ -205,7 +224,7 @@ flowchart TD
     B --> C[Adopt judge persona]
     C --> D["TeamCreate(team_name=...)"]
     D --> F[Parse prompt, pick sub-roles]
-    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask codex, labrat→xask --spark codex)"]
+    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask -R codex, labrat→xask --spark codex)"]
     G --> Gx["xask gate: first tool = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     Gx --> H[Create TaskCreate per teammate]
     H --> I[Wait for SendMessage replies]
@@ -260,6 +279,12 @@ flowchart TD
 and all names must be committed before any spawn. This prevents the peer-roster
 ordering bug where early teammates lack peer names for cross-critique DMs.
 
+**Mandatory connector on every Pareto round** (landed 2026-04-17): the-judge
+MUST spawn a `connector` teammate in Round 1 AND every subsequent round — not
+optional. Cross-axis pattern matching is structural; focused specialists miss
+whole-table regressions. Reference: `shared.md` §Mandatory connector on every
+round, `~/.claude/agents/the-judge.md`.
+
 ---
 
 ### `/xbgst <prompt>` — Godspeed Pareto + Cross-Model Delegation
@@ -283,15 +308,15 @@ sequenceDiagram
 
     par Phase 2: Spawn all teammates
         J->>T: scout brief (axis + xask gemini gate)
-        J->>T: reviewer brief (axis + xask codex gate)
+        J->>T: reviewer brief (axis + xask -R codex gate)
         J->>T: labrat brief (axis + xask --spark codex gate)
-        J->>T: connector brief (axis + xask gemini gate)
+        J->>T: connector brief (axis + xask gemini gate) [MANDATORY every round]
     end
 
     par Phase 3a: Cross-model delegation (~14s gemini, ~6s codex)
         T->>X: xask gemini '<question>'
         X->>G: gemini -m gemini-3.1-pro-preview -p '<prompt>'
-        Note right of G: Auth cascade: OAuth first → API key fallback
+        Note right of G: Auth cascade: OAuth-only (3 levels)
         G-->>X: response
         X-->>T: stdout (for <raw_output> tags)
         T->>X: xask codex '<question>'
@@ -324,7 +349,14 @@ sequenceDiagram
     end
 ```
 
-**Timing annotations** (from empirical labrat probes, 2026-04-12):
+**Mandatory connector on every round** (same rule as `/xgs`): the-judge spawns
+a connector teammate every Pareto round, Round 1 through terminal. Reference:
+`shared.md`, `the-judge.md`.
+
+**Timing annotations** (from empirical labrat probes, 2026-04-12; default-lane
+codex calls post-2026-04-17 use `gpt-5.4-mini`, so the `~6s codex` figure
+reflects the mini path — `-R` review-lane calls against full `gpt-5.4` may be
+slower):
 
 | Phase | Wall time | Bottleneck |
 |-------|-----------|------------|
@@ -364,8 +396,8 @@ flowchart TD
         xbt["/xbt (deliberative + xask)"]
         xgs["/xgs (godspeed, all-Claude)"]
         xbgst["/xbgst (godspeed + xask)"]
-        agents["~/.claude/agents/*.md \n(8 agent definitions)"]
-        skills["templates/skills/ \n(6 skills)"]
+        agents["~/.claude/agents/*.md \n(14 xbreed-managed definitions; \nexcludes the-musketeer + the-puppeteer, \nwhich are user-invoked, not xbreed-orchestrated)"]
+        skills["commands/*.md (in-repo slash commands) \n+ ~/.claude/skills/ + ~/.agents/skills/ \n(user-managed; templates/ removed 2026-04-17)"]
     end
 
     subgraph "External CLIs"
@@ -391,6 +423,55 @@ flowchart TD
     xgs -.->|"no xask (all-Claude)"| cc
     team_cmd -->|"mailbox side-channel"| xbt & xbgst
 ```
+
+---
+
+## Model selection
+
+Three independent layers decide which model + effort a spawned teammate
+actually runs. Later layers override earlier ones.
+
+| Layer | Source | Controls | Precedence |
+|---|---|---|---|
+| Frontmatter | `~/.claude/agents/<name>.md` | `model:` (opus/sonnet/full ID) + `effort:` default | lowest |
+| DEBUG trap | `~/.bashrc` `__xbreed_effort_trap` | `CLAUDE_CODE_EFFORT_LEVEL` env var via role-keyword match on `--agent-name` | overrides frontmatter `effort:` |
+| `CLAUDE_CODE_SUBAGENT_MODEL` env | user shell | full model override for every subagent | overrides everything (rarely set) |
+
+**Current tier map (2026-04-17, sonnet-medium pivot):**
+
+- `*the-judge*` → **xhigh** (orchestrator exception — opus 4.7 + xhigh)
+- `cco-*` / `ccs-*` / `cdx-*` / `g-*` → **medium** (every teammate)
+- unmapped → NOMATCH (trap leaves env unset; CC falls back to frontmatter `effort:`)
+
+**Every teammate runs `model: sonnet` + `effort: medium` uniformly** — the
+earlier opus-medium unified scheme was replaced 2026-04-17 per user
+directive ("opus is terrible for being the intermediator"). Only
+`the-judge` itself stays on opus 4.7 (orchestrator depth required). The
+former critic/connector/planner high-effort exceptions were collapsed
+when the tier pivoted; every teammate prefix now maps to medium in the
+DEBUG trap.
+
+**Godspeed marker — purest form:** every teammate dispatch appends
+` | godspeed` (literal, with leading space) to the Agent() prompt — or
+` | godspeed-impl` for the executor lane. No preamble. The single-token
+marker IS the whole directive; sonnet-medium teammates read it as
+"iterate cheap in parallel, no clarifying questions, act via tool calls".
+
+**Codex dispatch lanes** (`src/ask.rs` `build_codex_ask_with_loadout`):
+
+- `--spark` → `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode)
+- `-R` / `--review` → `gpt-5.4` (full) + `features.fast_mode=true` (reasoning inherited from `~/.codex/config.toml` = xhigh)
+- default → `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high`
+
+**Profile vs dispatch-default:** `~/.codex/config.toml` `[profiles.xbreed]` still
+pins `model = "gpt-5.4"` (full) — this is the profile codex uses when invoked
+outside xbreed's dispatch layer. The `gpt-5.4-mini` default applies only when
+`src/ask.rs` overrides the model via `-c` on the CLI invocation. The profile
+wasn't moved to mini.
+
+**Gemini auth** is OAuth-exclusive in code (v0.4+). The `GeminiAuth::ApiKey`
+variant and all `.env.local` parsing were removed — only `OAuthProfile(name)`
+and `OAuthDefault` remain. See `### xbreed ask` above for the cascade.
 
 ---
 
