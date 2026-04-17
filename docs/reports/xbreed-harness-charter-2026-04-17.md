@@ -81,9 +81,14 @@ round.
 
 xask is a **Bash-wrapped CLI invocation**, not a native CC tool. Teammates
 see Bash as one of many tools but have no affordance/habit for re-invoking a
-specific Bash subcommand mid-session. Promoting xask to a **first-class tool**
-(MCP or native) would make cross-model delegation structurally available, not
-just ritually-invoked.
+specific Bash subcommand mid-session. Promoting xask to a **native CC tool**
+(first-class tool exposed to the harness, not MCP) would make cross-model
+delegation structurally available, not just ritually-invoked.
+
+**Implementation constraint (per user directive 2026-04-17):** MCP is NOT
+the target — a proper native CC tool integration is. MCP is a different tier
+(protocol server layer) and would still be one-removed from the harness's
+tool-dispatch loop. Native tool = same tier as Read/Write/Grep/Bash.
 
 ### Evidence collection plan
 
@@ -98,15 +103,20 @@ just ritually-invoked.
 
 ### Expected fix
 
-- Implement `mcp__xbreed_xask` MCP server (or equivalent native tool)
-  exposing:
+- Implement xask as a **native CC tool** (NOT MCP — user-directive
+  constraint) exposing:
   - `xask_gemini(effort, question, context?, loadout?)`
   - `xask_codex(effort, question, scope?)`
   - `xask_spark(question)` (codex-5.3-spark fire-and-forget)
+- Same tier as Read/Write/Grep/Bash in the harness's tool-dispatch loop
 - Add to agent templates as available tool
 - Update `xbreed-shared.md` xask-gate documentation from "Bash-invoked" to
-  "MCP/native, Layer-1 gate unchanged, mid-session calls encouraged"
+  "native CC tool, Layer-1 gate unchanged, mid-session calls encouraged"
 - Preserve Layer-1 boot ritual (it works)
+- Investigation needed: what's the CC tool-registration surface? Extend
+  existing tool list or add a new category? Native vs Bash-wrapped
+  distinction must be measurable (tool call name in transcript should be
+  `xask_gemini`, not `Bash: xask --effort ...`).
 
 ### Acceptance gate
 
