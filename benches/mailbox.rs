@@ -6,11 +6,10 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use tempfile::tempdir;
-use xbreed::mailbox::{compact_events, drain_events, drain_events_mmap, write_event, Event};
+use xbreed::mailbox::{compact_events, drain_events, write_event, Event};
 
 const ITERATIONS: usize = 25;
 const SIZES: [usize; 4] = [1, 100, 10_000, 100_000];
-const REGIME_SIZE: usize = 100_000;
 
 fn mailbox_path(team_dir: &std::path::Path) -> PathBuf {
     team_dir
@@ -102,71 +101,6 @@ fn collect_compact_events_ms(count: usize) -> (f64, f64) {
     (p50, p95)
 }
 
-/// Dual-regime drain probe: measures drain_events + drain_events_mmap at
-/// REGIME_SIZE in two regimes — cold-cache (per-iteration tempdir: fresh
-/// directory each run, cold dentry/inode cache, first-drain-after-idle
-/// production scenario) and warm-cache (fixed reused directory: stable
-/// `.xbreed/mailbox/` path, warm cache, active-session production scenario).
-/// Regime separation was the R1 methodology finding that exposed the
-/// fixed-path vs per-iteration-tempdir regime split in ccs-labrat-drain-h10's
-/// data.
-type RegimeStats = ((f64, f64), (f64, f64), (f64, f64), (f64, f64));
-
-fn collect_drain_dual_regime_ms() -> RegimeStats {
-    let n = REGIME_SIZE;
-    // Cold-cache: fresh tempdir each iteration.
-    let mut baseline_cold = Vec::with_capacity(ITERATIONS);
-    let mut mmap_cold = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        let dir = tempdir().unwrap();
-        seed_events(dir.path(), n);
-        let start = Instant::now();
-        black_box(drain_events(dir.path()).unwrap());
-        baseline_cold.push(to_ms(start.elapsed()));
-
-        let dir = tempdir().unwrap();
-        seed_events(dir.path(), n);
-        let start = Instant::now();
-        black_box(drain_events_mmap(dir.path()).unwrap());
-        mmap_cold.push(to_ms(start.elapsed()));
-    }
-    let cold_baseline = (
-        percentile_ms(&mut baseline_cold, 0.50),
-        percentile_ms(&mut baseline_cold, 0.95),
-    );
-    let cold_mmap = (
-        percentile_ms(&mut mmap_cold, 0.50),
-        percentile_ms(&mut mmap_cold, 0.95),
-    );
-
-    // Warm-cache: fixed directory reused across iterations. write → drain
-    // cycle on same inode path — matches xbreed's stable `.xbreed/mailbox/`
-    // layout across the lifetime of a running team session.
-    let warm_root = tempdir().unwrap();
-    let mut baseline_warm = Vec::with_capacity(ITERATIONS);
-    let mut mmap_warm = Vec::with_capacity(ITERATIONS);
-    for _ in 0..ITERATIONS {
-        seed_events(warm_root.path(), n);
-        let start = Instant::now();
-        black_box(drain_events(warm_root.path()).unwrap());
-        baseline_warm.push(to_ms(start.elapsed()));
-
-        seed_events(warm_root.path(), n);
-        let start = Instant::now();
-        black_box(drain_events_mmap(warm_root.path()).unwrap());
-        mmap_warm.push(to_ms(start.elapsed()));
-    }
-    let warm_baseline = (
-        percentile_ms(&mut baseline_warm, 0.50),
-        percentile_ms(&mut baseline_warm, 0.95),
-    );
-    let warm_mmap = (
-        percentile_ms(&mut mmap_warm, 0.50),
-        percentile_ms(&mut mmap_warm, 0.95),
-    );
-    (cold_baseline, cold_mmap, warm_baseline, warm_mmap)
-}
-
 fn emit_functional_baseline() {
     let mut payload = BTreeMap::<String, BTreeMap<String, serde_json::Value>>::new();
     let mut write_events = BTreeMap::new();
@@ -193,24 +127,6 @@ fn emit_functional_baseline() {
         );
     }
 
-    let (cold_base, cold_mmap, warm_base, warm_mmap) = collect_drain_dual_regime_ms();
-    let regime_payload = serde_json::json!({
-        format!("n={REGIME_SIZE}"): {
-            "cold_cache": {
-                "baseline": {"p50_ms": cold_base.0, "p95_ms": cold_base.1},
-                "mmap": {"p50_ms": cold_mmap.0, "p95_ms": cold_mmap.1},
-                "mmap_delta_p50_pct": ((cold_mmap.0 - cold_base.0) / cold_base.0) * 100.0,
-                "mmap_delta_p95_pct": ((cold_mmap.1 - cold_base.1) / cold_base.1) * 100.0,
-            },
-            "warm_cache": {
-                "baseline": {"p50_ms": warm_base.0, "p95_ms": warm_base.1},
-                "mmap": {"p50_ms": warm_mmap.0, "p95_ms": warm_mmap.1},
-                "mmap_delta_p50_pct": ((warm_mmap.0 - warm_base.0) / warm_base.0) * 100.0,
-                "mmap_delta_p95_pct": ((warm_mmap.1 - warm_base.1) / warm_base.1) * 100.0,
-            }
-        }
-    });
-
     payload.insert("write_event".to_string(), write_events);
     payload.insert("drain_events".to_string(), drain_events_stats);
     payload.insert("compact_events".to_string(), compact_events_stats);
@@ -225,7 +141,6 @@ fn emit_functional_baseline() {
         .and_then(|content| serde_json::from_str(&content).ok())
         .unwrap_or_else(|| serde_json::json!({}));
     report["function_wall_ms"] = serde_json::json!(payload);
-    report["drain_dual_regime_ms"] = regime_payload;
     write(&report_path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
 }
 
