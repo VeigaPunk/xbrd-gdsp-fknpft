@@ -114,6 +114,7 @@ From planner addendum-9 second-order framing — these require their own plannin
 3. **Incremental drain.** Read N most recent events per call, defer older to background compact. Pairs with Option E naturally (async compact handles the deferred tail).
 4. **Write batching.** `BufWriter` accumulating events with periodic flush. Changes `write_event` durability semantics (currently per-event `O_APPEND` → next fsync visible). Out of scope for compact-latency mission; separate charter.
 5. **Reviewer/mutation-tester pass on M2 Option E.** Optional — the worker + channel + orphan-recovery machinery didn't get a dedicated review round. If R4 opens with fresh eyes on `compact_async`, worth a pass.
+6. **Orphan recovery PID-recycle edge case.** Current `pid_is_alive(pid)` check has a latent gap: if dead process A's orphan file exists and a new process B reuses PID A before drain runs, the liveness probe sees B alive and skips the orphan permanently (data loss). Flagged by ccs-executor-core's post-impl self-audit. Fix: add mtime floor — adopt if `!pid_is_alive(pid) OR file_mtime_age > 60s` (pid-recycle window dominated by file age). Two-line change + one test. Shipped without it per executor-core's default "ship as-is, document" on 17/17 green. Pick up in R4.
 
 ## Session epistemic log
 
