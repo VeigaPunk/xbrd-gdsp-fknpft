@@ -1,0 +1,113 @@
+# Teammate Benchmark — Cross-phase Summary
+
+**Mission:** `/xbgst /wwkd | godspeed` — teammate-level benchmark
+**Phases executed:** C (no-op probe) + A (godspeed model benchmark)
+**Phase deferred:** B (serial env-restart matrix — handoff spec only)
+**Plan:** `docs/plans/teammate-benchmark-plan-2026-04-17.md`
+**Date:** 2026-04-17
+
+---
+
+## Headline findings
+
+1. **Teammate-mode `effort:` frontmatter is a no-op** (confirmed empirically, 7 distinct labels → identical behaviour at session xhigh).
+2. **Opus vs sonnet on a hard design task (xhigh, n=6):** opus is 6% faster wall-time, produces 67% fewer output tokens, 45% fewer tokens per quality point, and 5× less variance on tok/s. Opus mean quality 16.00 vs sonnet 14.67 (4-axis judge rubric, 1-5 each).
+3. **11/13 teammates converged on PATH-shim + env-injection** as the design for per-teammate effort. Separation was rigor of failure-mode treatment, not architectural novelty. The 2 outliers (sonnet-high, sonnet-b) proposed heavier architectures with bigger load-bearing unknowns and scored lower.
+
+---
+
+## Cost of the mission
+
+| Phase | Teammates | Aggregate output tokens | Aggregate cache-read | Total wall (parallel) |
+|---|---|---|---|---|
+| C     | 7  | 92,258     | 2,512,277 | ~195s (longest teammate) |
+| A     | 6  | 90,294     | 2,326,882 | ~201s (longest teammate) |
+| M5 judge | 1 | 91,541 (subagent total)† | — | ~142s |
+| Orchestrator (this session) | 1 | — | — | — |
+| **Total** | 14 | **~274k out + 91k judge** | ~4.8M | ~7 min span |
+
+† Judge used a `critic` subagent template, not a teammate, by design (to keep quality scoring orthogonal to the benchmark data).
+
+---
+
+## Top 3 proposals (out of 13)
+
+| rank | teammate | phase | model | total | core idea |
+|---|---|---|---|---|---|
+| 1 (tie) | cco-probe-opus-high | C | opus | **19** | Rust shim binary, longest-prefix match, per-pane settings-dir fallback for Gap-3 |
+| 1 (tie) | cco-bench-opus-a    | A | opus | **19** | Rust shim with 3-tier name-resolution cascade (env → pane-title → argv) + `xbreed effort-shim verify` |
+| 3       | cco-probe-opus-low  | C | opus | **18** | PATH-shim, 6 failure-modes each with detect+rollback, 6 Build/CI tests, ship-gate on empirical Gap-3 close |
+
+Bottom tier (3):
+- ccs-bench-sonnet-b — 13 — `xbreed team-spawn` bypasses TeamCreate entirely, undocumented mailbox-routing assumption
+- cco-bench-opus-c — 13 — pane_title asserted in code without equal rigor in failure-mode flagging
+- (no other ties at 13)
+
+---
+
+## Per-model aggregates (Phase C + Phase A combined)
+
+| metric | sonnet (n=6) | opus (n=7) |
+|---|---|---|
+| wall_s mean        | 193.9 | 179.8 |
+| out_tokens mean    | 16,158 | 12,258 |
+| tok/s mean         | 83.1   | 68.3   |
+| tok/s stddev       | 21.1   | 9.0    |
+| quality mean       | 15.33  | 17.00  |
+| quality stddev     | 1.21   | 2.08   |
+| input_tokens mean  | 25.5   | 2,549  (skewed by opus-c at 14,645) |
+| cache_read mean    | 328,173 | 410,017 |
+
+Notes:
+- Opus cache-reads 25% heavier on average → larger context loaded per turn.
+- Sonnet tok/s variance is 2.3× higher than opus — individual sonnet runs fluctuate more wildly in writing speed.
+- Opus-c's 14,645 input_tokens is a single-run outlier (read-all-context spiral) and did NOT buy higher quality.
+
+---
+
+## Observations for future xbgst missions
+
+1. **Tool-breakdowns were near-identical across all 13 teammates** (7 calls: Read×3, SendMessage×3, ToolSearch×1, with rare Bash/Glob additions). Tool-count is a weak signal on this task class. Future benchmarks: probe for task classes where tool selection does differentiate.
+2. **Opus is the right default for design tasks under godspeed.** Same wall-time budget yields better quality with fewer tokens.
+3. **Sonnet is a candidate when (a) token volume matters more than precision, or (b) parallelism of ≥3 replicas is available to offset variance.**
+4. **11/13 convergence on PATH-shim pattern** means: the best teammate for design work brings rigor, not novelty. Future briefs should emphasize "surface 2+ alternatives" and "name your load-bearing unknown" to force the differentiation.
+
+---
+
+## Proposal-level synthesis — per-teammate effort (dominant design)
+
+Since 11/13 teammates proposed variants of the same pattern, here's the converged best-of:
+
+**PATH-shadowed `claude` shim with 3-tier teammate-name cascade:**
+1. Env: `$CLAUDE_AGENT_NAME` / `$XBREED_AGENT_NAME` (best-case, requires CC cooperation)
+2. `tmux display-message -p '#{pane_title}'` (best-guess; empirical probe needed — LINCHPIN)
+3. argv scan for `--agent-name` / `--teammate-id` (fallback; format drifts across CC versions)
+4. Graceful fall-through: no override → session default (zero regression)
+
+Best implementation suggested by the top-2 proposals: **Rust shim binary** (not bash), installed via `xbreed effort-shim install` (opt-in, with `verify` subcommand for PATH-order diagnosis). Map file keyed by teammate name (or glob prefix) sourced from `templates/agents/*.md` frontmatter, regenerated by `xbreed sync`.
+
+**Ship-blocker:** the empirical pane-title / argv-name probe. Before writing a line of shim code, one labrat should spawn inside a live teammate and run `tmux display-message -p '#{pane_title}'` + `cat /proc/$$/cmdline` to confirm CC passes the teammate name through ONE of the three cascade tiers. If none, the whole pattern collapses and only the session-wide env workaround remains (currently shipped).
+
+---
+
+## Dispatcher notes (godspeed/wwkd retrospective)
+
+- Data walk upfront (jsonl schema, current-session UUID, stale-team check, precheck rebuild) caught the `xbreed precheck` shadow-binary trap BEFORE TeamCreate rather than mid-dispatch.
+- Overfit one case (M2 smoke) before scaling — caught the locator regex issue against the orchestrator's own jsonl.
+- Skeleton-first metrics (scripts/bench-metrics.py validated on a known R1 jsonl with EXACT value match) meant the Phase C + Phase A rows were trustworthy on first pass.
+- Commit-per-phase cadence preserved auditability.
+
+All three wwkd biases (data-first, skeleton-first, overfit-first) fired correctly. The only rework was a 2-minute locator regex fix after shell swallowed Python backticks.
+
+---
+
+## Artifacts
+
+- **Plans:** `docs/plans/teammate-benchmark-plan-2026-04-17.md`
+- **Reports:** `docs/reports/teammate-benchmark-{phase-c,phase-a,phase-b-handoff,summary}-2026-04-17.md`
+- **Data:** `data/bench-phase-{c,a}.tsv`, `data/bench-quality.json`
+- **Proposals:** `data/proposals/*.md` (13 files)
+- **Scripts:** `scripts/bench-metrics.py`, `scripts/bench-collect.sh`, `scripts/bench-locate.py`, `scripts/bench-extract-proposals.py`
+- **Commits on `main`:** 4 benchmark commits (plan, scripts+C, A, summary+B-handoff)
+
+No teammates active. Teams deleted. `~/.claude/teams/default/` is the orchestrator's own task context (not a stale team).
