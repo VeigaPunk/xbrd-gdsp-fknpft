@@ -67,6 +67,22 @@ pub enum Commands {
         #[command(subcommand)]
         action: TeamAction,
     },
+    /// Run preflight checks before spawning a team
+    Precheck {
+        #[command(subcommand)]
+        check: PrecheckAction,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PrecheckAction {
+    /// Check if the tmux window has enough room for the requested team size.
+    /// Exits 0 if safe, 1 if over cap, 0 with a notice if tmux is unavailable.
+    PaneCap {
+        /// Number of panes (teammates) about to be spawned
+        #[arg(long, short = 'n')]
+        team_size: u32,
+    },
 }
 
 #[derive(Subcommand, Debug)]

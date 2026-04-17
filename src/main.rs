@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::path::{Path, PathBuf};
-use xbreed::cli::{Cli, Commands, MailboxAction, TeamAction};
+use xbreed::cli::{Cli, Commands, MailboxAction, PrecheckAction, TeamAction};
 
 fn expand_path(p: &Path) -> anyhow::Result<PathBuf> {
     let s = p.to_string_lossy();
@@ -66,6 +66,28 @@ fn main() -> anyhow::Result<()> {
             print!("{out}");
             Ok(())
         }
+        Commands::Precheck { check } => match check {
+            PrecheckAction::PaneCap { team_size } => match xbreed::precheck::run(team_size)? {
+                xbreed::precheck::CapResult::Ok => {
+                    println!("pane-cap ok: team_size={team_size} fits");
+                    Ok(())
+                }
+                xbreed::precheck::CapResult::TmuxUnavailable => {
+                    println!("tmux not detected, cap check skipped");
+                    Ok(())
+                }
+                xbreed::precheck::CapResult::Fail {
+                    panes_in_use,
+                    cap,
+                    team_size,
+                } => {
+                    eprintln!(
+                            "{panes_in_use} panes in use, cap {cap}, cannot spawn {team_size} — shutdown idle teammates first"
+                        );
+                    std::process::exit(1);
+                }
+            },
+        },
         Commands::Team { action } => match action {
             TeamAction::Init => xbreed::team::init(),
             TeamAction::Mailbox { subaction } => {
