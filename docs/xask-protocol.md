@@ -8,7 +8,7 @@
 ## 1. Synopsis
 
 ```
-xask [-d] [-s <scope>] [-r] [--spk] [-e <level>] <model> "<query>" ["<context>"] ["<skill>"]
+xask [-d] [-s <scope>] [-r] [--spk] [-R] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
 ```
 
 `<model>` is one of `gemini` or `codex`. (`claude` dispatch was removed in R2-A5 — advisor() with opus 4.7 max supersedes it.)  
