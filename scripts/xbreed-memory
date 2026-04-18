@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# xbreed-memory — persistence wrapper over data/xbreed.db (R2 m11, R3 M3)
+# Schema v1-minimal per R2 L-axis: mission round axis_id observable direction
+#
+# Usage:
+#   xbreed-memory put <mission> <round> <axis_id> "<observable>" <direction>
+#   xbreed-memory get [mission]        # latest mission if omitted
+#
+# Contract (R2 m14/m17):
+#   exit 0 + stdout = success (get returns rows; put is silent on success)
+#   exit 0 + empty stdout on get = silent skip (no data yet)
+#   exit 1 = bad args
+#   exit 2 = sqlite error (db locked, corruption, missing schema)
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+DB="$repo_root/data/xbreed.db"
+
+[ -f "$DB" ] || { printf 'xbreed-memory: db missing at %s (run data/xbreed-schema.sql first)\n' "$DB" >&2; exit 2; }
+command -v sqlite3 >/dev/null 2>&1 || { echo 'xbreed-memory: sqlite3 not installed' >&2; exit 2; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  put)
+    [ $# -eq 5 ] || { echo 'xbreed-memory: put <mission> <round> <axis_id> "<observable>" <direction>' >&2; exit 1; }
+    mission="$1"; round="$2"; axis="$3"; observable="$4"; direction="$5"
+    [[ "$round" =~ ^[0-9]+$ ]] || { echo 'xbreed-memory: round must be an integer' >&2; exit 1; }
+    case "$direction" in +|-|0) ;; *) echo 'xbreed-memory: direction must be + / - / 0' >&2; exit 1 ;; esac
+    sqlite3 "$DB" <<SQL || exit 2
+INSERT INTO findings (mission, round, axis_id, observable, direction)
+VALUES ('$(echo "$mission" | sed "s/'/''/g")', $round,
+        '$(echo "$axis" | sed "s/'/''/g")',
+        '$(echo "$observable" | sed "s/'/''/g")',
+        '$direction');
+SQL
+    ;;
+  get)
+    mission="${1:-}"
+    if [ -z "$mission" ]; then
+      sqlite3 -readonly "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission=(SELECT mission FROM findings ORDER BY round DESC, rowid DESC LIMIT 1) ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
+    else
+      sqlite3 -readonly "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission='$(echo "$mission" | sed "s/'/''/g")' ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
+    fi
+    ;;
+  *)
+    echo 'xbreed-memory: usage — put <mission> <round> <axis_id> "<observable>" <direction> | get [mission]' >&2
+    exit 1
+    ;;
+esac
