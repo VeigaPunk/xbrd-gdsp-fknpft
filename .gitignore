@@ -19,7 +19,6 @@
 # codex CLI runtime state — per-project OAuth profile + ephemeral home.
 .codex
 .codex-home/
-honcho/
 
 # R3 M1 — SQLite persistence substrate; schema committed, db gitignored (local state)
 data/xbreed.db
