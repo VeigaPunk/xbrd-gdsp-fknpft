@@ -9,18 +9,21 @@ use std::process::Command;
 
 /// Build a codex Command with loadout injection and clean-dispatch suppression.
 ///
-/// Three lanes select the codex model family:
-/// - `spark=true`  → [`CODEX_SPARK_MODEL`] + `model_reasoning_effort=low` (no fast_mode).
-/// - `review=true` → [`CODEX_DEFAULT_MODEL`] (`gpt-5.4` full) + `features.fast_mode=true`.
-///   Reserved for reviewer/critic/sentinel/the-revenger where the extra capacity
-///   of full 5.4 earns the cost; see AGENTS.md for the routing table.
-/// - otherwise     → [`CODEX_MINI_MODEL`] (`gpt-5.4-mini`) + `features.fast_mode=true`
-///   as the default non-spark lane (user directive 2026-04-17 — mini handles
-///   execution/labrat/scout/etc. at a fraction of the cost; review still routes
-///   through the full model).
+/// Four lanes select the codex model family:
+/// - `spark=true`            → [`CODEX_SPARK_MODEL`] + `model_reasoning_effort=low`
+///   (no fast_mode). Labrat probes, cheap/fast/expendable.
+/// - `review=true, full=true` → [`CODEX_FULL_MODEL`] (`gpt-5.4` full, 1.05M ctx) +
+///   `features.fast_mode=true`. The escape hatch (user directive 2026-04-18) for
+///   the-revenger RECON where stitching codebase-scale evidence needs the larger
+///   context window.
+/// - `review=true` (no full)  → [`CODEX_MINI_MODEL`] (`gpt-5.4-mini`, 400K ctx) +
+///   `features.fast_mode=true`. Review lane default per 2026-04-18 directive.
+/// - otherwise                → [`CODEX_MINI_MODEL`] + `features.fast_mode=true`.
+///   Default non-spark lane; mini handles execution/labrat/scout/etc.
 ///
-/// `spark` and `review` are mutually exclusive; if both are true, `spark` wins
-/// (labrat probes are cheaper than reviews and should short-circuit).
+/// `spark` short-circuits all other lanes (labrat probes are cheaper than
+/// reviews and should beat review in the rare spark+review case). `full`
+/// without `review` is a no-op.
 ///
 /// Always applies contamination-suppression flags (`--skip-git-repo-check` +
 /// `include_permissions/apps/environment_context=false`) for epistemic
@@ -35,6 +38,7 @@ pub fn build_codex_ask_with_loadout(
     loadout: &Loadout,
     spark: bool,
     review: bool,
+    full: bool,
     json: bool,
     output_last_message: Option<&Path>,
 ) -> Command {
@@ -68,12 +72,15 @@ pub fn build_codex_ask_with_loadout(
     if spark {
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
-    } else if review {
-        // Review lane: full gpt-5.4 for adversarial/deep reviews.
-        c.arg("-m").arg(CODEX_DEFAULT_MODEL);
+    } else if review && full {
+        // -R -F escape hatch: full gpt-5.4 (1.05M ctx) for the-revenger RECON
+        // where the larger context window earns the cost. User directive 2026-04-18.
+        c.arg("-m").arg(CODEX_FULL_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
     } else {
-        // Default lane: gpt-5.4-mini + fast_mode (user directive 2026-04-17).
+        // Default + review-default lanes both route to mini (400K ctx) + fast_mode.
+        // User directive 2026-04-18 — review lane migrated to mini; escape hatch
+        // via --full/-F above when RECON-class context is needed.
         c.arg("-m").arg(CODEX_MINI_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
     }
@@ -111,19 +118,19 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
 /// The codex model used for spark (cheap/fast/expendable) probes.
 pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
 
-/// The codex model used for the review lane (reviewer/critic/sentinel/
-/// the-revenger/etc.). `gpt-5.4` is codex's full-capacity model in v0.120.0.
-/// Previously this was the default for every non-spark dispatch; as of
-/// 2026-04-17 it's reserved for `review=true` callers, with
-/// [`CODEX_MINI_MODEL`] handling the rest.
-pub const CODEX_DEFAULT_MODEL: &str = "gpt-5.4";
+/// The codex model used for the `-R -F` escape hatch — full `gpt-5.4`,
+/// codex's full-capacity model in v0.120.0 (1.05M context window). Reserved
+/// for the-revenger RECON tasks stitching codebase-scale evidence where
+/// mini's 400K ceiling would silently truncate. User directive 2026-04-18.
+pub const CODEX_FULL_MODEL: &str = "gpt-5.4";
 
-/// The codex model used for the default (non-spark, non-review) lane —
-/// `gpt-5.4-mini`, introduced as the standing default 2026-04-17. The mini
-/// variant handles execution/labrat/scout/planning/synthesis work at a
-/// fraction of the cost and round-time of full 5.4, while still supporting
-/// `features.fast_mode=true`. Review-class roles escalate via the `review`
-/// parameter on [`build_codex_ask_with_loadout`] to reach [`CODEX_DEFAULT_MODEL`].
+/// The codex model used for the default non-spark lane — `gpt-5.4-mini`,
+/// introduced as the standing default 2026-04-17 and extended to the review
+/// lane default 2026-04-18. Handles execution/labrat/scout/planning/synthesis
+/// AND reviewer/critic/sentinel work at a fraction of the cost and round-time
+/// of full 5.4, while still supporting `features.fast_mode=true`. The-revenger
+/// RECON escalates via `-R -F` to reach [`CODEX_FULL_MODEL`] for the larger
+/// context window.
 pub const CODEX_MINI_MODEL: &str = "gpt-5.4-mini";
 
 // ========================================================================
@@ -394,6 +401,7 @@ pub fn dispatch(
     effort: Option<&str>,
     spark: bool,
     review: bool,
+    full: bool,
     json: bool,
     output_last_message: Option<&Path>,
 ) -> Result<String> {
@@ -461,8 +469,14 @@ pub fn dispatch(
 
     let cmd = match cli {
         "codex" => {
-            let mut c =
-                build_codex_ask_with_loadout(loadout, spark, review, json, output_last_message);
+            let mut c = build_codex_ask_with_loadout(
+                loadout,
+                spark,
+                review,
+                full,
+                json,
+                output_last_message,
+            );
             if spark {
                 warn_codex_spark_effort(effort);
             } else if let Some(e) = effort {
@@ -542,10 +556,12 @@ mod tests {
 
     #[test]
     fn codex_ask_default_lane_uses_mini_model() {
-        // Default lane (spark=false, review=false) = gpt-5.4-mini + fast_mode.
-        // User directive 2026-04-17 — mini is the standing default; review
-        // escalates to full 5.4 via the separate `review=true` branch.
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, false, false, None);
+        // Default lane (spark=false, review=false, full=false) = gpt-5.4-mini + fast_mode.
+        // User directive 2026-04-17 — mini is the standing default; 2026-04-18
+        // extended mini to the review lane default, with -R -F as escape hatch
+        // to full 5.4 for the-revenger RECON.
+        let mut c =
+            build_codex_ask_with_loadout(&Loadout::empty(), false, false, false, false, None);
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
         let args = cmd_args(&c);
@@ -560,7 +576,6 @@ mod tests {
         // Default lane pins CODEX_MINI_MODEL (gpt-5.4-mini) explicitly.
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
-        assert!(!args.contains(&CODEX_DEFAULT_MODEL.to_string()));
         // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
         assert!(args.contains(&"--sandbox".to_string()));
         assert!(args.contains(&"danger-full-access".to_string()));
@@ -570,20 +585,56 @@ mod tests {
     }
 
     #[test]
-    fn codex_ask_review_lane_uses_full_model() {
-        // Review lane: full gpt-5.4 for reviewer/critic/sentinel/the-revenger.
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, None);
+    fn codex_ask_review_default_uses_mini_model() {
+        // Review lane default (review=true, full=false) routes to gpt-5.4-mini
+        // per user directive 2026-04-18 (migrated from full gpt-5.4).
+        let mut c =
+            build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, false, None);
         c.arg("review this").arg(""); // second arg is a no-op placeholder
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
-        assert!(args.contains(&CODEX_DEFAULT_MODEL.to_string()));
-        assert!(!args.contains(&CODEX_MINI_MODEL.to_string()));
+        assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
     }
 
     #[test]
+    fn codex_ask_review_full_flag_uses_full_model() {
+        // -R -F escape hatch (review=true, full=true) routes to full gpt-5.4
+        // for the-revenger RECON with 1.05M context window. User directive
+        // 2026-04-18.
+        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, false, None);
+        c.arg("recon this").arg("");
+        let args = cmd_args(&c);
+        assert!(args.contains(&"-m".to_string()));
+        assert!(
+            args.contains(&CODEX_FULL_MODEL.to_string()),
+            "-R -F must pin -m gpt-5.4 (full) for the-revenger RECON: {args:?}"
+        );
+        assert!(
+            !args.contains(&CODEX_MINI_MODEL.to_string()),
+            "-R -F must NOT route to mini: {args:?}"
+        );
+        assert!(args.contains(&"features.fast_mode=true".to_string()));
+    }
+
+    #[test]
+    fn codex_ask_full_without_review_is_noop() {
+        // --full/-F without --review is a no-op; routes to mini default.
+        let mut c =
+            build_codex_ask_with_loadout(&Loadout::empty(), false, false, true, false, None);
+        c.arg("hello");
+        let args = cmd_args(&c);
+        assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
+        assert!(
+            !args.contains(&CODEX_FULL_MODEL.to_string()),
+            "--full without --review must NOT promote to full model: {args:?}"
+        );
+    }
+
+    #[test]
     fn codex_ask_spark_adds_model_and_low_effort() {
-        let mut c = build_codex_ask_with_loadout(&Loadout::empty(), true, false, false, None);
+        let mut c =
+            build_codex_ask_with_loadout(&Loadout::empty(), true, false, false, false, None);
         c.arg("probe"); // caller appends prompt
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -600,7 +651,7 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let mut c = build_codex_ask_with_loadout(&l, false, false, false, None);
+        let mut c = build_codex_ask_with_loadout(&l, false, false, false, false, None);
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
@@ -619,8 +670,18 @@ mod tests {
     #[test]
     fn dispatch_rejects_unknown_cli() {
         let l = Loadout::empty();
-        let err =
-            dispatch("unknown-cli", "hello", &l, None, false, false, false, None).unwrap_err();
+        let err = dispatch(
+            "unknown-cli",
+            "hello",
+            &l,
+            None,
+            false,
+            false,
+            false,
+            false,
+            None,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
     }
 
@@ -813,6 +874,7 @@ mod tests {
             "test prompt",
             &super::Loadout::empty(),
             None,
+            false,
             false,
             false,
             false,

@@ -259,7 +259,7 @@ fn ask_codex_route_preserves_full_unlock_contract() {
     // shifts the default model is caught at argv audit time, not silently.
     // Pairs with ask.rs constant CODEX_MINI_MODEL and ~/.codex/config.toml SSoT.
     // User directive 2026-04-17: mini is the standing default; review lane
-    // (`xask -R codex`) is the path to full gpt-5.4.
+    // (`xask -R codex`) is the path to gpt-5.4-mini.
     let m_idx = argv.iter().position(|a| a == "-m");
     assert!(
         m_idx.is_some(),
@@ -493,6 +493,78 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
     assert!(
         !argv2.iter().any(|a| a == "-o"),
         "-o must not appear when flag absent: {argv2:?}"
+    );
+}
+
+/// M12 (-R -F escape hatch plumb) — end-to-end contract: when
+/// `xbreed ask codex --review --full` is invoked, `-m gpt-5.4` (not
+/// `gpt-5.4-mini`) must reach codex argv. Without --full, -R routes to
+/// gpt-5.4-mini default.
+///
+/// Guards the three-layer plumb: cli.rs (--full/-F field) → main.rs
+/// (destructure + pass) → ask.rs (review && full branch pins CODEX_FULL_MODEL).
+/// User directive 2026-04-18: the-revenger RECON needs 1.05M context; -F
+/// escape hatch is the reachable path.
+#[test]
+fn ask_codex_review_full_flag_routes_to_full_model() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+
+    // Case 1: -R --full → -m gpt-5.4 (full)
+    let log_full = home.join("codex_full.log");
+    write_stub(&bin_dir, "codex", &log_full);
+    let out_full = run_xbreed_ask(
+        home,
+        &bin_dir,
+        &["ask", "codex", "--review", "--full", "recon this"],
+    );
+    assert!(
+        out_full.status.success(),
+        "xbreed ask codex -R --full failed: {:?}",
+        out_full
+    );
+    let argv_full = read_log(&log_full);
+    let m_idx = argv_full
+        .iter()
+        .position(|a| a == "-m")
+        .expect("missing -m flag in -R -F argv");
+    assert_eq!(
+        argv_full[m_idx + 1],
+        "gpt-5.4",
+        "-R --full must pin -m gpt-5.4 (full): {argv_full:?}"
+    );
+
+    // Case 2: -R without --full → -m gpt-5.4-mini (review lane default)
+    let log_mini = home.join("codex_mini.log");
+    write_stub(&bin_dir, "codex", &log_mini);
+    let out_mini = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "--review", "review this"]);
+    assert!(out_mini.status.success(), "xbreed ask codex -R failed");
+    let argv_mini = read_log(&log_mini);
+    let m_idx_mini = argv_mini
+        .iter()
+        .position(|a| a == "-m")
+        .expect("missing -m in -R argv");
+    assert_eq!(
+        argv_mini[m_idx_mini + 1],
+        "gpt-5.4-mini",
+        "-R without --full must pin -m gpt-5.4-mini (review default 2026-04-18): {argv_mini:?}"
+    );
+
+    // Case 3: --full without -R is a no-op → mini (not full)
+    let log_noop = home.join("codex_noop.log");
+    write_stub(&bin_dir, "codex", &log_noop);
+    let out_noop = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "--full", "hello"]);
+    assert!(out_noop.status.success(), "xbreed ask codex --full failed");
+    let argv_noop = read_log(&log_noop);
+    let m_idx_noop = argv_noop
+        .iter()
+        .position(|a| a == "-m")
+        .expect("missing -m in --full-only argv");
+    assert_eq!(
+        argv_noop[m_idx_noop + 1],
+        "gpt-5.4-mini",
+        "--full without -R must route to mini (default lane): {argv_noop:?}"
     );
 }
 

@@ -53,12 +53,18 @@ pub enum Commands {
         /// Equivalent to: -m gpt-5.3-codex-spark + model_reasoning_effort=low
         #[arg(long)]
         spark: bool,
-        /// Use the full gpt-5.4 review lane (codex only) instead of the
-        /// default gpt-5.4-mini. Reserved for reviewer/critic/sentinel/
-        /// the-revenger-class work where the extra capacity earns the cost.
-        /// Mutually exclusive with --spark; --spark wins if both are set.
+        /// Enter the review lane (codex only). By default routes to
+        /// gpt-5.4-mini. Combine with --full/-F to route to full gpt-5.4
+        /// (the-revenger-class RECON work where the 1.05M context window
+        /// earns the cost). Mutually exclusive with --spark; --spark wins.
         #[arg(long, short = 'R')]
         review: bool,
+        /// Escape hatch for the review lane: route -R to full gpt-5.4
+        /// (1.05M context) instead of the default gpt-5.4-mini (400K context).
+        /// Reserved for the-revenger RECON tasks stitching codebase-scale
+        /// evidence. No effect without --review/-R.
+        #[arg(long, short = 'F')]
+        full: bool,
         /// Emit raw JSON from codex exec responses (codex only).
         /// Passes --json to codex exec; no-op for gemini.
         #[arg(long)]
