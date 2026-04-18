@@ -20,3 +20,8 @@
 .codex
 .codex-home/
 honcho/
+
+# R3 M1 — SQLite persistence substrate; schema committed, db gitignored (local state)
+data/xbreed.db
+data/xbreed.db-wal
+data/xbreed.db-shm
