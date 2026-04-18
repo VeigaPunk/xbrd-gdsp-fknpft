@@ -249,8 +249,12 @@ fn collect_compact_sidecars(mailbox_path: &Path) -> Result<String> {
         } else {
             continue;
         };
-        let drain_target =
-            source.with_extension(format!("drained_by.{}.{}", std::process::id(), suffix));
+        let drain_target = parent.join(format!(
+            "{}.drained_by.{}.{}",
+            stem,
+            std::process::id(),
+            suffix
+        ));
         // Claim exclusive ownership via rename; another drain may have grabbed
         // it between the readdir and this rename — that's fine, skip silently.
         if std::fs::rename(&source, &drain_target).is_err() {
@@ -489,7 +493,10 @@ pub(crate) fn __wait_compact_idle() {
     }
 }
 
-/// RED-TEST VERSION: blocking send — used only to capture hang evidence.
+/// Send a job to the worker that panics inside catch_unwind.
+/// Used by M4 test to verify COMPACT_PENDING is always decremented.
+/// Uses try_send + yield loop (never blocks) so a concurrent __poison_compact_worker
+/// can drop(tx) + handle.join() without this clone keeping the channel open indefinitely.
 #[cfg(test)]
 pub(crate) fn __send_panicking_job() {
     let tx = {
@@ -498,17 +505,29 @@ pub(crate) fn __send_panicking_job() {
             .as_ref()
             .filter(|s| !s.handle.is_finished())
             .map(|s| s.tx.clone())
-    };
+    }; // guard dropped here
     if let Some(tx) = tx {
         COMPACT_PENDING.fetch_add(1, Ordering::Release);
-        if tx.send(CompactJob {
+        let mut job_opt = Some(CompactJob {
             team_dir: PathBuf::new(),
             keep_types: vec![],
             digest_older_than_secs: 0,
             poison_after: false,
             panic_in_worker: true,
-        }).is_err() {
-            COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+        });
+        loop {
+            match tx.try_send(job_opt.take().unwrap()) {
+                Ok(()) => break,
+                Err(std::sync::mpsc::TrySendError::Full(j)) => {
+                    job_opt = Some(j);
+                    std::thread::yield_now();
+                }
+                Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
+                    // Worker died before we could send — undo the increment.
+                    COMPACT_PENDING.fetch_sub(1, Ordering::Release);
+                    break;
+                }
+            }
         }
     }
 }
