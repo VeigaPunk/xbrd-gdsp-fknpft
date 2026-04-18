@@ -22,6 +22,7 @@ verify:
 	@echo "verify: tests/xask_effort_substitution.sh"; bash tests/xask_effort_substitution.sh
 	@echo "verify: tests/xask_failloud.sh"; bash tests/xask_failloud.sh
 	@echo "verify: tests/xask_cross_model_divergence.sh"; bash tests/xask_cross_model_divergence.sh
+	@echo "verify: tests/xask_full_flag.sh"; bash tests/xask_full_flag.sh
 	@echo "verify: tests/axis_family_schema_check.sh"; bash tests/axis_family_schema_check.sh
 
 ## verify-docs: check connector routing consistency across SSoT copies
