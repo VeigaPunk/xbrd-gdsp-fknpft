@@ -88,8 +88,11 @@ Pinned to `gemini-3.1-pro-preview` (input id). The gemini CLI routes this intern
 
 ### Codex model
 
-Default: `gpt-5.4` family (xbreed does not pin a non-spark model id; codex CLI uses its own default).  
+Default/review lane default: `gpt-5.4-mini` (pinned via `-m` flag).
+Full: `gpt-5.4` only when `-R/--review` + `-F/--full` are both set.
 Spark: `gpt-5.3-codex-spark` (pinned via `-m` flag).
+
+Precedence: `--spark` takes precedence over `-R/--review` and `-F/--full`.
 
 ---
 

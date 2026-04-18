@@ -849,6 +849,117 @@ mod tests {
     }
 
     #[test]
+    fn collect_compact_sidecars_handles_concurrent_drains_without_double_claim() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+
+        let pid = std::process::id();
+        for i in 0..50 {
+            let sidecar = path.with_extension(format!("compact_ready.{pid}.{i}"));
+            let e = Event {
+                timestamp_ms: 1_000 + i as u64,
+                from: format!("sidecar-{i}"),
+                event_type: "compact".to_string(),
+                payload: "x".to_string(),
+            };
+            std::fs::write(&sidecar, serde_json::to_string(&e).unwrap() + "\n").unwrap();
+        }
+
+        let gate = Arc::new(Barrier::new(2));
+        let path1 = path.clone();
+        let path2 = path.clone();
+        let gate1 = Arc::clone(&gate);
+        let gate2 = Arc::clone(&gate);
+
+        let t1 = thread::spawn(move || {
+            gate1.wait();
+            parse_events_string(&collect_compact_sidecars(&path1).unwrap()).unwrap()
+        });
+        let t2 = thread::spawn(move || {
+            gate2.wait();
+            parse_events_string(&collect_compact_sidecars(&path2).unwrap()).unwrap()
+        });
+
+        let mut events = t1.join().unwrap();
+        events.extend(t2.join().unwrap());
+
+        let expected = 50;
+        assert_eq!(
+            events.len(),
+            expected,
+            "sidecars must be consumed exactly once"
+        );
+
+        let mut seen = std::collections::HashSet::new();
+        for e in events {
+            assert!(
+                seen.insert(e.from),
+                "sidecar event was consumed more than once"
+            );
+        }
+
+        for i in 0..50 {
+            let sidecar = path.with_extension(format!("compact_ready.{pid}.{i}"));
+            assert!(
+                !sidecar.exists(),
+                "unconsumed source sidecar indicates claim failure: {sidecar:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn send_panicking_job_no_deadlock_when_saturated() {
+        const MAX_PANICKING_JOBS: usize = 64;
+
+        let warmup = tempdir().unwrap();
+        write_old_event(warmup.path(), "w", "keepalive", "x");
+        compact_events(warmup.path(), &[], 1).unwrap();
+        __wait_compact_idle();
+        drain_events(warmup.path()).unwrap();
+
+        let gate = Arc::new(Barrier::new(MAX_PANICKING_JOBS + 1));
+        let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+
+        let mut handles = Vec::with_capacity(MAX_PANICKING_JOBS);
+        for _ in 0..MAX_PANICKING_JOBS {
+            let gate = Arc::clone(&gate);
+            let done_tx = done_tx.clone();
+            handles.push(thread::spawn(move || {
+                gate.wait();
+                __send_panicking_job();
+                done_tx.send(()).unwrap();
+            }));
+        }
+        drop(done_tx);
+        gate.wait();
+
+        for _ in 0..MAX_PANICKING_JOBS {
+            assert!(
+                done_rx
+                    .recv_timeout(std::time::Duration::from_secs(2))
+                    .is_ok(),
+                "panicking job sender did not progress, potential yield-loop deadlock"
+            );
+        }
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let start = std::time::Instant::now();
+        while COMPACT_PENDING.load(Ordering::Acquire) > 0
+            && start.elapsed() < std::time::Duration::from_secs(5)
+        {
+            thread::yield_now();
+        }
+        assert_eq!(
+            COMPACT_PENDING.load(Ordering::Acquire),
+            0,
+            "panicking jobs must not leak or deadlock COMPACT_PENDING"
+        );
+    }
+
+    #[test]
     fn drain_skips_compact_ready_tmp_sidecars() {
         let dir = tempdir().unwrap();
         let path = mailbox_path(dir.path());
