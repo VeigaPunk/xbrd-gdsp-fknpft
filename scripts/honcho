@@ -1,6 +1,6 @@
 #!/bin/bash
 # honcho — Honcho memory read/write wrapper
-# Usage: honcho get <peer_id> "<query>" | honcho put "<content>"
+# Usage: honcho get <peer_id> "<query>" | honcho put [--mission <id>] "<content>"
 # Exit:  0=ok  1=error(bad args)  2=skip/degraded(no env/token/connectivity)
 
 HONCHO_API_KEY="${HONCHO_API_KEY:-$HONCHO_TOKEN}"
@@ -18,6 +18,8 @@ run_curl() {
   curl -sf --max-time 5 --retry 1 "$@" || return 2
 }
 
+json_str() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"; }
+
 run_curl \
   -H "Authorization: Bearer $HONCHO_API_KEY" \
   -H "Content-Type: application/json" \
@@ -34,15 +36,27 @@ case "$CMD" in
   get)
     PEER="$1"; QUERY="$2"
     [ -z "$PEER" ] || [ -z "$QUERY" ] && { echo "honcho: get <peer_id> <query>" >&2; exit 1; }
-    BODY=$(printf '{"queries":["%s"]}' "$QUERY")
+    BODY=$(printf '{"queries":[%s]}' "$(json_str "$QUERY")")
     run_curl -H "Authorization: Bearer $HONCHO_API_KEY" -H "Content-Type: application/json" \
       -d "$BODY" "${HONCHO_BASE_URL}/v3/workspaces/${HONCHO_WORKSPACE}/peers/${PEER}/representation"
     exit $?
     ;;
   put)
+    MISSION_ID="${HONCHO_MISSION:-}"
+    while [[ "${1:-}" == --* ]]; do
+      case "$1" in
+        --mission) MISSION_ID="$2"; shift 2 ;;
+        *) echo "honcho: unknown flag '$1'" >&2; exit 1 ;;
+      esac
+    done
     VAL="$1"
-    [ -z "$VAL" ] && { echo "honcho: put <content>" >&2; exit 1; }
-    BODY=$(printf '{"conclusions":[{"content":"%s","observer_id":"the-judge","observed_id":"the-judge"}]}' "$VAL")
+    [ -z "$VAL" ] && { echo "honcho: put [--mission <id>] <content>" >&2; exit 1; }
+    if [ -n "$MISSION_ID" ]; then
+      CONTENT=$(python3 -c 'import json,sys; print(json.dumps({"mission":sys.argv[1],"content":sys.argv[2]}))' "$MISSION_ID" "$VAL")
+    else
+      CONTENT=$(json_str "$VAL")
+    fi
+    BODY=$(printf '{"conclusions":[{"content":%s,"observer_id":"the-judge","observed_id":"the-judge"}]}' "$CONTENT")
     run_curl -H "Authorization: Bearer $HONCHO_API_KEY" -H "Content-Type: application/json" \
       -d "$BODY" "${HONCHO_BASE_URL}/v3/workspaces/${HONCHO_WORKSPACE}/conclusions"
     exit $?
