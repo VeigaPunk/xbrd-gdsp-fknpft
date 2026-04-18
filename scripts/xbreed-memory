@@ -5,6 +5,9 @@
 # Usage:
 #   xbreed-memory put <mission> <round> <axis_id> "<observable>" <direction>
 #   xbreed-memory get [mission]        # latest mission if omitted
+#   xbreed-memory latest-mission
+#   xbreed-memory grep <pattern> [mission]
+#   xbreed-memory redflags [mission]
 #
 # Contract (R2 m14/m17):
 #   exit 0 + stdout = success (get returns rows; put is silent on success)
@@ -15,7 +18,7 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-DB="$repo_root/data/xbreed.db"
+DB="${XBREED_MEMORY_DB:-$repo_root/data/xbreed.db}"
 
 [ -f "$DB" ] || { printf 'xbreed-memory: db missing at %s (run data/xbreed-schema.sql first)\n' "$DB" >&2; exit 2; }
 command -v sqlite3 >/dev/null 2>&1 || { echo 'xbreed-memory: sqlite3 not installed' >&2; exit 2; }
@@ -23,6 +26,12 @@ command -v sqlite3 >/dev/null 2>&1 || { echo 'xbreed-memory: sqlite3 not install
 # busy_timeout is per-connection, not persistent — set via -cmd on each sqlite3 call
 SQLITE=(sqlite3 -cmd '.timeout 5000')
 SQLITE_RO=(sqlite3 -readonly -cmd '.timeout 5000')
+
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+format_query="SELECT mission||' r'||round||' '||axis_id||' ['||direction||']: '||observable FROM findings"
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
@@ -33,9 +42,9 @@ case "$cmd" in
     case "$direction" in +|-|0) ;; *) echo 'xbreed-memory: direction must be + / - / 0' >&2; exit 1 ;; esac
     "${SQLITE[@]}" "$DB" <<SQL || exit 2
 INSERT INTO findings (mission, round, axis_id, observable, direction)
-VALUES ('$(echo "$mission" | sed "s/'/''/g")', $round,
-        '$(echo "$axis" | sed "s/'/''/g")',
-        '$(echo "$observable" | sed "s/'/''/g")',
+VALUES ('$(sql_escape "$mission")', $round,
+        '$(sql_escape "$axis")',
+        '$(sql_escape "$observable")',
         '$direction');
 SQL
     ;;
@@ -44,11 +53,33 @@ SQL
     if [ -z "$mission" ]; then
       "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission=(SELECT mission FROM findings ORDER BY round DESC, rowid DESC LIMIT 1) ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
     else
-      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission='$(echo "$mission" | sed "s/'/''/g")' ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
+      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission='$(sql_escape "$mission")' ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
     fi
     ;;
+  latest-mission)
+    "${SQLITE_RO[@]}" "$DB" "SELECT mission FROM findings ORDER BY round DESC, rowid DESC LIMIT 1" 2>/dev/null || exit 2
+    ;;
+  grep)
+    [ $# -ge 1 ] && [ $# -le 2 ] || { echo 'xbreed-memory: grep <pattern> [mission]' >&2; exit 1; }
+    pattern="$1"; mission="${2:-}"
+    mission_clause=""
+    if [ -n "$mission" ]; then
+      mission_clause="mission='$(sql_escape "$mission")' AND "
+    fi
+    "${SQLITE_RO[@]}" "$DB" "$format_query WHERE ${mission_clause}instr(lower(observable), lower('$(sql_escape "$pattern")')) > 0 ORDER BY round DESC, mission DESC, axis_id" 2>/dev/null || exit 2
+    ;;
+  redflags)
+    [ $# -le 1 ] || { echo 'xbreed-memory: redflags [mission]' >&2; exit 1; }
+    mission="${1:-}"
+    mission_clause=""
+    if [ -n "$mission" ]; then
+      mission_clause="mission='$(sql_escape "$mission")' AND "
+    fi
+    redflag_expr="lower(observable) LIKE '%axis_id%' OR lower(observable) LIKE '%\"round\"%' OR lower(observable) LIKE '%round=%' OR lower(observable) LIKE '%\"direction\"%' OR lower(observable) LIKE '%direction=%'"
+    "${SQLITE_RO[@]}" "$DB" "$format_query WHERE ${mission_clause}(${redflag_expr}) ORDER BY round DESC, mission DESC, axis_id" 2>/dev/null || exit 2
+    ;;
   *)
-    echo 'xbreed-memory: usage — put <mission> <round> <axis_id> "<observable>" <direction> | get [mission]' >&2
+    echo 'xbreed-memory: usage — put <mission> <round> <axis_id> "<observable>" <direction> | get [mission] | latest-mission | grep <pattern> [mission] | redflags [mission]' >&2
     exit 1
     ;;
 esac
