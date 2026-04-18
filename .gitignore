@@ -19,3 +19,4 @@
 # codex CLI runtime state — per-project OAuth profile + ephemeral home.
 .codex
 .codex-home/
+honcho/

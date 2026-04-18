@@ -1,0 +1,54 @@
+#!/bin/bash
+# honcho — Honcho memory read/write wrapper
+# Usage: honcho get <peer_id> "<query>" | honcho put "<content>"
+# Exit:  0=ok  1=error(bad args)  2=skip/degraded(no env/token/connectivity)
+
+HONCHO_API_KEY="${HONCHO_API_KEY:-$HONCHO_TOKEN}"
+HONCHO_BASE_URL="${HONCHO_BASE_URL:-${HONCHO_BASE:-https://api.honcho.dev}}"
+HONCHO_WORKSPACE="${HONCHO_WORKSPACE:-${HONCHO_WORKSPACE_ID:-}}"
+ENV_FILE="$HOME/.config/xbreed/honcho.env"
+
+[ -f "$ENV_FILE" ] || { echo "honcho: $ENV_FILE not found — skipping" >&2; exit 2; }
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+
+[ "${HONCHO_OK:-}" = "0" ] && exit 2
+
+run_curl() {
+  curl -sf --max-time 5 --retry 1 "$@" || return 2
+}
+
+run_curl \
+  -H "Authorization: Bearer $HONCHO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"xbreed-judge"}' \
+  "${HONCHO_BASE_URL}/v3/workspaces" -o /dev/null \
+  || { echo "[honcho:degraded]" >&2; exit 2; }
+run_curl -H "Authorization: Bearer $HONCHO_API_KEY" -H "Content-Type: application/json" \
+  -d '{"id":"the-judge"}' \
+  "${HONCHO_BASE_URL}/v3/workspaces/${HONCHO_WORKSPACE}/peers" -o /dev/null \
+  || { echo "[honcho:degraded]" >&2; exit 2; }
+
+CMD="$1"; shift
+case "$CMD" in
+  get)
+    PEER="$1"; QUERY="$2"
+    [ -z "$PEER" ] || [ -z "$QUERY" ] && { echo "honcho: get <peer_id> <query>" >&2; exit 1; }
+    BODY=$(printf '{"queries":["%s"]}' "$QUERY")
+    run_curl -H "Authorization: Bearer $HONCHO_API_KEY" -H "Content-Type: application/json" \
+      -d "$BODY" "${HONCHO_BASE_URL}/v3/workspaces/${HONCHO_WORKSPACE}/peers/${PEER}/representation"
+    exit $?
+    ;;
+  put)
+    VAL="$1"
+    [ -z "$VAL" ] && { echo "honcho: put <content>" >&2; exit 1; }
+    BODY=$(printf '{"conclusions":[{"content":"%s","observer_id":"the-judge","observed_id":"the-judge"}]}' "$VAL")
+    run_curl -H "Authorization: Bearer $HONCHO_API_KEY" -H "Content-Type: application/json" \
+      -d "$BODY" "${HONCHO_BASE_URL}/v3/workspaces/${HONCHO_WORKSPACE}/conclusions"
+    exit $?
+    ;;
+  *)
+    echo "honcho: unknown cmd '${CMD:-}' — use get|put" >&2
+    exit 1
+    ;;
+esac
