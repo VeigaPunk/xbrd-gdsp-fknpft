@@ -269,6 +269,16 @@ DESPAWN: <agent-name> — signal delivered. Send me shutdown_request.
 
 **Periodic maintenance:** `xbreed-cleanup --stale` cleans all teams with no live processes + orphan UUID task dirs.
 
+## Per-Round Scribe & Commit
+
+**Scribe per round (mandatory in xgs / xbgst / xbt).** After each round's distiller `SYNTHESIS_READY`, the judge dispatches a fresh scribe teammate `ccs-scribe-r{N}` (sonnet · medium, filter-exempt per `axis_family: documentation`), **concurrent with Pareto scoring** — do NOT serialize. Report path: `docs/reports/<mission-slug>-r{N}-<YYYY-MM-DD>.md`. Mission slug = team name minus timestamp. Report sections: round overview (axes + teammates + xask targets + wall-time), per-teammate MOVE/AXIS/CLAIM/EVIDENCE/REJECTED-ALTERNATIVE/confidence, cross-model CONFLICTS + judge resolution, Pareto verdict per move, optimization routes surveyed, spoof-flags, audit_hash, commit delta (if round landed a commit).
+
+**Commit per round (mandatory).** After each round's execution lands (scribe report + any code changes), judge commits with pattern `<type>(<mission>-r{N}): <description>` — auditable per-round trail so rounds can be reviewed/reverted/cherry-picked individually. The scribe report is committed AS the round's evidence body.
+
+## Codex-Topic Dispatch
+
+For xbgst/xgs/xbt runs whose topic IS codex itself (defaults, flags, latency, routing, effort tiers, invocation shape), the judge MUST include at least one `cdx-*` prefix teammate in the Phase-1 roster whose reasoning layer is `xask codex`. Codex is the primary source on its own CLI surface; gemini scout via librarian misses the codex-authoritative view. Not required for non-codex topics — topic-gated.
+
 ## Round Limits
 
 - **Godspeed Pareto** (xgs, xbgst): 4 rounds max
