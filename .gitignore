@@ -24,3 +24,20 @@
 data/xbreed.db
 data/xbreed.db-wal
 data/xbreed.db-shm
+
+# Ephemeral scratch area — agents land probes, build artifacts, and test scaffolds here.
+# See CLAUDE.md §Scratch / Ephemeral Work.
+/scratch/
+
+# Root-level scratch from prior godspeed iterations (defense-in-depth against recurrence).
+/.tmp/
+/mcp_server
+/mcp_server.ts
+/test.sh
+/test2.sh
+/test_mutation.sh
+/m1.txt
+/step1.txt
+/step2.txt
+/step3.txt
+/data/bench-phase-c.paths

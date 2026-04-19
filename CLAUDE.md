@@ -45,6 +45,10 @@ Multi-model meta-launcher orchestrating Claude Code, Codex CLI, and Gemini CLI w
 - Agent templates use YAML frontmatter + markdown body
 - Keep policy.yaml as single source of truth for deny-list rules
 
+## Scratch / Ephemeral Work
+
+All ephemeral probes, build artifacts, and test scaffolds go in `scratch/` (gitignored). Never land scratch directly in repo root — if a root-level artifact slips in, delete or move to `scratch/` before commit.
+
 ## Agent Roster
 
 See [AGENTS.md](AGENTS.md) for the full dispatch table and naming conventions.
