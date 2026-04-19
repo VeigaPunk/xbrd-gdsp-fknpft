@@ -3,9 +3,12 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-// API-key auth path retired 2026-04-17 (user directive): xbreed is OAuth-exclusive
-// (ChatGPT account for codex, Sign-in-with-Google for gemini). See
-// `user_oauth_exclusive.md` auto-memory. Gemini auth cascade below is OAuth-only.
+// OAuth-exclusive + single-path (user directives 2026-04-17 API-key removal,
+// 2026-04-19 cascade collapse): xbreed reads ONLY `~/.gemini/oauth_creds.json`
+// for gemini (Sign-in-with-Google subscription) and delegates `~/.codex/auth.json`
+// management to the codex CLI itself (ChatGPT subscription). No named-profile
+// cascade, no API-key fallback, no quota-aware retry, no health canary. See
+// `user_oauth_exclusive.md` + `feedback_oauth_exclusive_code.md` auto-memory.
 
 /// Build a codex Command with loadout injection and clean-dispatch suppression.
 ///
@@ -134,72 +137,12 @@ pub const CODEX_FULL_MODEL: &str = "gpt-5.4";
 pub const CODEX_MINI_MODEL: &str = "gpt-5.4-mini";
 
 // ========================================================================
-// v0.3.5 — Gemini auth cascade with multi-profile OAuth
+// Gemini OAuth — single default path (2026-04-19 cascade collapse)
 // ========================================================================
 
-/// Auth method for a single gemini dispatch attempt.
-///
-/// The cascade in `dispatch()` tries these in order (OAuth-exclusive as of
-/// 2026-04-17 — user directive, see `user_oauth_exclusive.md`):
-///
-///   1. `OAuthProfile("primary")`  — HOME override to
-///      `~/.config/xbreed/gemini-profiles/primary/` so gemini reads that
-///      profile's `.gemini/oauth_creds.json` instead of the user's default
-///   2. `OAuthProfile("fallback")` — same mechanism, fallback profile
-///   3. `OAuthDefault`             — user's real HOME; gemini uses
-///      `~/.gemini/oauth_creds.json`. Any inherited `GEMINI_API_KEY` env
-///      var is explicitly stripped from the subprocess env to force the
-///      OAuth path (prevents accidental API-key fallback if the user's
-///      shell exports one).
-///
-/// OAuth is required because subscription-gated model variants (e.g. the
-/// `-customtools` preview) need an OAuth session, and the user's plan-tier
-/// quotas apply to OAuth dispatch only.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum GeminiAuth {
-    /// Named OAuth profile. xbreed overrides HOME to
-    /// `~/.config/xbreed/gemini-profiles/<name>/` so gemini CLI reads the
-    /// profile's `.gemini/oauth_creds.json` file.
-    OAuthProfile(String),
-    /// Default OAuth from the user's real `~/.gemini/oauth_creds.json`.
-    /// Does NOT override HOME; strips any `GEMINI_API_KEY` env injection.
-    OAuthDefault,
-}
-
-impl GeminiAuth {
-    /// Short human-readable label for logging / error messages.
-    pub fn label(&self) -> String {
-        match self {
-            Self::OAuthProfile(name) => format!("oauth:{name}"),
-            Self::OAuthDefault => "oauth:default".to_string(),
-        }
-    }
-}
-
-/// Root directory for named OAuth profiles. Each profile is a subdirectory
-/// that contains a `.gemini/` subdir with `oauth_creds.json` + `settings.json`.
-/// xbreed spawns gemini with `HOME` pointing at `<root>/<profile>/`.
-pub fn gemini_profiles_root() -> PathBuf {
-    if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home)
-            .join(".config")
-            .join("xbreed")
-            .join("gemini-profiles")
-    } else {
-        PathBuf::from(".xbreed/gemini-profiles")
-    }
-}
-
-/// Check whether a profile directory has a populated oauth_creds.json.
-pub fn gemini_profile_exists(name: &str) -> bool {
-    gemini_profiles_root()
-        .join(name)
-        .join(".gemini")
-        .join("oauth_creds.json")
-        .exists()
-}
-
-/// Check whether the user's default `~/.gemini/` has an oauth_creds.json file.
+/// Check whether the user's default `~/.gemini/oauth_creds.json` exists.
+/// This is the single auth precondition for gemini dispatch — no named
+/// profiles, no API-key fallback.
 fn default_gemini_oauth_exists() -> bool {
     if let Ok(home) = std::env::var("HOME") {
         PathBuf::from(home)
@@ -211,36 +154,12 @@ fn default_gemini_oauth_exists() -> bool {
     }
 }
 
-/// Build the ordered cascade chain of auth methods to try.
+/// Build a gemini Command using the default OAuth path.
 ///
-/// Returns only auth methods that plausibly *could* work based on disk state.
-/// Iterates: named OAuth profiles (primary, fallback) → default OAuth.
-/// OAuth-exclusive as of 2026-04-17 — no API-key fallback.
-pub fn gemini_auth_chain() -> Vec<GeminiAuth> {
-    let mut chain = Vec::new();
-
-    // OAuth profiles — check each named profile dir in priority order
-    for name in ["primary", "fallback"] {
-        if gemini_profile_exists(name) {
-            chain.push(GeminiAuth::OAuthProfile(name.to_string()));
-        }
-    }
-
-    // Default OAuth — user's real ~/.gemini/
-    if default_gemini_oauth_exists() {
-        chain.push(GeminiAuth::OAuthDefault);
-    }
-
-    chain
-}
-
-/// Build a gemini Command configured for a specific OAuth auth method.
-///
-/// The env manipulation per variant (both strip any inherited
-/// `GEMINI_API_KEY` to force the OAuth path):
-/// - `OAuthProfile(name)`: sets `HOME=<profile-dir>`, env_removes `GEMINI_API_KEY`
-/// - `OAuthDefault`: env_removes `GEMINI_API_KEY` only (inherits real HOME)
-pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth) -> Command {
+/// Strips any inherited `GEMINI_API_KEY` to force the OAuth path — user
+/// directive (`user_oauth_exclusive.md`) is OAuth-exclusive. Does not
+/// override HOME; gemini reads `~/.gemini/oauth_creds.json` natively.
+pub fn build_gemini(prompt: &str, loadout: &Loadout) -> Command {
     let mut c = Command::new("gemini");
     let final_prompt = if loadout.is_empty() {
         prompt.to_string()
@@ -252,30 +171,9 @@ pub fn build_gemini_with_auth(prompt: &str, loadout: &Loadout, auth: &GeminiAuth
         .arg("-p")
         .arg(final_prompt)
         .arg("--approval-mode")
-        .arg("yolo");
-
-    match auth {
-        GeminiAuth::OAuthProfile(name) => {
-            let profile_home = gemini_profiles_root().join(name);
-            c.env("HOME", &profile_home);
-            c.env_remove("GEMINI_API_KEY");
-        }
-        GeminiAuth::OAuthDefault => {
-            c.env_remove("GEMINI_API_KEY");
-        }
-    }
+        .arg("yolo")
+        .env_remove("GEMINI_API_KEY");
     c
-}
-
-/// Tightened quota detector. Matches specific, unambiguous rate-limit signals.
-fn is_quota_error(stderr: &[u8]) -> bool {
-    let s = String::from_utf8_lossy(stderr);
-    s.contains("RESOURCE_EXHAUSTED")
-        || s.contains("status: 429")
-        || s.contains("HTTP 429")
-        || s.contains("code: 429")
-        || s.contains("Quota exceeded")
-        || s.contains("rate limit exceeded")
 }
 
 /// Auth-failure detector. Distinct from quota exhaustion — triggers the
@@ -419,52 +317,26 @@ pub fn dispatch(
         // pass it on the command line; the budget reaches the model as
         // prompt-text directive.
         let _ = effort;
-        let chain = gemini_auth_chain();
-        if chain.is_empty() {
+        if !default_gemini_oauth_exists() {
             anyhow::bail!(
-                "gemini: no OAuth auth methods available. Set up at least one of:\n  \
-                 - default OAuth:       run `gemini login` (populates ~/.gemini/oauth_creds.json)\n  \
-                 - named OAuth profile: HOME=~/.config/xbreed/gemini-profiles/primary gemini login"
+                "gemini: OAuth credentials not found at ~/.gemini/oauth_creds.json. \
+                 Run `gemini login` to sign in with your Google account."
             );
         }
-
-        let mut last_stderr: Vec<u8> = Vec::new();
-        let mut last_code: Option<i32> = None;
-        let mut last_label = String::new();
-
-        for auth in &chain {
-            let cmd = build_gemini_with_auth(prompt, loadout, auth);
-            let output = execute_with_timeout(cmd, timeout)
-                .map_err(|e| anyhow::anyhow!("gemini (auth={}): {e}", auth.label()))?;
-            if output.status.success() {
-                return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-            }
-            last_stderr = output.stderr.clone();
-            last_code = output.status.code();
-            last_label = auth.label();
-
-            // Cascade only on retriable errors (quota-class or auth-class).
-            // Terminal errors (network, invalid prompt, malformed model arg)
-            // bail immediately without wasting the remaining auth levels.
-            if !is_quota_error(&output.stderr) && !is_auth_error(&output.stderr) {
-                anyhow::bail!(
-                    "gemini failed at auth={} with non-retriable error (exit {:?}): {}",
-                    last_label,
-                    last_code,
-                    String::from_utf8_lossy(&last_stderr)
-                );
-            }
+        let cmd = build_gemini(prompt, loadout);
+        let output =
+            execute_with_timeout(cmd, timeout).map_err(|e| anyhow::anyhow!("gemini: {e}"))?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
         }
-
-        anyhow::bail!(
-            "gemini failed at every auth level ({} tried, last={}, exit {:?}): {}\n\
-             hint: verify ~/.gemini/oauth_creds.json or \
-             ~/.config/xbreed/gemini-profiles/*/.gemini/oauth_creds.json",
-            chain.len(),
-            last_label,
-            last_code,
-            String::from_utf8_lossy(&last_stderr)
-        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if is_auth_error(stderr.as_bytes()) {
+            anyhow::bail!(
+                "gemini: authentication failed — run `gemini login` to refresh \
+                 ~/.gemini/oauth_creds.json.\nstderr: {stderr}"
+            );
+        }
+        anyhow::bail!("gemini failed (exit {:?}): {stderr}", output.status.code());
     }
 
     let cmd = match cli {
@@ -519,7 +391,7 @@ pub fn dispatch(
         if is_auth_error(stderr.as_bytes()) {
             let hint = match cli {
                 "codex" => {
-                    "run `codex login` to sign in with your ChatGPT Plus/Pro/Enterprise subscription or API key"
+                    "run `codex login` to sign in with your ChatGPT Plus/Pro/Enterprise subscription"
                 }
                 _ => "check CLI authentication",
             };
@@ -686,20 +558,6 @@ mod tests {
     }
 
     #[test]
-    fn is_quota_error_matches_specific_signals_only() {
-        assert!(super::is_quota_error(
-            b"error: RESOURCE_EXHAUSTED quota exceeded"
-        ));
-        assert!(super::is_quota_error(b"HTTP 429 Too Many Requests"));
-        assert!(super::is_quota_error(b"status: 429"));
-        assert!(super::is_quota_error(b"code: 429"));
-        assert!(super::is_quota_error(b"Quota exceeded for service"));
-        assert!(super::is_quota_error(b"rate limit exceeded"));
-        assert!(!super::is_quota_error(b"account has no quota allocation"));
-        assert!(!super::is_quota_error(b"quota: ok"));
-    }
-
-    #[test]
     fn is_auth_error_matches_auth_signals() {
         assert!(super::is_auth_error(b"HTTP 401 Unauthorized"));
         assert!(super::is_auth_error(b"403 Forbidden"));
@@ -719,67 +577,27 @@ mod tests {
     }
 
     // ====================================================================
-    // v0.3.5 — GeminiAuth cascade tests
+    // Gemini OAuth single-path tests (2026-04-19 cascade collapse)
     // ====================================================================
 
     #[test]
-    fn gemini_auth_label_formats() {
-        assert_eq!(
-            GeminiAuth::OAuthProfile("alice".into()).label(),
-            "oauth:alice"
-        );
-        assert_eq!(GeminiAuth::OAuthDefault.label(), "oauth:default");
-    }
-
-    #[test]
-    fn build_gemini_with_auth_oauth_default_strips_env_var_no_home_override() {
+    fn build_gemini_strips_gemini_api_key_and_does_not_override_home() {
         let loadout = Loadout::empty();
-        let cmd = build_gemini_with_auth("hello", &loadout, &GeminiAuth::OAuthDefault);
+        let cmd = build_gemini("hello", &loadout);
         let has_removed = cmd
             .get_envs()
             .any(|(k, v)| k == std::ffi::OsStr::new("GEMINI_API_KEY") && v.is_none());
-        assert!(has_removed, "OAuthDefault must env_remove GEMINI_API_KEY");
-        // OAuthDefault must NOT touch HOME — inherit the caller's real HOME
+        assert!(
+            has_removed,
+            "build_gemini must env_remove GEMINI_API_KEY to force OAuth path"
+        );
+        // Default OAuth path must NOT touch HOME — inherit the caller's real HOME
         let touches_home = cmd
             .get_envs()
             .any(|(k, _)| k == std::ffi::OsStr::new("HOME"));
-        assert!(!touches_home, "OAuthDefault must NOT override HOME");
-    }
-
-    #[test]
-    fn build_gemini_with_auth_profile_overrides_home_and_strips_key() {
-        let loadout = Loadout::empty();
-        let cmd = build_gemini_with_auth(
-            "hello",
-            &loadout,
-            &GeminiAuth::OAuthProfile("primary".into()),
-        );
-        // HOME must be set to the profile dir
-        let home_override = cmd
-            .get_envs()
-            .find(|(k, _)| k == &std::ffi::OsStr::new("HOME"))
-            .and_then(|(_, v)| v);
-        assert!(home_override.is_some(), "OAuthProfile must set HOME");
-        let home_str = home_override.unwrap().to_string_lossy();
         assert!(
-            home_str.contains(".config/xbreed/gemini-profiles/primary"),
-            "HOME override must point at the profile dir, got: {home_str}"
-        );
-        // GEMINI_API_KEY must be explicitly removed
-        let has_removed = cmd
-            .get_envs()
-            .any(|(k, v)| k == std::ffi::OsStr::new("GEMINI_API_KEY") && v.is_none());
-        assert!(has_removed, "OAuthProfile must env_remove GEMINI_API_KEY");
-    }
-
-    #[test]
-    fn gemini_profiles_root_is_under_xbreed_config() {
-        let root = gemini_profiles_root();
-        let root_str = root.to_string_lossy();
-        assert!(
-            root_str.ends_with(".config/xbreed/gemini-profiles")
-                || root_str.ends_with(".xbreed/gemini-profiles"),
-            "profiles root must be under .config/xbreed or fallback .xbreed, got: {root_str}"
+            !touches_home,
+            "build_gemini must NOT override HOME (default OAuth reads ~/.gemini/)"
         );
     }
 

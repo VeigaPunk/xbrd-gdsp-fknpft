@@ -49,7 +49,7 @@ No flag exists to suppress context per-invocation. All control is via `settings.
 
 ### xbreed profile behavior
 
-`xbreed ask gemini` sets `HOME=~/.config/xbreed/gemini-profiles/primary` when that directory exists. If it does not exist (default), it falls back to the user's `~/.gemini/` — meaning `~/.gemini/settings.json` controls context injection for all `xbreed ask gemini` calls.
+`xbreed ask gemini` reads the user's real `~/.gemini/oauth_creds.json` and `~/.gemini/settings.json` — no HOME override, no named-profile lookup (2026-04-19 cascade collapse). `settings.json` controls context injection for all `xbreed ask gemini` calls; `xask --rich` copies it to a PID-namespaced tmpdir and flips `includeDirectoryTree: true` there to avoid stomping the shared file.
 
 `GEMINI_SETTINGS` env var is **not honored** by either `xbreed` or `gemini` CLI. The env var approach in earlier xask versions was a no-op.
 
@@ -168,4 +168,4 @@ Templates at `~/projects/the-crossbreeder/templates/dispatch/{gemini,codex}.md` 
 1. ~~**Codex `-c include_*` keys unverified**~~ — **RESOLVED 2026-04-13**: verified working via `codex debug prompt-input` diff (see Codex CLI section above).
 2. **Codex skills/plugins instructions not suppressible** — no `include_skills_instructions=false` flag exists. Residual ~500-token contamination per dispatch. Workaround: unregister unused skills/plugins in `~/.codex/config.toml`.
 3. **JIT GEMINI.md injection** — no disable flag for runtime-touch injection. Monitor context size with `--debug` in Gemini.
-4. **xbreed gemini profiles** — if `~/.config/xbreed/gemini-profiles/primary/` is created in the future, the profile's `~/.gemini/settings.json` must also have `includeDirectoryTree: false` for clean dispatch to work.
+4. ~~**xbreed gemini profiles**~~ — **RESOLVED 2026-04-19**: named-profile cascade removed from `src/ask.rs`; xbreed reads only `~/.gemini/oauth_creds.json`. No future profile dir to configure.

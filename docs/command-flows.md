@@ -57,7 +57,7 @@ flowchart TD
     A[xbreed claude] --> B[load policy.yaml]
     B --> C[sync: write settings.json]
     C --> D[load models.yaml]
-    D --> E["claude --model opus \n--effort xhigh \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
+    D --> E["claude --model opus \n--effort high \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
     E --> F[Claude Code TUI session]
 ```
 
@@ -92,24 +92,16 @@ flowchart TD
 
     E -->|claude| F["claude -p <prompt> \n--append-system-prompt <loadout>"]
     E -->|codex| Cdx{codex lane}
-    E -->|gemini| H[Gemini auth cascade]
+    E -->|gemini| H["gemini -m gemini-3.1-pro-preview \n-p <prompt> --approval-mode yolo \n(env_remove GEMINI_API_KEY; reads ~/.gemini/oauth_creds.json)"]
 
     Cdx -->|--spark| Csp["codex exec -m gpt-5.3-codex-spark \n-c model_reasoning_effort=low \n(no fast_mode)"]
-    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4 (full) \n-c features.fast_mode=true \n(reasoning: xhigh from ~/.codex/config.toml)"]
+    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n(-R -F escape hatch → full gpt-5.4)"]
     Cdx -->|default| Cdf["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n-c model_reasoning_effort=high"]
 
-    H --> I["L1. OAuth profile: primary \n(HOME → ~/.config/xbreed/gemini-profiles/primary/)"]
-    I --> Ia{success?}
-    Ia -->|yes| P[stdout: response]
-    Ia -->|"429/401/403/PERMISSION_DENIED \nUNAUTHENTICATED/API_KEY_INVALID"| J["L2. OAuth profile: fallback"]
-    Ia -->|other error| R[bail immediately]
-    J --> Ja{success?}
-    Ja -->|yes| P
-    Ja -->|"429/401/403/PERMISSION_DENIED \nUNAUTHENTICATED/API_KEY_INVALID"| K["L3. OAuth default ~/.gemini/ \n(env_remove GEMINI_API_KEY)"]
-    Ja -->|other error| R
-    K --> Ka{success?}
-    Ka -->|yes| P
-    Ka -->|no| R
+    H --> Ha{success?}
+    Ha -->|yes| P[stdout: response]
+    Ha -->|auth error| Hae["bail: run `gemini login` \nto refresh oauth_creds.json"]
+    Ha -->|other error| R[bail immediately]
 
     F --> P
     Csp --> P
@@ -439,7 +431,7 @@ actually runs. Later layers override earlier ones.
 
 **Current tier map (2026-04-17, sonnet-medium pivot):**
 
-- `*the-judge*` → **xhigh** (orchestrator exception — opus 4.7 + xhigh)
+- `*the-judge*` → **high** (orchestrator; opus 4.7 + high — downgraded from xhigh 2026-04-19)
 - `cco-*` / `ccs-*` / `cdx-*` / `g-*` → **medium** (every teammate)
 - unmapped → NOMATCH (trap leaves env unset; CC falls back to frontmatter `effort:`)
 
@@ -469,9 +461,11 @@ outside xbreed's dispatch layer. The `gpt-5.4-mini` default applies only when
 `src/ask.rs` overrides the model via `-c` on the CLI invocation. The profile
 wasn't moved to mini.
 
-**Gemini auth** is OAuth-exclusive in code (v0.4+). The `GeminiAuth::ApiKey`
-variant and all `.env.local` parsing were removed — only `OAuthProfile(name)`
-and `OAuthDefault` remain. See `### xbreed ask` above for the cascade.
+**Gemini auth** is OAuth-exclusive and single-path in code (v0.4+, 2026-04-19 collapse).
+`GeminiAuth` enum, named OAuth profiles, API-key fallback, and the cascade retry loop
+were all removed — `src/ask.rs` now builds one `build_gemini()` command that reads
+`~/.gemini/oauth_creds.json` directly. No canary, no retry. On auth failure,
+dispatch bails with a `gemini login` hint.
 
 ---
 

@@ -98,22 +98,15 @@ Precedence: `--spark` takes precedence over `-R/--review` and `-F/--full`.
 
 ## 5. Auth
 
-### Gemini — OAuth-first cascade (5 levels, sequential)
+### Gemini — default OAuth (single path)
 
 ```
-1. OAuthProfile("primary")   — HOME override to ~/.config/xbreed/gemini-profiles/primary/
-2. OAuthProfile("fallback")  — HOME override to ~/.config/xbreed/gemini-profiles/fallback/
-3. OAuthDefault              — real HOME, no API key injection, uses ~/.gemini/oauth_creds.json
-4. ApiKey(<primary>)         — GEMINI_API_KEY from .env.local
-5. ApiKey(<fallback>)        — GEMINI_API_KEY_FALLBACK from .env.local
+OAuthDefault — reads ~/.gemini/oauth_creds.json; env_remove GEMINI_API_KEY
 ```
 
-Cascades on: `429`, `401`, `403`, `PERMISSION_DENIED`, `UNAUTHENTICATED`, `API_KEY_INVALID`.  
-Non-retriable errors bail immediately (no cascade).
+No cascade, no named profiles, no API-key fallback, no health canary (2026-04-19 collapse — user directive, OAuth subscription is effectively unlimited). On auth failure, dispatch bails with a `gemini login` hint; there is no secondary lane to try.
 
-OAuth is preferred: subscription-gated model variants (e.g. customtools routing) require an OAuth session. API keys have stricter per-account QPS limits.
-
-**Setup:** `gemini login` (default OAuth) or `HOME=~/.config/xbreed/gemini-profiles/primary gemini login` (named profile).
+**Setup:** `gemini login` populates `~/.gemini/oauth_creds.json`. That's it.
 
 ### Codex — ChatGPT OAuth
 
@@ -121,7 +114,7 @@ OAuth is preferred: subscription-gated model variants (e.g. customtools routing)
 codex login
 ```
 
-Requires a ChatGPT Plus/Pro/Enterprise subscription or API key. xbreed does not manage codex OAuth.
+Requires a ChatGPT Plus/Pro/Enterprise subscription. xbreed does not manage codex OAuth.
 
 ### Claude — claude login
 
@@ -142,7 +135,7 @@ Agent and teammate names use a prefix that signals where reasoning lives:
 | `g-` | Gemini | `g-scout-research`, `g-connector-axes` |
 | `cdx-` | Codex | `cdx-labrat-probe`, `cdx-reviewer-security` |
 | `ccs-` | Claude Code (Sonnet) | `ccs-executor-docs`, `ccs-simplifier-refactor` |
-| `cco-` | Claude Code (Opus 4.7, effort: high — LOCKED; the-judge runs at xhigh) | `cco-judge`, `cco-distiller` |
+| `cco-` | Claude Code (Opus 4.7, effort: high — LOCKED; unified 2026-04-19 — the-judge now also runs at high, downgraded from xhigh) | `cco-judge`, `cco-distiller` |
 
 The prefix is the xask delegation target, not the model running the agent (which is always Claude). A `g-scout-*` agent's first tool call must be `xask gemini`.
 

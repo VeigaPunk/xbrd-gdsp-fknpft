@@ -174,19 +174,6 @@ gemini_rich_setup() {
   if [ -f "$HOME/.gemini/oauth_creds.json" ]; then
     cp "$HOME/.gemini/oauth_creds.json" "$RICH_TMPDIR/.gemini/oauth_creds.json"
   fi
-  # Preserve named OAuth profiles so gemini_profiles_root() resolves correctly
-  if [ -d "$HOME/.config/xbreed/gemini-profiles" ]; then
-    mkdir -p "$RICH_TMPDIR/.config/xbreed"
-    cp -r "$HOME/.config/xbreed/gemini-profiles" "$RICH_TMPDIR/.config/xbreed/gemini-profiles"
-    for profile_settings in "$RICH_TMPDIR/.config/xbreed/gemini-profiles"/*/.gemini/settings.json; do
-        [ -f "$profile_settings" ] && { XASK_PROFILE_SETTINGS="$profile_settings" python3 -c "
-import json, os
-f = os.environ['XASK_PROFILE_SETTINGS']
-with open(f) as fh: d=json.load(fh)
-d.setdefault('context',{})['includeDirectoryTree']=True
-with open(f,'w') as fh: json.dump(d,fh,indent=2)" || { echo "xask: failed to patch profile settings: $profile_settings" >&2; rm -rf "$RICH_TMPDIR"; return 1; }; }
-    done
-  fi
   XASK_RICH_SETTINGS="$RICH_TMPDIR/.gemini/settings.json" python3 -c "
 import json, os
 f = os.environ['XASK_RICH_SETTINGS']

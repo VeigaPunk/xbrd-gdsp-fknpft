@@ -48,7 +48,7 @@ Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; 
 
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
-Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-xhigh for orchestrator depth):
+Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-**high** for orchestrator depth, downgraded from xhigh 2026-04-19):
 - Research, prior art → `scout` — `xask --effort medium gemini`
 - Correctness, bugs → `reviewer` — `xask -R codex`
 - Empirical probes → `labrat` — `xask --spark codex`

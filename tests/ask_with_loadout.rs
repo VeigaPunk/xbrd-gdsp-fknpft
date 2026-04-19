@@ -109,10 +109,10 @@ fn ask_gemini_with_loadout_prepends_to_prompt() {
     write_skill(home, "godspeed", "GO FAST NOW");
     write_stub(&bin_dir, "gemini", &log);
 
-    // Create a fake OAuth creds file so gemini_auth_chain() returns the
-    // OAuthDefault entry (xbreed is OAuth-exclusive as of 2026-04-17). The
-    // stub gemini binary exits 0 immediately so the creds don't need to be
-    // valid — only the file's existence is checked by default_gemini_oauth_exists.
+    // Create a fake OAuth creds file so default_gemini_oauth_exists() returns
+    // true (xbreed reads only ~/.gemini/oauth_creds.json — single-path as of
+    // 2026-04-19). The stub gemini binary exits 0 immediately so the creds
+    // don't need to be valid — only the file's existence is checked.
     fs::create_dir_all(home.join(".gemini")).unwrap();
     fs::write(home.join(".gemini/oauth_creds.json"), "{}\n").unwrap();
 

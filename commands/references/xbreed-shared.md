@@ -67,17 +67,18 @@ Include in every teammate brief:
 
 Allowed `axis_family` values (must match frontmatter in `~/.claude/agents/*.md`): `research`, `correctness`, `empirical`, `execution`, `cross-axis`, `synthesis`, `complexity`, `reverse-engineering`, `security`, `orchestration`, `adversarial-design`, `test-validation`, `deletion`, `documentation`, `planning`.
 
-**Sonnet-medium unified scheme (2026-04-17 pivot — supersedes opus-medium):**
+**Sonnet-medium unified scheme (2026-04-17 pivot — supersedes opus-medium; judge downgraded xhigh→high 2026-04-19):**
 All teammate dispatches run **sonnet medium** uniformly. Only `the-judge`
-itself stays opus-xhigh (orchestrator depth required). User directive
-2026-04-17: "opus is terrible for being the intermediator" — sonnet at
-medium effort is fast enough for the Pareto loop and avoids the
-reasoning-cycle overhead opus imposes in teammate-mode. Effort tiers
-collapse to a single `medium` value across the board; frontmatter
-`effort:` on individual agent files still reads `medium` (per earlier
-unified scheme work). The ~/.bashrc DEBUG trap maps every teammate prefix
-(`cco-`, `ccs-`, `cdx-`, `g-`) to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the
-judge keyword still maps to `xhigh`.
+itself stays opus-**high** (orchestrator depth required; downgraded from
+xhigh 2026-04-19 — user directive, reasoning-cycle savings without
+sacrificing arbitration depth). User directive 2026-04-17: "opus is
+terrible for being the intermediator" — sonnet at medium effort is fast
+enough for the Pareto loop and avoids the reasoning-cycle overhead opus
+imposes in teammate-mode. Effort tiers collapse to a single `medium` value
+across the board for teammates; frontmatter `effort:` on individual agent
+files still reads `medium` (per earlier unified scheme work). The
+~/.bashrc DEBUG trap maps every teammate prefix (`cco-`, `ccs-`, `cdx-`,
+`g-`) to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the judge keyword maps to `high`.
 
 Codex dispatches default to gpt-5.4-mini + fast_mode + reasoning high;
 review-class roles route to gpt-5.4-mini via `xask -R codex` (2026-04-18
@@ -106,13 +107,9 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 | Adversarial design | `critic` | sonnet · medium · Layer-0 heuer-planning skill load | `xask -R codex` | All |
 | Test validation | `mutation-tester` | sonnet · medium | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) | All |
 | Documentation, audit trail | `scribe` | sonnet · medium | CC native | All |
-| Orchestration, arbitration | `the-judge` | **opus 4.7 · xhigh** (orchestrator exception) | top-of-stack; dispatches specialists | All |
+| Orchestration, arbitration | `the-judge` | **opus 4.7 · high** (orchestrator exception; 2026-04-19 downgrade from xhigh) | top-of-stack; dispatches specialists | All |
 
-**Gemini health canary (machine-checkable):** confirm primary gemini routing is healthy before dispatching gemini-primary roles:
-```
-xask --effort low gemini "ping" 2>&1 | grep -qv "RESOURCE_EXHAUSTED\|429" && echo OK || echo DEGRADED
-```
-Exit 0 + `OK` → primary gemini routing is healthy. Exit 1 or `DEGRADED` → fall back to codex (scout: `xask --effort medium codex`; the-revenger: `xask -R codex` is already the primary). **Caveat:** ask.rs gemini path has a 3-level OAuth cascade (profile:primary → profile:fallback → default); the canary passing means *some* OAuth level succeeded, not necessarily the primary profile. For strict primary-OAuth health, ensure the `~/.config/xbreed/gemini-profiles/primary/.gemini/oauth_creds.json` is valid.
+**Gemini auth (single-path, 2026-04-19 collapse):** `src/ask.rs` reads only `~/.gemini/oauth_creds.json`. No named profiles, no API-key fallback, no cascade retry, no health canary — the user's OAuth subscription is effectively unlimited, so dispatch either succeeds on the first try or bails with a `gemini login` hint. There is no secondary OAuth lane to probe; if a gemini call auth-errors, refresh creds and retry.
 
 ## Enforcement Tiers
 
@@ -142,7 +139,7 @@ When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-
 
 `{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
 
-**Effort tiers (LOCKED):** `cco-` general roles run at `effort: high`. **Exception: `the-judge` runs at `xhigh`** (orchestrator depth required). **Exception: `advisor()` responds at `max`** (Layer-0 escalation, separate code path). See `feedback_cco_opus_high.md`.
+**Effort tiers (LOCKED):** `cco-` general roles run at `effort: high`. **`the-judge` also runs at `high`** (2026-04-19 — unified with general cco- tier; orchestrator depth retained via opus 4.7 model choice, not extra reasoning budget). **Exception: `advisor()` responds at `max`** (Layer-0 escalation, separate code path).
 
 ## Labrat Invocation (Universal)
 
