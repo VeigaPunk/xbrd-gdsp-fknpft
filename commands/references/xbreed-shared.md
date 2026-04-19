@@ -107,7 +107,7 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 | Adversarial design | `critic` | sonnet · medium · Layer-0 heuer-planning skill load | `xask -R codex` | All |
 | Test validation | `mutation-tester` | sonnet · medium | `xask --spark codex` (single mutation, ≤4 targets) OR `xask --effort low gemini` 10-probe fanout (≥3 targets / breadth, `# ThinkingBudget: 512`) | All |
 | Documentation, audit trail | `scribe` | sonnet · medium | CC native | All |
-| Orchestration, arbitration | `the-judge` | **opus 4.7 · high** (orchestrator exception; 2026-04-19 downgrade from xhigh) | top-of-stack; dispatches specialists | All |
+| Orchestration, arbitration | `the-judge` | **opus 4.7 · high ( | top-of-stack; dispatches specialists | All |
 
 **Gemini auth (single-path, 2026-04-19 collapse):** `src/ask.rs` reads only `~/.gemini/oauth_creds.json`. No named profiles, no API-key fallback, no cascade retry, no health canary — the user's OAuth subscription is effectively unlimited, so dispatch either succeeds on the first try or bails with a `gemini login` hint. There is no secondary OAuth lane to probe; if a gemini call auth-errors, refresh creds and retry.
 
@@ -139,7 +139,6 @@ When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-
 
 `{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
 
-**Effort tiers (LOCKED):** `cco-` general roles run at `effort: high`. **`the-judge` also runs at `high`** (2026-04-19 — unified with general cco- tier; orchestrator depth retained via opus 4.7 model choice, not extra reasoning budget). **Exception: `advisor()` responds at `max`** (Layer-0 escalation, separate code path).
 
 ## Labrat Invocation (Universal)
 
