@@ -131,10 +131,10 @@ mod tests {
         let dir_a = tmp.path().join("a");
         let dir_b = tmp.path().join("b");
         fs::create_dir_all(&dir_a).unwrap();
-        write_skill(&dir_b, "the-librarian", "curate");
+        write_skill(&dir_b, "the-curator", "curate");
 
         let l = Loadout::resolve_with_paths(
-            &["the-librarian".to_string()],
+            &["the-curator".to_string()],
             &[dir_a.clone(), dir_b.clone()],
         )
         .unwrap();

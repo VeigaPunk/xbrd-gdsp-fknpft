@@ -33,7 +33,7 @@ Include in teammate briefs: `"You have access to advisor() — call it before su
 Include as FIRST instruction in every teammate brief that requires cross-model delegation.
 
 **Layer 1 — Gate (structural):**
-- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>' 'librarian'. No other tool before xask returns."` (default — gemini medium = `# ThinkingBudget: 4096`, librarian loadout for taste-filtered discovery; if gemini 429s, scout may fall back to `xask --effort medium codex` + flag as `[xask dry — gemini 429 fallback]` per Layer 3)
+- **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>'. No other tool before xask returns."` (default — gemini medium = `# ThinkingBudget: 4096`; scout applies built-in curation taste; if gemini 429s, scout may fall back to `xask --effort medium codex` + flag as `[xask dry — gemini 429 fallback]` per Layer 3)
 - **reviewer**: `"Your FIRST tool call MUST be Bash: xask -R codex '<review question>'. No other tool before xask returns."` (`-R` = review lane → gpt-5.4-mini via `CODEX_MINI_MODEL`; reasoning inherits codex's own default xhigh per `~/.codex/config.toml`. Pass `-e high` to explicitly cap reasoning below xhigh. Add `-F/--full` to escape to full gpt-5.4 / `CODEX_FULL_MODEL` / 1.05M context — reserved for the-revenger RECON and large-diff review.) For diffs spanning >10 files, caller MUST pass `-s <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns."` *(gemini-high is the connector primary; fallback on failure is **sonnet in-session** — compose from Grep/Read within the reasoning cap. See feedback_connector_gemini_high.md.)*
@@ -94,7 +94,7 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
-| Research, prior art | `scout` | sonnet · medium | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; librarian loadout for taste-filtered discovery; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
+| Research, prior art | `scout` | sonnet · medium | `xask --effort medium gemini` (LOCKED default — `# ThinkingBudget: 4096`; scout applies built-in curation taste; codex fallback only on gemini 429 with `[xask dry]` provenance marker) | All |
 | Correctness, bugs | `reviewer` | sonnet · medium | `xask -R codex` (review lane — gpt-5.4-mini; add `-F` for full gpt-5.4 / 1.05M ctx on large-diff review) | All |
 | Empirical probes | `labrat` | sonnet · medium | `xask --spark codex` | All |
 | Code execution | `executor` | sonnet · medium | `xask --spark codex` | All |
@@ -277,7 +277,7 @@ DESPAWN: <agent-name> — signal delivered. Send me shutdown_request.
 
 ## Codex-Topic Dispatch
 
-For xbgst/xgs/xbt runs whose topic IS codex itself (defaults, flags, latency, routing, effort tiers, invocation shape), the judge MUST include at least one `cdx-*` prefix teammate in the Phase-1 roster whose reasoning layer is `xask codex`. Codex is the primary source on its own CLI surface; gemini scout via librarian misses the codex-authoritative view. Not required for non-codex topics — topic-gated.
+For xbgst/xgs/xbt runs whose topic IS codex itself (defaults, flags, latency, routing, effort tiers, invocation shape), the judge MUST include at least one `cdx-*` prefix teammate in the Phase-1 roster whose reasoning layer is `xask codex`. Codex is the primary source on its own CLI surface; gemini scout misses the codex-authoritative view. Not required for non-codex topics — topic-gated.
 
 ## Round Limits
 

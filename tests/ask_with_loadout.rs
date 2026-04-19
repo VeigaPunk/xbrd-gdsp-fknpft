@@ -324,13 +324,13 @@ fn ask_with_multiple_skills_comma_separated() {
     let log = home.join("codex.log");
 
     write_skill(home, "godspeed", "GO FAST");
-    write_skill(home, "librarian", "CURATE");
+    write_skill(home, "curator", "CURATE");
     write_stub(&bin_dir, "codex", &log);
 
     let out = run_xbreed_ask(
         home,
         &bin_dir,
-        &["ask", "codex", "--with", "godspeed,librarian", "research"],
+        &["ask", "codex", "--with", "godspeed,curator", "research"],
     );
     assert!(out.status.success());
 
@@ -343,7 +343,7 @@ fn ask_with_multiple_skills_comma_separated() {
     assert!(dev_instr.contains("CURATE"));
     let go_idx = dev_instr.find("GO FAST").unwrap();
     let cur_idx = dev_instr.find("CURATE").unwrap();
-    assert!(go_idx < cur_idx, "godspeed should come before librarian");
+    assert!(go_idx < cur_idx, "godspeed should come before curator");
 }
 
 /// M8 (codex --json plumbing) — end-to-end contract: when `xbreed ask codex --json`
@@ -669,14 +669,14 @@ fn ask_codex_always_inherits_godspeed_suffix() {
         "no-skill codex path must carry godspeed suffix: {argv1:?}"
     );
 
-    // Case 2: --with librarian (non-godspeed skill) — godspeed suffix still appended
-    write_skill(home, "librarian", "CURATE WISELY");
+    // Case 2: --with curator (non-godspeed skill) — godspeed suffix still appended
+    write_skill(home, "curator", "CURATE WISELY");
     let log2 = home.join("codex2.log");
     write_stub(&bin_dir, "codex", &log2);
     let out2 = run_xbreed_ask(
         home,
         &bin_dir,
-        &["ask", "codex", "--with", "librarian", "prompt two"],
+        &["ask", "codex", "--with", "curator", "prompt two"],
     );
     assert!(out2.status.success(), "case 2 failed: {out2:?}");
     let argv2 = read_log(&log2);
@@ -685,14 +685,14 @@ fn ask_codex_always_inherits_godspeed_suffix() {
         "prompt two | godspeed",
         "non-godspeed skill codex path must still carry godspeed suffix: {argv2:?}"
     );
-    // librarian loadout is still injected via developer_instructions (additive, not replaced)
+    // curator loadout is still injected via developer_instructions (additive, not replaced)
     let dev_instr = argv2
         .iter()
         .find(|a| a.starts_with("developer_instructions="))
-        .expect("librarian developer_instructions missing");
+        .expect("curator developer_instructions missing");
     assert!(
         dev_instr.contains("CURATE WISELY"),
-        "librarian loadout missing despite godspeed suffix: {dev_instr}"
+        "curator loadout missing despite godspeed suffix: {dev_instr}"
     );
 
     // Case 3: idempotence — if caller already appended "| godspeed", no double-suffix

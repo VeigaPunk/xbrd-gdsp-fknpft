@@ -83,7 +83,7 @@ Headless one-shot dispatch to any supported CLI. The `--review` / `-R` and
 
 ```mermaid
 flowchart TD
-    A["xbreed ask <cli> <prompt> --with godspeed,librarian [-R|--spark]"]
+    A["xbreed ask <cli> <prompt> --with godspeed [-R|--spark]"]
     A --> B{--with provided?}
     B -->|yes| C[resolve loadout from skill dirs]
     B -->|no| D[empty loadout]

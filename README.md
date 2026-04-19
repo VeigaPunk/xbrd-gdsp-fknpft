@@ -28,7 +28,7 @@ Alternatively: `cargo install --path .` installs the Rust binary only (xask not 
 
 ### v0.2 — ask with skill loadouts
 
-    xbreed ask <cli> --with godspeed,the-librarian <prompt>
+    xbreed ask <cli> --with godspeed <prompt>
 
 `--with` resolves comma-separated skill names against `~/.agents/skills/`,
 `~/.claude/skills/`, then `~/.config/xbreed/skills/`, concatenates each skill's
