@@ -122,7 +122,16 @@ if [ -f "$TEMPLATE" ]; then
     print
   }' "$TEMPLATE")
 else
-  PROMPT="$QUERY"
+  # Fail loud — silent raw-$QUERY fallback masked the xask-gate-regress-0420
+  # install regression (templates/dispatch was not synced into ~/.local by
+  # `make install` → xask collapsed to 16-byte raw prompt, stripping the
+  # Inter-Model Protocol envelope + {{THINKING_BUDGET}} substitution + scope
+  # framing). Invariant-preservation: degraded envelope must never ship
+  # invisibly.
+  echo "xask: dispatch template not found at $TEMPLATE" >&2
+  echo "xask: templates must be at \$XBREED_DISPATCH_DIR or \$SCRIPT_DIR/../templates/dispatch" >&2
+  echo "xask: run 'make install' from the xbreed repo to sync dispatch templates" >&2
+  exit 1
 fi
 
 # Forward godspeed posture through xask prompt text.

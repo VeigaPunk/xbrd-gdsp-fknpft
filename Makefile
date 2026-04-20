@@ -28,8 +28,10 @@ verify:
 verify-docs:
 	@bash scripts/verify-docs.sh
 
-## install: build xbreed binary + sync scripts/xask → ~/.local/bin/xask
+## install: build xbreed binary + sync scripts/xask → ~/.local/bin/xask + dispatch templates
 install: build
 	cp scripts/xask "$(HOME)/.local/bin/xask"
 	chmod +x "$(HOME)/.local/bin/xask"
-	@echo "Installed xbreed + xask → $(HOME)/.local/bin/"
+	mkdir -p "$(HOME)/.local/templates/dispatch"
+	cp templates/dispatch/*.md "$(HOME)/.local/templates/dispatch/"
+	@echo "Installed xbreed + xask + dispatch templates → $(HOME)/.local/bin/ and $(HOME)/.local/templates/dispatch/"

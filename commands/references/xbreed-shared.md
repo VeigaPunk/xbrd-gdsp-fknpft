@@ -139,6 +139,8 @@ When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-
 
 `{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
 
+Prefix signals where reasoning lives (the target model for xask delegation), not which CC runtime spawned the teammate. `cco-` is reserved for `the-judge` under the sonnet-medium pivot; the other three prefixes route their primary reasoning to the named model.
+
 
 ## Labrat Invocation (Universal)
 

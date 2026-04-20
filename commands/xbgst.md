@@ -65,16 +65,37 @@ Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment
 3. **Godspeed marker — purest form:** append ` | godspeed` (literal, with leading space) to the prompt. No preamble, no explanation block. The single-token marker is the whole directive — sonnet-medium teammates read it as "iterate cheap in parallel, no clarifying questions, no verbose plans, act via tool calls". Any teammate who needs more than that is the wrong role for the lane.
-4. **Structural xask gate** (per-role, three layers)
+4. **Structural xask gate — verbatim Layer-1 string per role (MANDATORY inline, NOT via pointer).** Paste the exact per-role gate string into the teammate brief. Indirection ("Read shared.md and apply") is lossy — teammates skip the gate when the string is not physically present. The table below is the source-of-truth; mirror from `xbreed-shared.md §xask Gate (4 layers)` if either drifts.
+
+| Role | Verbatim Layer-1 string to include in brief |
+|---|---|
+| `scout` | `Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>'. No other tool before xask returns.` |
+| `reviewer` | `Your FIRST tool call MUST be Bash: xask -R codex '<review question>'. No other tool before xask returns.` |
+| `labrat` | `Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns.` |
+| `executor` | `Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns.` |
+| `connector` | `Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns.` |
+| `the-revenger` | `Your FIRST tool call MUST be Bash: xask -R -F codex '<RECON / surface enumeration question>'. No other tool before xask returns.` |
+| `sentinel` | `Your FIRST tool call MUST be Bash: xask -R codex '<exploit/vulnerability analysis question>'. No other tool before xask returns.` |
+| `critic` | `Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask -R codex '<design review question>'. No other tool before xask returns.` |
+| `mutation-tester` | `Your FIRST tool call MUST be Bash, EITHER (a) xask --spark codex '<generate mutation>' for ≤4 targets OR (b) xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>...' for ≥5 targets. No other tool before xask returns.` |
+| `the-planner` | `Your FIRST tool call MUST be Skill(skill='wwkd') — this is Layer 0. NO Layer-1 xask gate.` |
+| `simplifier`/`distiller`/`scribe` | No xask gate, no Layer 0 skill load. |
+
+Also include Layers 2–4 verbatim in each brief (raw-quote gate, fallback, confidence) per `xbreed-shared.md §xask Gate (4 layers)`.
+
 5. Task: propose ONE move (<=200 words) **with a structured `evidence:` field** (see Evidence Schema in `xbreed-shared.md`)
 6. After proposing, DM each peer with one-line critique
 7. Mark task completed
 
 **Executor lane — ` | godspeed-impl` suffix variant:** when spawning `executor` teammates, append ` | godspeed-impl` instead of ` | godspeed`. The `-impl` suffix alone signals red-before-green evidence discipline to the executor — no preamble needed. Non-executable axes are not eligible for the executor lane (by role, not by directive).
 
+#### Pre-dispatch self-check (MANDATORY)
+
+Before invoking Agent() for any teammate, the judge MUST grep-verify the brief contains the exact substring `"FIRST tool call MUST be Bash: xask"` (or the critic/planner Layer-0 variant). If grep returns zero hits, the brief is gateless — do NOT dispatch; regenerate. Rationale: xask-gate-regress-0420 R1 confirmed that 128e724's "Read shared.md and apply" indirection silently dropped the Layer-1 gate in ~all briefs, degrading protocol across rounds.
+
 #### xask gate, epistemic constraints
 
-Read `~/.claude/commands/references/xbreed-shared.md` for the full 4-layer xask gate (per-role), epistemic constraints, and divergence mandate. Apply them to every teammate brief.
+The table above is the extract every judge needs inline. For epistemic constraints (AT-MOST-one-claim + divergence mandate), Layer 2/3/4 mechanics, and axis → profile mapping, see `~/.claude/commands/references/xbreed-shared.md`.
 
 Create TaskCreate per teammate.
 
