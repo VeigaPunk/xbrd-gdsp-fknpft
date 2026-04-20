@@ -23,6 +23,17 @@ $ARGUMENTS
 
 Treat this as the problem to judge/draft. If it names multiple proposals, score them. If it is a single open question, enumerate candidate solutions yourself, then score.
 
+**Planner-first is unconditional** (matches `~/.claude/agents/the-judge.md` sub-role table). Dispatch `the-planner` FIRST at Phase 0:
+
+```
+Agent(subagent_type="the-planner", name="ccs-planner-r0", model="sonnet",
+      prompt="WWKD Phase 0 data walk + skeleton for: <full user prompt>. FIRST tool call MUST be Skill(skill='wwkd'). Return plan artifact. | godspeed")
+```
+
+Wait for the plan artifact, then proceed with sub-role dispatch. Specialists check their proposals against the plan baseline.
+
+Composition: `/xbreed /wwkd <spec>` is the explicit form of the same behavior.
+
 ## Step 3 — Sub-role dispatch rules (load-bearing)
 
 You may dispatch specialist sub-roles: **scout** (research), **reviewer** (surgical review), **labrat** (cheap dry-run), **executor** (parallel leaf-task executor), **distiller** (multi-source deduplication), **the-planner** (Phase 0 data-walk + WWKD plan artifact). Personas live at `~/.claude/agents/{scout,reviewer,labrat,executor,distiller,the-planner}.md`.

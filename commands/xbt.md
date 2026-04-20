@@ -42,6 +42,17 @@ $ARGUMENTS
 - If `$ARGUMENTS` is empty, the team was initialized without a specific task. Skip to Step 6 and wait for the user to direct the team with their next message.
 - Otherwise, treat `$ARGUMENTS` as the problem to judge / draft per the-judge protocol. Decide which sub-roles (if any) you need.
 
+**Planner-first is unconditional** (matches `~/.claude/agents/the-judge.md` sub-role table). Spawn `the-planner` as the Phase 0 teammate BEFORE any specialist:
+
+```
+Agent(subagent_type="the-planner", team_name="<team>", name="ccs-planner-r0", model="sonnet",
+      prompt="WWKD Phase 0 data walk + skeleton for: <full user prompt>. FIRST tool call MUST be Skill(skill='wwkd'). Deliver plan artifact to team-lead. | godspeed")
+```
+
+Wait for the plan artifact. It becomes the skeleton against which downstream specialist dispatch checks for drift.
+
+Composition: `/xbt /wwkd <spec>` is the explicit form of the same behavior.
+
 ## Step 4 — Dispatch sub-roles AS TEAMMATES with xask gate
 
 When you decide a sub-role is needed, spawn it as a **persistent team member**:

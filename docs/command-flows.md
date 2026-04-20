@@ -9,7 +9,7 @@ xbreed has two layers of commands:
 | Layer | Commands | Runs as |
 |-------|----------|---------|
 | **Binary** (`xbreed`) | `guard`, `sync`, `claude`, `ask`, `team` | Rust CLI subprocess |
-| **Skills** (inside Claude Code) | `/xbreed`, `/xbt`, `/xgs`, `/xbgst` | Prompt injection in active session |
+| **Skills** (inside Claude Code) | `/wwkd`, `/xbreed`, `/xbt`, `/xgs`, `/xbgst` | Prompt injection in active session |
 
 The binary commands launch or configure CLI tools. The skills orchestrate
 multi-agent workflows inside a running Claude Code session.
@@ -170,8 +170,16 @@ flowchart LR
 ## Skill commands (inside Claude Code)
 
 These are not binaries — they're prompt-injected skills that run inside an
-active Claude Code session. The user types `/xbreed` or `/xbt` and the skill
-content is loaded into the conversation.
+active Claude Code session. The user types `/wwkd`, `/xbreed`, `/xbt`, `/xgs`, or `/xbgst`
+and the skill content is loaded into the conversation.
+
+### `/wwkd <prompt>`
+
+Standalone WWKD planning posture. Loads `~/.claude/skills/wwkd/SKILL.md`, does the
+Phase 0 data walk, and returns the plan artifact.
+
+Compose it under `/xbgst`, `/xbt`, `/xgs`, or `/xb` when you want planner-first
+orchestration: `/xbgst /wwkd <spec>`.
 
 ### `/xbreed <prompt>` (alias: `/xb`)
 
@@ -479,6 +487,7 @@ dispatch bails with a `gemini login` hint.
 | `xbreed ask <cli>` | Headless one-shot to any CLI | No |
 | `xbreed team init` | Scaffold team infra | Creates one |
 | `xbreed team mailbox` | Fast teammate signal channel | Uses existing |
+| `/wwkd` | WWKD planning posture | No |
 | `/xbreed` (`/xb`) | Solo judge + xask delegation | No (uses Agent()) |
 | `/xbreed-team` (`/xbt`) | Deliberative team + xask | Yes (TeamCreate) |
 | `/xgs` | Godspeed Pareto, all-Claude | Yes (TeamCreate) |

@@ -40,9 +40,25 @@ If empty, wait for user direction. Otherwise, proceed to four-phase godspeed wit
 
 ## Step 4 — Four-phase godspeed protocol (with xask gate)
 
-### Phase 0 — Name the axes
+### Phase 0 — Spawn the-planner, then name the axes
 
-Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+**Planner-first is unconditional.** Per `~/.claude/agents/the-judge.md` sub-role dispatch table and `commands/references/xbreed-shared.md` Axis → Profile Mapping, `the-planner` is "spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch" — not conditional on the user typing `/wwkd`. Spawn `the-planner` BEFORE naming axes:
+
+```
+Agent(
+  subagent_type="the-planner",
+  team_name="<team>",
+  name="ccs-planner-r0",
+  model="sonnet",
+  prompt="WWKD Phase 0 data walk + skeleton plan for: <full user prompt>. Your FIRST tool call MUST be Skill(skill='wwkd') — Layer 0. Deliver plan artifact to team-lead when done. | godspeed"
+)
+```
+
+Wait for the plan artifact. It becomes the **Phase 0 baseline** — axis naming (Phase 1) and specialist dispatch (Phase 2) check for drift against it. If a Phase 1 axis contradicts the planner's skeleton, flag it in the round summary.
+
+Once the planner returns, emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+
+Composition: `/xbgst /wwkd <spec>` is the explicit form of the same behavior — the orchestrator runs identically whether or not the user prefixes with `/wwkd`.
 
 ### Phase 1 — Assign deterministic teammate names
 

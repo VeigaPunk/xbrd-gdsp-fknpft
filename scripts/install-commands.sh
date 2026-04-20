@@ -8,7 +8,7 @@ CMDS="${CLAUDE_COMMANDS_DIR:-$HOME/.claude/commands}"
 
 mkdir -p "$CMDS/references"
 
-for f in xb xbgst xbreed-team xbreed xbt xgs; do
+for f in wwkd xb xbgst xbreed-team xbreed xbt xgs; do
   ln -sfn "$REPO/commands/$f.md" "$CMDS/$f.md"
 done
 ln -sfn "$REPO/commands/references/xbreed-shared.md" "$CMDS/references/xbreed-shared.md"

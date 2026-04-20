@@ -36,9 +36,20 @@ If empty, wait for user direction. Otherwise, proceed to four-phase godspeed.
 
 ## Step 4 — Four-phase godspeed protocol
 
-### Phase 0 — Name the axes
+### Phase 0 — Spawn the-planner, then name the axes
 
-Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+**Planner-first is unconditional** (matches `~/.claude/agents/the-judge.md` sub-role table). Spawn `the-planner` BEFORE naming axes:
+
+```
+Agent(subagent_type="the-planner", team_name="<team>", name="ccs-planner-r0", model="sonnet",
+      prompt="WWKD Phase 0 data walk + skeleton for: <full user prompt>. FIRST tool call MUST be Skill(skill='wwkd'). Deliver plan artifact to team-lead. | godspeed")
+```
+
+Wait for the plan artifact. It becomes the Phase 0 baseline against which axis naming (Phase 1) and specialist dispatch (Phase 2) check for drift.
+
+Then emit up to 8 axes (name + direction + observable). Incorporate user-named axes; infer the rest.
+
+Composition: `/xgs /wwkd <spec>` is the explicit form of the same behavior.
 
 ### Phase 1 — Assign deterministic teammate names
 
@@ -51,6 +62,7 @@ Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` f
 - Code execution → `executor` (sonnet)
 - Cross-axis patterns → `connector` (sonnet)
 - Synthesis, dedup → `distiller` (sonnet)
+- Planning, Phase 0, WWKD sequencing → `the-planner` (sonnet, Layer-0 wwkd skill load)
 - Complexity reduction → `simplifier` (sonnet)
 
 Cap: <=12 teammates per round.
