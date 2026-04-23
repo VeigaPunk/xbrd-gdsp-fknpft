@@ -1247,6 +1247,99 @@ mod tests {
         );
     }
 
+    /// Regression gate for mailbox.rs:382 — the >= in timestamp cutoff.
+    /// mutation: `e.timestamp_ms >= cutoff_ms` → `e.timestamp_ms > cutoff_ms`
+    ///
+    /// Strategy: set digest_older_than_secs = 2_000_000_000 (2e9 s ≈ 63 years).
+    /// now_ms ≈ 1.745e12 ms (2026), so:
+    ///   cutoff_ms = now_ms.saturating_sub(2e9 × 1000) = 0
+    /// Write event with timestamp_ms = 0 → exactly at cutoff.
+    ///   >=: 0 >= 0 → TRUE → event is KEPT  (correct)
+    ///   > (mutation): 0 > 0 → FALSE → event is COMPACTED into digest
+    #[test]
+    fn compact_keeps_event_at_exact_cutoff_boundary() {
+        let dir = tempdir().unwrap();
+        let path = mailbox_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let event = Event {
+            timestamp_ms: 0,
+            from: "boundary-probe".to_string(),
+            event_type: "boundary".to_string(),
+            payload: "at-exact-cutoff".to_string(),
+        };
+        let mut line = serde_json::to_string(&event).unwrap();
+        line.push('\n');
+        {
+            let mut f = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .unwrap();
+            f.write_all(line.as_bytes()).unwrap();
+        }
+        // 2_000_000_000 s * 1000 = 2e12 ms > now_ms (~1.745e12 ms) → saturates to 0
+        compact_events_sync(dir.path(), &[], 2_000_000_000).unwrap();
+        let events = drain_events(dir.path()).unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| e.event_type == "boundary" && e.from == "boundary-probe"),
+            "event at exact cutoff boundary must be kept by >= semantics; got: {:?}",
+            events
+        );
+    }
+
+    /// Regression gate for mailbox.rs:177 — the push_str that merges compact
+    /// sidecars on the LIVE-mailbox drain path.
+    ///
+    /// compact_sidecar_preserves_concurrent_writes only validates sidecar content
+    /// via the NotFound early-return (no live mailbox at drain time). This test
+    /// writes BOTH a live event AND a pre-placed sidecar, drains, and asserts both
+    /// appear. If the line-177 push_str is removed, sidecar events are silently
+    /// dropped when a live mailbox exists.
+    #[test]
+    fn drain_merges_live_mailbox_and_compact_sidecar() {
+        let dir = tempdir().unwrap();
+
+        // Write a live event to the mailbox.
+        write_event(dir.path(), "live-sender", "ping", "live-payload").unwrap();
+
+        // Pre-place a compact_ready sidecar — simulates an async compact that
+        // finished while concurrent writers were landing in the fresh inode.
+        let mailbox = mailbox_path(dir.path());
+        let sidecar = mailbox.with_extension("compact_ready.test9999");
+        let digest = Event {
+            timestamp_ms: 1_700_000_000_000,
+            from: "xbreed-compactor".to_string(),
+            event_type: "digest".to_string(),
+            payload: "compacted 5 events: {keepalive=5}".to_string(),
+        };
+        std::fs::write(&sidecar, serde_json::to_string(&digest).unwrap() + "\n").unwrap();
+
+        // drain_events must merge live-mailbox content (lines 166-173) AND the
+        // sidecar content (line 177 push_str). Without line 177, sidecar is
+        // only merged on the NotFound early-return path (line 162), not here.
+        let events = drain_events(dir.path()).unwrap();
+        assert_eq!(
+            events.len(),
+            2,
+            "drain must return live event + sidecar digest; got: {:?}",
+            events
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| e.event_type == "ping" && e.from == "live-sender"),
+            "live mailbox event missing after drain"
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| e.event_type == "digest" && e.payload.contains("compacted")),
+            "sidecar digest missing when live mailbox also present (line 177 regressed?)"
+        );
+    }
+
     /// During async compact's limbo window drain may return empty.
     /// After worker finishes, drain recovers the digest.
     #[test]
