@@ -23,6 +23,13 @@ DB="${XBREED_MEMORY_DB:-$repo_root/data/xbreed.db}"
 [ -f "$DB" ] || { printf 'xbreed-memory: db missing at %s (run data/xbreed-schema.sql first)\n' "$DB" >&2; exit 2; }
 command -v sqlite3 >/dev/null 2>&1 || { echo 'xbreed-memory: sqlite3 not installed' >&2; exit 2; }
 
+# Sparse-coding budget (Quiroga forgetting-machine.md:33 — ~1-2% MTL activation ceiling).
+# B3 fix (xbreed-memory-blockers-2026-04-24.md): single source of truth across wrapper
+# and the-judge.md Phase-0 hook. Override via XBREED_FINDINGS_LIMIT. Validated as
+# positive integer to prevent SQL injection via env manipulation.
+FINDINGS_LIMIT="${XBREED_FINDINGS_LIMIT:-20}"
+[[ "$FINDINGS_LIMIT" =~ ^[0-9]+$ ]] && [ "$FINDINGS_LIMIT" -gt 0 ] || { echo "xbreed-memory: XBREED_FINDINGS_LIMIT must be a positive integer (got: $FINDINGS_LIMIT)" >&2; exit 1; }
+
 # busy_timeout is per-connection, not persistent — set via -cmd on each sqlite3 call
 SQLITE=(sqlite3 -cmd '.timeout 5000')
 SQLITE_RO=(sqlite3 -readonly -cmd '.timeout 5000')
@@ -41,7 +48,7 @@ case "$cmd" in
     [[ "$round" =~ ^[0-9]+$ ]] || { echo 'xbreed-memory: round must be an integer' >&2; exit 1; }
     case "$direction" in +|-|0) ;; *) echo 'xbreed-memory: direction must be + / - / 0' >&2; exit 1 ;; esac
     "${SQLITE[@]}" "$DB" <<SQL || exit 2
-INSERT INTO findings (mission, round, axis_id, observable, direction)
+INSERT OR REPLACE INTO findings (mission, round, axis_id, observable, direction)
 VALUES ('$(sql_escape "$mission")', $round,
         '$(sql_escape "$axis")',
         '$(sql_escape "$observable")',
@@ -51,9 +58,9 @@ SQL
   get)
     mission="${1:-}"
     if [ -z "$mission" ]; then
-      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission=(SELECT mission FROM findings ORDER BY round DESC, rowid DESC LIMIT 1) ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
+      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission=(SELECT mission FROM findings ORDER BY round DESC, rowid DESC LIMIT 1) ORDER BY round DESC, axis_id LIMIT $FINDINGS_LIMIT" 2>/dev/null || exit 2
     else
-      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission='$(sql_escape "$mission")' ORDER BY round DESC, axis_id LIMIT 20" 2>/dev/null || exit 2
+      "${SQLITE_RO[@]}" "$DB" "SELECT axis_id||' ['||direction||']: '||observable FROM findings WHERE mission='$(sql_escape "$mission")' ORDER BY round DESC, axis_id LIMIT $FINDINGS_LIMIT" 2>/dev/null || exit 2
     fi
     ;;
   latest-mission)
