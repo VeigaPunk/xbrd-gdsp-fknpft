@@ -95,7 +95,8 @@ flowchart TD
     E -->|gemini| H["gemini -m gemini-3.1-pro-preview \n-p <prompt> --approval-mode yolo \n(env_remove GEMINI_API_KEY; reads ~/.gemini/oauth_creds.json)"]
 
     Cdx -->|--spark| Csp["codex exec -m gpt-5.3-codex-spark \n-c model_reasoning_effort=low \n(no fast_mode)"]
-    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n(-R -F escape hatch → full gpt-5.4)"]
+    Cdx -->|--gpt55| Cg5["codex exec -m gpt-5.5 \n-c features.fast_mode=true \n(-e low|medium|high|xhigh via flag) \n**xbreed uniform codex lane 2026-04-24**"]
+    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n(legacy; -R -F escapes to full gpt-5.4)"]
     Cdx -->|default| Cdf["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n-c model_reasoning_effort=high"]
 
     H --> Ha{success?}
@@ -105,6 +106,7 @@ flowchart TD
 
     F --> P
     Csp --> P
+    Cg5 --> P
     Crv --> P
     Cdf --> P
 ```
@@ -121,9 +123,11 @@ flowchart TD
 
 | Flag | Model | Reasoning | fast_mode | Used by |
 |------|-------|-----------|-----------|---------|
-| `--spark` | `gpt-5.3-codex-spark` | low | off | labrat, xask-gate probes |
-| `-R` / `--review` | `gpt-5.4` (full) | xhigh (inherited) | on | reviewer, critic, sentinel, the-revenger |
-| default | `gpt-5.4-mini` | high | on | executor, scout-fallback, labrat-non-spark |
+| `--spark` | `gpt-5.3-codex-spark` | low | off | labrat, executor, mutation-tester (single, ≤4 targets) |
+| `--gpt55` | `gpt-5.5` | via `-e` flag | on | **xbreed uniform codex lane (2026-04-24)**: reviewer/sentinel/critic at `-e low`, the-revenger at `-e high` |
+| `-R -F` / `--review --full` | `gpt-5.4` (full, 1.05M ctx) | xhigh (inherited) | on | escape hatch — reserved for RECON where gpt-5.5 window insufficient |
+| `-R` / `--review` | `gpt-5.4-mini` | xhigh (inherited) | on | legacy; superseded by `--gpt55 -e low` in xbreed dispatch |
+| default | `gpt-5.4-mini` | high | on | legacy; direct `xask codex` without lane flags |
 
 **Gemini auth cascade** (v0.4+, OAuth-exclusive): tries up to **3 OAuth levels**
 **sequentially** (not in parallel). Each attempt blocks on `cmd.output()` before
@@ -190,7 +194,7 @@ flowchart TD
     A["/xbreed <prompt>"] --> B["Read ~/.claude/agents/the-judge.md"]
     B --> C[Adopt judge persona]
     C --> E{need sub-roles?}
-    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask gemini, reviewer→xask -R codex, labrat→xask --spark codex)"]
+    E -->|yes| F["dispatch up to 3 Agent() calls \n(scout→xask --effort medium --gs gemini, reviewer→xask --gpt55 --gs -e low codex, labrat→xask --spark --gs codex)"]
     E -->|no| G[DRAFT output]
     F --> H["xask gate: first tool call = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     H --> I[aggregate findings]
@@ -224,7 +228,7 @@ flowchart TD
     B --> C[Adopt judge persona]
     C --> D["TeamCreate(team_name=...)"]
     D --> F[Parse prompt, pick sub-roles]
-    F --> G["Spawn 2-3 teammates \n(scout→xask gemini, reviewer→xask -R codex, labrat→xask --spark codex)"]
+    F --> G["Spawn 2-3 teammates \n(scout→xask --effort medium --gs gemini, reviewer→xask --gpt55 --gs -e low codex, labrat→xask --spark --gs codex)"]
     G --> Gx["xask gate: first tool = Bash xask \nraw-quote gate: <raw_output> tags \nepistemic role: at most 1 non-obvious claim"]
     Gx --> H[Create TaskCreate per teammate]
     H --> I[Wait for SendMessage replies]
@@ -307,10 +311,10 @@ sequenceDiagram
     Note right of J: All names committed before spawn
 
     par Phase 2: Spawn all teammates
-        J->>T: scout brief (axis + xask gemini gate)
-        J->>T: reviewer brief (axis + xask -R codex gate)
-        J->>T: labrat brief (axis + xask --spark codex gate)
-        J->>T: connector brief (axis + xask gemini gate) [MANDATORY every round]
+        J->>T: scout brief (axis + xask --effort medium --gs gemini gate)
+        J->>T: reviewer brief (axis + xask --gpt55 --gs -e low codex gate)
+        J->>T: labrat brief (axis + xask --spark --gs codex gate)
+        J->>T: connector brief (axis + xask --effort medium gemini gate, no --gs) [MANDATORY every round]
     end
 
     par Phase 3a: Cross-model delegation (~14s gemini, ~6s codex)
@@ -459,9 +463,11 @@ marker IS the whole directive; sonnet-medium teammates read it as
 
 **Codex dispatch lanes** (`src/ask.rs` `build_codex_ask_with_loadout`):
 
-- `--spark` → `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode)
-- `-R` / `--review` → `gpt-5.4` (full) + `features.fast_mode=true` (reasoning inherited from `~/.codex/config.toml` = xhigh)
-- default → `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high`
+- `--spark` → `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode) — labrat/executor/mutation-tester-single
+- `--gpt55` → `gpt-5.5` + `features.fast_mode=true` (reasoning via `-e low|medium|high|xhigh`) — **xbreed uniform codex lane per 2026-04-24**: reviewer/sentinel/critic at `-e low`, the-revenger at `-e high`
+- `-R -F` / `--review --full` → `gpt-5.4` (full, 1.05M ctx) + `features.fast_mode=true` — escape hatch, reserved for large-context RECON when gpt-5.5 window insufficient
+- `-R` / `--review` → `gpt-5.4-mini` + `features.fast_mode=true` — legacy review lane; superseded by `--gpt55 -e low` in xbreed dispatch
+- default → `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high` — legacy, kept for direct `xask codex` without lane flags
 
 **Profile vs dispatch-default:** `~/.codex/config.toml` `[profiles.xbreed]` still
 pins `model = "gpt-5.4"` (full) — this is the profile codex uses when invoked

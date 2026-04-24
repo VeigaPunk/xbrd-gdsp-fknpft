@@ -88,11 +88,13 @@ Pinned to `gemini-3.1-pro-preview` (input id). The gemini CLI routes this intern
 
 ### Codex model
 
-Default/review lane default: `gpt-5.4-mini` (pinned via `-m` flag).
-Full: `gpt-5.4` only when `-R/--review` + `-F/--full` are both set.
-Spark: `gpt-5.3-codex-spark` (pinned via `-m` flag).
+Default: `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high` (pinned via `-m` flag).
+Review lane (`-R/--review`): `gpt-5.4-mini` + `features.fast_mode=true`.
+Full (`-R -F`): `gpt-5.4` (1.05M ctx) + `features.fast_mode=true` — escape hatch.
+gpt-5.5 lane (`--gpt55`): `gpt-5.5` + `features.fast_mode=true` — the uniform xbreed codex lane per 2026-04-24 pivot (reviewer/sentinel/critic at `-e low`, the-revenger at `-e high`).
+Spark (`--spark`): `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode).
 
-Precedence: `--spark` takes precedence over `-R/--review` and `-F/--full`.
+Precedence: `--spark` > `--gpt55` > `-R -F` > `-R` > default.
 
 ---
 

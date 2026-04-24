@@ -65,11 +65,11 @@ Composition: `/xbgst /wwkd <spec>` is the explicit form of the same behavior —
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
 Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-**high** for orchestrator depth, downgraded from xhigh 2026-04-19):
-- Research, prior art → `scout` — `xask --effort medium gemini`
-- Correctness, bugs → `reviewer` — `xask -R codex`
-- Empirical probes → `labrat` — `xask --spark codex`
-- Code execution → `executor` — `xask --spark codex`
-- Cross-axis patterns → `connector` — `xask --effort high gemini` (LOCKED — no codex fallback)
+- Research, prior art → `scout` — `xask --effort medium --gs gemini`
+- Correctness, bugs → `reviewer` — `xask --gpt55 --gs -e low codex`
+- Empirical probes → `labrat` — `xask --spark --gs codex`
+- Code execution → `executor` — `xask --spark --gs codex`
+- Cross-axis patterns → `connector` — `xask --effort medium gemini`
 - Synthesis, dedup → `distiller` — in-session
 - Complexity reduction → `simplifier` — CC native
 
@@ -85,15 +85,15 @@ Each brief includes:
 
 | Role | Verbatim Layer-1 string to include in brief |
 |---|---|
-| `scout` | `Your FIRST tool call MUST be Bash: xask --effort medium gemini '<research question>' '<context>'. No other tool before xask returns.` |
-| `reviewer` | `Your FIRST tool call MUST be Bash: xask -R codex '<review question>'. No other tool before xask returns.` |
-| `labrat` | `Your FIRST tool call MUST be Bash: xask --spark codex '<probe hypothesis>'. No other tool before xask returns.` |
-| `executor` | `Your FIRST tool call MUST be Bash: xask --spark codex '<task>'. No other tool before xask returns.` |
-| `connector` | `Your FIRST tool call MUST be Bash: xask --effort high gemini '<pattern question>'. No other tool before xask returns.` |
-| `the-revenger` | `Your FIRST tool call MUST be Bash: xask -R -F codex '<RECON / surface enumeration question>'. No other tool before xask returns.` |
-| `sentinel` | `Your FIRST tool call MUST be Bash: xask -R codex '<exploit/vulnerability analysis question>'. No other tool before xask returns.` |
-| `critic` | `Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask -R codex '<design review question>'. No other tool before xask returns.` |
-| `mutation-tester` | `Your FIRST tool call MUST be Bash, EITHER (a) xask --spark codex '<generate mutation>' for ≤4 targets OR (b) xask --effort low gemini 'trigger a fanout on: 10 mutations of <fn>...' for ≥5 targets. No other tool before xask returns.` |
+| `scout` | `Your FIRST tool call MUST be Bash: xask --effort medium --gs gemini '<research question>' '<context>'. No other tool before xask returns.` |
+| `reviewer` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<review question>'. No other tool before xask returns.` |
+| `labrat` | `Your FIRST tool call MUST be Bash: xask --spark --gs codex '<probe hypothesis>'. No other tool before xask returns.` |
+| `executor` | `Your FIRST tool call MUST be Bash: xask --spark --gs codex '<task>'. No other tool before xask returns.` |
+| `connector` | `Your FIRST tool call MUST be Bash: xask --effort medium gemini '<pattern question>'. No other tool before xask returns.` |
+| `the-revenger` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'. No other tool before xask returns.` |
+| `sentinel` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<exploit/vulnerability analysis question>'. No other tool before xask returns.` |
+| `critic` | `Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --gpt55 --gs -e low codex '<design review question>'. No other tool before xask returns.` |
+| `mutation-tester` | `Your FIRST tool call MUST be Bash, EITHER (a) xask --spark --gs codex '<generate mutation>' for ≤4 targets OR (b) xask --effort low --gs gemini 'trigger a fanout on: 10 mutations of <fn>...' for ≥5 targets. No other tool before xask returns.` |
 | `the-planner` | `Your FIRST tool call MUST be Skill(skill='wwkd') — this is Layer 0. NO Layer-1 xask gate.` |
 | `simplifier`/`distiller`/`scribe` | No xask gate, no Layer 0 skill load. |
 
