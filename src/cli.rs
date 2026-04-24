@@ -65,6 +65,14 @@ pub enum Commands {
         /// evidence. No effect without --review/-R.
         #[arg(long, short = 'F')]
         full: bool,
+        /// Route to gpt-5.5 (codex only) with fast_mode enabled. Supports all
+        /// effort levels (low/medium/high/xhigh via -e). Added 2026-04-24 for
+        /// xbrd-exec bench — enables xask-arm measurement of gpt-5.5 so the
+        /// comparison of 5.5 via raw codex exec vs via xbreed wrapper becomes
+        /// expressible. Mutually exclusive with --spark (spark wins); orthogonal
+        /// to --review/--full (those route to 5.4 family regardless).
+        #[arg(long = "gpt55")]
+        gpt55: bool,
         /// Emit raw JSON from codex exec responses (codex only).
         /// Passes --json to codex exec; no-op for gemini.
         #[arg(long)]

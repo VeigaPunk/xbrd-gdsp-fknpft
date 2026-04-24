@@ -48,6 +48,7 @@ fn main() -> anyhow::Result<()> {
             spark,
             review,
             full,
+            gpt55,
             json,
             output_last_message,
         } => {
@@ -64,6 +65,7 @@ fn main() -> anyhow::Result<()> {
                 spark,
                 review,
                 full,
+                gpt55,
                 json,
                 output_last_message.as_deref(),
             )?;

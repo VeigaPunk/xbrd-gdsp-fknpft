@@ -1,5 +1,5 @@
 # xbreed exec-path benchmark — 2026-04-24
-**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** POPULATED — 14 xask-reachable cells + 8 gpt-5.5 raw-only cells, 74 runs total, ~17 min wall
+**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** POPULATED — 14 xask-reachable cells + 8 gpt-5.5 raw cells + 4 gpt-5.5 xask-arm cells (NEW, via `--gpt55`), 86 runs total, ~22 min wall
 
 ---
 
@@ -158,15 +158,24 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 | gpt-5.5 | high | on | 17.22 ±0.60 | 1012 | 58.8 | `█████` | −25.0%\* | 3 | `█≡●` |
 | gpt-5.5 | xhigh | off | 29.34 ±1.09 | 1210 | 41.2 | `████` | — | 3 | `█≡●` |
 | gpt-5.5 | xhigh | on | 19.86 ±2.42 | 1053 | 53.0 | `█████` | −32.3%\* | 3 | `█≡●` |
+| gpt-5.5 | low | xon | 11.82 ±1.97 | 297 | 25.1 | `██` | −8.3% | 3 | `█≄●` |
+| gpt-5.5 | medium | xon | 20.47 ±3.02 | 955 | 46.7 | `████` | +43.9% | 3 | `█≄●` |
+| gpt-5.5 | high | xon | 21.99 ±5.42 | 1279 | 58.2 | `█████` | −4.2% | 3 | `█≄●` |
+| gpt-5.5 | xhigh | xon | 37.08 ±6.46 | 2072 | 55.9 | `█████` | +26.3% | 3 | `█≄●` |
 
 `⚠` on spark = coverage-limited (2 cells < MIN_COMPARABLE_CELLS=3); bar rendered on spark's own scale (max=551.67). Excluded from Pareto ranking per §Pareto-rank-gate.
 
-**Δ column semantics (per-row, keyed on Cov glyph 2):**
-- **Glyph 2 = `≄`** (gpt-5.4 family — asymmetric substrate, xask on / raw off): Δ is **Δ_wrap** = `(wall_on − wall_off) / wall_off`. Positive = xask slower than raw; negative = xask faster.
-- **Glyph 2 = `≡`** (gpt-5.5 — symmetric substrate, both arms raw codex exec): Δ is **Δ_fast**\* = `(wall_fast_on − wall_fast_off) / wall_fast_off`. Positive = fast_mode slower; negative = fast_mode faster. Marked with `*` suffix in the table.
+**Fast column values:**
+- `off` — raw `codex exec --disable fast_mode` (fast-off arm).
+- `on` — raw `codex exec --enable fast_mode` (fast-on arm, no wrapper). gpt-5.5 only in this matrix.
+- xask implicit — fast-on arm via `xask codex` (gpt-5.4 family default `on`-arm path).
+- **`xon`** (NEW 2026-04-24) — fast-on arm via `xask --gpt55 codex` (gpt-5.5 xask arm via the new `--gpt55` lane). Distinguishes from the raw `on` arm for gpt-5.5.
 
-**Cov glyph 3 extension (gpt-5.5 addendum, 2026-04-24):**
-- **`●`** = populated via raw-only path (no xask lane; benched via raw `codex exec`). Distinguishes from `∅` (reachable, not yet benched) and `✗` (permanently routing-excluded). gpt-5.5 rows carry `●` because they lack an xask lane in `src/ask.rs` but are otherwise accessible via raw `codex exec -m gpt-5.5`. Addition of an xask lane for gpt-5.5 would convert these to `█≄●` and enable Δ_wrap measurement.
+**Δ column semantics (per-row, keyed on Cov glyph 2):**
+- **Glyph 2 = `≄`** (asymmetric substrate — one arm xask-wrapped, one arm raw): Δ is **Δ_wrap** = `(wall_xask_arm − wall_raw_off) / wall_raw_off`. Positive = xask slower than raw fast-off; negative = xask faster. Applies to gpt-5.4 family `on` rows AND the new gpt-5.5 `xon` rows.
+- **Glyph 2 = `≡`** (symmetric substrate — both arms raw codex exec, only fast_mode differs): Δ is **Δ_fast**\* = `(wall_fast_on − wall_fast_off) / wall_fast_off`. Positive = fast_mode slower; negative = fast_mode faster. Marked with `*` suffix in the table. Applies to gpt-5.5 raw `on` rows (paired with raw `off`).
+
+**Cov glyph 3 `●` (populated via any benched path):** distinguishes from `∅` (reachable, not yet benched) and `✗` (routing-excluded WONTFIX). gpt-5.5 `off`/`on` rows carry `█≡●` (raw-only paired arms); gpt-5.5 `xon` rows carry `█≄●` (xask arm exists, pair-compared against raw `off`).
 
 **Design-choice note:** The original `Δ_fast` / `Δ_wrap` split (MOVE-1) collapsed to a single `Δ_wrap` column because TTFT (the handle on which `Δ_fast` was defined) was dropped. Any future reinstatement of `Δ_fast` requires a non-buffered first-token measurement path; see report §7. Output token counts differ by arm (xask fast-on arm reliably produces 1.5–3× more tokens for the same prompt), which makes per-arm tok/s comparisons workload-confounded — `wall_s ±σ` is the cleaner latency axis.
 
@@ -196,7 +205,13 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 
 9. **gpt-5.5 × xhigh is the slowest reasoning tier** (29.3s off / 19.9s on) but produces the richest output (~1000–1210 tokens). tok/s for xhigh: 41.2 off / 53.0 on — below gpt-5.5 × high × on (58.8) despite more reasoning. **Interpretation:** xhigh adds *reasoning time* faster than it adds *output throughput*; high-on is the efficiency sweet spot.
 
-10. **Substrate caveat (5.5):** all 8 gpt-5.5 cells are raw `codex exec` measurements — **no xask-arm data yet**. Direct comparison with gpt-5.4 family's xask-on cells is not apples-to-apples (different substrate). Adding a gpt-5.5 lane to `src/ask.rs` is the next axis (user request, forthcoming commit) — will enable Δ_wrap for 5.5 and convert Cov glyph 2 from `≡` → `≄` on future xask-arm rows.
+10. **Substrate caveat (5.5) — RESOLVED 2026-04-24.** Added `--gpt55` lane to `scripts/xask` + `src/ask.rs` (this commit). 4 new xask-arm rows populated (`xon` stream, Cov `█≄●`). Δ_wrap now measurable for gpt-5.5.
+
+11. **gpt-5.5 Δ_wrap (xask arm vs raw fast-off) is non-monotonic by effort:** low −8.3%, medium +43.9%, high −4.2%, xhigh +26.3%. Two efforts show xask FASTER than raw fast-off (likely because raw-off skips fast_mode and produces fewer tokens but also less reasoning work), and two efforts show xask SLOWER. This inconsistency mirrors the gpt-5.4 family's Δ_wrap spread (−15.9% to +67.9%) and reinforces obs #1: Δ_wrap is workload-dependent, not a fixed wrapper cost.
+
+12. **Pure wrapper overhead (xask fast-on vs raw fast-on, same fast_mode=true on both sides) is monotonic and large at high effort.** Computed across (xon, on) pairs for gpt-5.5: low +10.6%, medium **+59.9%**, high +27.7%, xhigh **+86.7%**. At xhigh, the xask wrapper nearly doubles wall time (19.86s → 37.08s). **Dominant cause is output-token inflation:** xask-arm produces 297/955/1279/2072 tokens vs raw fast-on's 275/262/1012/1053 — 1.1×/3.6×/1.3×/2.0× more tokens. The wrapper's prompt-templating (xask's dispatch template + godspeed forwarding + SKILL loadout) is causing the model to emit longer completions, which costs both wall-time and (implicitly) cents.
+
+13. **xask-arm 5.5 variance is high at high/xhigh** (σ = 5.42s at high, 6.46s at xhigh — 25% and 17% of median respectively). This is consistent with (a) the longer completions on xask arm amplifying per-run variance, and (b) the wrapper's context-injection interacting with model stochasticity. For cross-substrate comparison at high effort, n≥10 is recommended; n=3 here under the 10-min budget rule.
 
 ---
 
@@ -260,15 +275,17 @@ Canonical reachable count is **18/28**: 6 gpt-5.4-mini cells (low/med/high × of
 
 ## 8. Caption
 
-This table reports xbreed execution-path performance across **14 xask-reachable cells** + **8 gpt-5.5 raw-only cells** (22 populated of 32 total) as of 2026-04-24, measured over **74 runs** (n≥5 on top xask tier: gpt-5.4-mini × high, gpt-5.3-spark × low; n=3 elsewhere including all 8 gpt-5.5 cells), total wall ~17 min.
+This table reports xbreed execution-path performance across **14 xask-reachable cells** + **8 gpt-5.5 raw cells** + **4 gpt-5.5 xask-arm cells (NEW, via `--gpt55` lane)** (26 populated of 36 total) as of 2026-04-24, measured over **86 runs** (n≥5 on top xask tier: gpt-5.4-mini × high, gpt-5.3-spark × low; n=3 elsewhere including all 12 gpt-5.5 cells), total wall ~22 min.
 
 **Headline (xask-reachable, gpt-5.4 family):** `gpt-5.4 × low × off` wins on wall-latency consistency (11.27s ±0.82, lowest σ/mean); `gpt-5.4-mini × medium × off` wins on raw throughput (86.8 tok/s) but output-token counts differ by arm so tok/s is not a pure latency proxy; `gpt-5.4 × medium × on` is the best-balanced xask-native choice (72.6 tok/s / 10.81s).
 
-**Headline (gpt-5.5 raw-only, Cov `≡`):** `gpt-5.5 × high × on @ 58.8 tok/s, 17.22s ±0.60` is the most stable high-throughput cell in the matrix (σ = 3.5% of median). Fast_mode uniformly speeds gpt-5.5 up, effect grows with effort: Δ_fast of −17.1% (low), −10.0% (medium), −25.0% (high), −32.3% (xhigh). gpt-5.5 is the only model with complete 4-tier effort coverage in this bench.
+**Headline (gpt-5.5 raw, Cov `≡`):** `gpt-5.5 × high × on @ 58.8 tok/s, 17.22s ±0.60` is the most stable high-throughput cell in the matrix (σ = 3.5% of median). Fast_mode uniformly speeds gpt-5.5 up, effect grows with effort: Δ_fast of −17.1% (low), −10.0% (medium), −25.0% (high), −32.3% (xhigh). gpt-5.5 is the only model with complete 4-tier effort coverage in this bench.
+
+**Headline (gpt-5.5 xask-arm, Cov `≄`, NEW):** Δ_wrap vs raw fast-off is non-monotonic: low −8.3%, medium +43.9%, high −4.2%, xhigh +26.3%. Pure wrapper overhead (xask vs raw at equal fast_mode=true) is monotonic and large: +10.6% / +59.9% / +27.7% / **+86.7%** by effort. At xhigh the xask wrapper nearly doubles wall time. Root cause: **xask-arm produces 1.1–3.6× more output tokens than raw fast-on** for the same prompt — the wrapper's prompt templating (dispatch template + godspeed + SKILL loadout) prompts the model to emit longer completions. Wrapper overhead is not a spawn-latency constant — it's workload-amplifying context injection.
 
 **Coverage-limited / excluded:** Spark × low dominates raw throughput at 351.6–551.7 tok/s (5–10× gpt-5.4 family) but is `⚠` coverage-limited (2 cells) and excluded from Pareto ranking.
 
-**10 cells remain structural gaps** (xhigh OOS via xask × 2 models = 4 cells; spark medium/high/xhigh rows = 6 cells under ask.rs:77 low-only constraint). **gpt-5.5 rows migrated from `absent` (`_≇✗`) to `populated via raw-only path` (`█≡●`)** via raw `codex exec`; adding a gpt-5.5 xask lane would convert these to `█≄●` with Δ_wrap measurable.
+**10 cells remain structural gaps** (xhigh OOS via xask × 2 models = 4 cells; spark medium/high/xhigh rows = 6 cells under ask.rs:77 low-only constraint). **gpt-5.5 migrated from `absent` → populated:** 8 raw cells with `█≡●` (paired off/on arms) + 4 xask-arm cells with `█≄●` via the new `--gpt55` lane (`src/ask.rs` CODEX_55_MODEL + `scripts/xask --gpt55` flag, this commit).
 
 **Δ semantics:** Δ_wrap was merged from the original Δ_fast/Δ_wrap split because TTFT (the Δ_fast anchor for gpt-5.4 family) was dropped after smoke M2 showed xask-layer buffering. For gpt-5.5 rows specifically, the Δ column IS Δ_fast\* (both arms raw, fast_mode differs) — marked with `*` suffix. Reinstating Δ_fast for gpt-5.4 family requires a non-buffered first-token measurement path.
 

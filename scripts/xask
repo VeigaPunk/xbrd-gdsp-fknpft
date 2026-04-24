@@ -1,17 +1,18 @@
 #!/bin/bash
 # xask — minimal routing protocol for cross-model orchestration
-# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-R] [-F] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
+# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-R] [-F] [--gpt55] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
 #
 # All dispatches route through `xbreed ask`. Always-on: suppression, approval bypass,
 # auth cascade, godspeed forwarding, fast_mode (gpt-5.4 family). See docs/xask-protocol.md.
 #
-# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -R (review) | -F (full) | -e (effort) | -o (output-last-message) | --json
+# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -R (review) | -F (full) | --gpt55 (gpt-5.5) | -e (effort) | -o (output-last-message) | --json
 #
 # codex model lanes:
 #   default:       gpt-5.4-mini + fast_mode + reasoning=high (user directive 2026-04-17)
 #   --spark:       gpt-5.3-codex-spark + reasoning=low (labrat probes)
 #   --review / -R: gpt-5.4-mini + fast_mode (reviewer/critic/sentinel default per 2026-04-18)
 #   -R --full/-F:  gpt-5.4 full + fast_mode (the-revenger RECON escape hatch, 1.05M ctx)
+#   --gpt55:       gpt-5.5 + fast_mode (xbrd-exec bench xask-arm measurement, 2026-04-24)
 #
 # Examples:
 #   xask gemini "What patterns exist?"              # clean, godspeed loaded
@@ -20,6 +21,7 @@
 #   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
 #   xask -R codex "Adversarial review of <diff>"    # review lane — gpt-5.4-mini
 #   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.4 (1.05M ctx)
+#   xask --gpt55 -e high codex "Deep question"      # gpt-5.5 lane, high effort
 #   xask -e high codex "Deep question"              # explicit reasoning effort
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 
@@ -30,12 +32,14 @@ RICH=false
 SPARK=false
 REVIEW=false
 FULL=false
+GPT55=false
 EFFORT=""
 OUTPUT_LAST_MESSAGE=""
 EFFORT_FLAGS=()
 SPARK_FLAGS=()
 REVIEW_FLAGS=()
 FULL_FLAGS=()
+GPT55_FLAGS=()
 OUTPUT_FLAGS=()
 JSON_FLAGS=()
 while [[ "$1" == -* ]]; do
@@ -46,10 +50,11 @@ while [[ "$1" == -* ]]; do
     --spark  | --spk) SPARK=true; shift ;;
     --review | -R)   REVIEW=true; shift ;;
     --full   | -F)   FULL=true; shift ;;
+    --gpt55) GPT55=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
     --output-last-message | -o) OUTPUT_LAST_MESSAGE="$2"; shift 2 ;;
     --json) JSON=true; shift ;;
-    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -R|--review, -F|--full, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
+    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -R|--review, -F|--full, --gpt55, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
   esac
 done
 
@@ -63,6 +68,7 @@ fi
 [ "$SPARK" = true ] && SPARK_FLAGS=(--spark)
 [ "$REVIEW" = true ] && REVIEW_FLAGS=(--review)
 [ "$FULL" = true ] && FULL_FLAGS=(--full)
+[ "$GPT55" = true ] && GPT55_FLAGS=(--gpt55)
 [ -n "$OUTPUT_LAST_MESSAGE" ] && OUTPUT_FLAGS=(--output-last-message "$OUTPUT_LAST_MESSAGE")
 [ "$JSON" = true ] && JSON_FLAGS=(--json)
 
@@ -208,7 +214,7 @@ case "$MODEL" in
     xbreed ask gemini --with "$SKILL" "${EFFORT_FLAGS[@]}" "$PROMPT"
     ;;
   codex)
-    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${REVIEW_FLAGS[@]}" "${FULL_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "${OUTPUT_FLAGS[@]}" "${JSON_FLAGS[@]}" "$PROMPT"
+    xbreed ask codex --with "$SKILL" "${SPARK_FLAGS[@]}" "${REVIEW_FLAGS[@]}" "${FULL_FLAGS[@]}" "${GPT55_FLAGS[@]}" "${EFFORT_FLAGS[@]}" "${OUTPUT_FLAGS[@]}" "${JSON_FLAGS[@]}" "$PROMPT"
     ;;
   *)
     echo "Unknown model: $MODEL. Use gemini or codex." >&2
