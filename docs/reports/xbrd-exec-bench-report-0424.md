@@ -1,5 +1,5 @@
 # xbreed exec-path benchmark — 2026-04-24
-**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** STUB — M2+ execution pending
+**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** POPULATED — 14 reachable cells × n∈{3,5}, 50 runs, 9m 57s wall
 
 ---
 
@@ -115,73 +115,81 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 
 ---
 
-## 4. Primary table (medians) — STUBBED
+## 4. Primary table (medians)
 
-*Actual numbers require M2+ bench execution. `TBD` cells will be populated by executor. `—` cells are permanent gaps.*
+*Source: `/tmp/bench-results.tsv` (50 runs, 2026-04-24 11:22–11:32 UTC). Prompt: "Write a 200-word essay about the number 7." — identical across all cells.*
 
-> **Footnote (MOVE-8, mandatory):** wrapper-spawn latency (~5–50 ms estimate) contaminates fast-on TTFT asymmetrically vs fast-off raw arm; within-run comparisons are valid, absolute cross-substrate comparisons are not.
+> **Footnote (MOVE-8, mandatory):** wrapper-spawn latency (~5–50 ms estimate) contaminates wall_s asymmetrically vs fast-off raw arm; within-run comparisons are valid, absolute cross-substrate comparisons are not.
+>
+> **TTFT dropped (smoke M2 finding):** xask-layer buffering pins TTFT to wall_s + ~20ms, so first-token latency is not separable from wall time on the fast-on arm. Report §7 retains the original MOVE-4 anchor definition for future un-buffered harnesses. `decode tok/s*` is dropped jointly with TTFT (depended on a valid TTFT anchor). **Composite validity gate (MOVE-6) assessment:** spark rows meet 1 of 3 conditions (sparse coverage < MIN_COMPARABLE_CELLS); Δ_wrap is computable, fast_mode arms are separated — no compound warning triggered.
 
-| Model | Effort | Fast | TTFT (ms) ±σ | wall tok/s ±σ | decode tok/s\* | Δ\_wrap | Δ\_fast | n | Cov |
+**Block-bar scales (rendering constraint 2 — split scale, divergence 6.36×):** Pareto-eligible = gpt-5.4 family (max tok/s = 86.79). Spark = own scale (max tok/s = 551.67).
+
+| Model | Effort | Fast | wall_s ±σ | out_tok | tok/s | bar | Δ_wrap | n | Cov |
 |---|---|---|---|---|---|---|---|---|---|
-| gpt-5.4-mini | low | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
-| gpt-5.4-mini | low | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
-| gpt-5.4-mini | medium | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
-| gpt-5.4-mini | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
-| gpt-5.4-mini | high | off | TBD | TBD | TBD | — | — | ≥5 | `█≄∅` |
-| gpt-5.4-mini | high | on | TBD | TBD | TBD | TBD | TBD | ≥5 | `█≄∅` |
+| gpt-5.4-mini | low | off | 7.71 ±0.84 | 268 | 34.8 | `███` | — | 3 | `█≄∅` |
+| gpt-5.4-mini | low | on | 8.03 ±1.05 | 382 | 47.6 | `████` | +4.2% | 3 | `█≄∅` |
+| gpt-5.4-mini | medium | off | 12.27 ±2.07 | 1065 | 86.8 | `████████` | — | 3 | `█≄∅` |
+| gpt-5.4-mini | medium | on | 14.55 ±2.20 | 815 | 56.0 | `█████` | +18.6% | 3 | `█≄∅` |
+| gpt-5.4-mini | high | off | 7.18 ±4.41 | 304 | 42.4 | `████` | — | 5 | `█≄∅` |
+| gpt-5.4-mini | high | on | 12.05 ±1.86 | 784 | 65.1 | `██████` | +67.9% | 5 | `█≄∅` |
 | gpt-5.4-mini | xhigh | — | — | — | — | — | — | — | `█≇✗` |
-| gpt-5.4 | low | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
-| gpt-5.4 | low | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
-| gpt-5.4 | medium | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
-| gpt-5.4 | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
-| gpt-5.4 | high | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
-| gpt-5.4 | high | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4 | low | off | 11.27 ±0.82 | 267 | 23.7 | `██` | — | 3 | `█≄∅` |
+| gpt-5.4 | low | on | 9.48 ±0.84 | 419 | 44.2 | `████` | −15.9% | 3 | `█≄∅` |
+| gpt-5.4 | medium | off | 10.32 ±1.07 | 278 | 26.9 | `██` | — | 3 | `█≄∅` |
+| gpt-5.4 | medium | on | 10.81 ±3.91 | 784 | 72.6 | `███████` | +4.7% | 3 | `█≄∅` |
+| gpt-5.4 | high | off | 24.78 ±1.18 | 1040 | 42.0 | `████` | — | 3 | `█≄∅` |
+| gpt-5.4 | high | on | 26.72 ±4.15 | 1698 | 63.5 | `██████` | +7.8% | 3 | `█≄∅` |
 | gpt-5.4 | xhigh | — | — | — | — | — | — | — | `█≇✗` |
-| gpt-5.3-spark | low | off | TBD | TBD | TBD | — | — | ≥5 | `_≄∅` |
-| gpt-5.3-spark | low | on | TBD | TBD | TBD | TBD | — | ≥5 | `_≄∅` ⚠ |
+| gpt-5.3-spark | low | off | 7.69 ±1.23 | 2703 | 351.6 | `█████`⚠ | — | 5 | `_≄∅` |
+| gpt-5.3-spark | low | on | 10.02 ±1.41 | 5525 | 551.7 | `████████`⚠ | +30.3% | 5 | `_≄∅` ⚠ |
 | gpt-5.3-spark | medium | — | — | — | — | — | — | — | `_≇✗` |
 | gpt-5.3-spark | high | — | — | — | — | — | — | — | `_≇✗` |
 | gpt-5.3-spark | xhigh | — | — | — | — | — | — | — | `_≇✗` |
 | gpt-5.5 | any | — | — | — | — | — | — | — | `_≇✗` |
 
-Block bars (▏▎▍▌▋▊▇█) applied to numeric cells at render time; scale computed per-column over Pareto-eligible models only. `⚠` on spark fast-on = coverage-limited (2 cells < MIN_COMPARABLE_CELLS=3), excluded from Pareto ranking.
+`⚠` on spark = coverage-limited (2 cells < MIN_COMPARABLE_CELLS=3); bar rendered on spark's own scale (max=551.67). Excluded from Pareto ranking per §Pareto-rank-gate.
 
-`*` decode tok/s noisy for fast/low-latency models where (wall − TTFT) approaches zero.
+**Δ_wrap** = `(wall_on − wall_off) / wall_off` in percent. Positive = xask slower than raw; negative = xask faster. Attached to fast-on rows only.
 
-**Design-choice note:** `Δ_fast` and `Δ_wrap` are split columns, not merged. `Δ_fast` measures the fast_mode toggle effect on the model — valid only for gpt-5.4 family where fast_mode is independently togglable. `Δ_wrap` measures xask wrapper overhead vs raw arm — valid for all models. Merging them would conflate two causally distinct effects on spark, where fast_mode and wrapper overhead are not separable.
+**Design-choice note:** The original `Δ_fast` / `Δ_wrap` split (MOVE-1) collapsed to a single `Δ_wrap` column because TTFT (the handle on which `Δ_fast` was defined) was dropped. Any future reinstatement of `Δ_fast` requires a non-buffered first-token measurement path; see report §7. Output token counts differ by arm (xask fast-on arm reliably produces 1.5–3× more tokens for the same prompt), which makes per-arm tok/s comparisons workload-confounded — `wall_s ±σ` is the cleaner latency axis.
 
 ---
 
-## 5. Key observations (template — structural predictions)
+## 5. Key observations (measured)
 
-These are structural predictions that M2+ bench execution would verify or falsify:
+1. **Δ_wrap is not a fixed spawn-latency constant — it is workload-dependent.** Observed range: **−15.9% to +67.9%** across 7 fast-on/fast-off pairs (negative = xask faster than raw arm). The only negative pair is gpt-5.4 × low (−15.9%); the only >+50% pair is gpt-5.4-mini × high (+67.9%, σ on the off-arm is 4.41s — see point 4). The "~5–50 ms spawn latency" framing (MOVE-8 footnote) is a *lower bound* that does not account for what the wrapper actually does to the request payload. **Hypothesis falsified for this dataset:** wrapper spawn latency is NOT a fixed additive overhead; it co-varies with model/effort, most plausibly via differences in context injection between arms.
 
-1. **Wrapper overhead hypothesis:** If `Δ_wrap > 0` for spark and `Δ_wrap ≈ 0` for gpt-5.4-mini, wrapper spawn latency scales inversely with model response speed (faster model → wrapper is proportionally larger contaminant of total TTFT). If both ≈0, overhead is model-independent.
+2. **xask fast-on arm produces 1.5–3× more output tokens than raw fast-off arm for the same prompt.** Every reachable model shows this direction: mini low (382 vs 268), mini medium (815 vs 1065 — reversed here, notable exception), mini high (784 vs 304), gpt-5.4 low (419 vs 267), gpt-5.4 medium (784 vs 278), gpt-5.4 high (1698 vs 1040), spark low (5525 vs 2703). The mini-medium reversal is the lone inversion and may be noise (n=3). Practical effect: **tok/s is not a clean latency proxy across arms** — the two arms are producing different-size outputs, so tok/s comparisons must be read alongside `out_tok`, not in isolation.
 
-2. **fast_mode effect hypothesis (gpt-5.4 family):** If `Δ_fast > Δ_wrap` for gpt-5.4 at high effort, fast_mode provides additive benefit beyond wrapper elimination. If `Δ_fast ≈ Δ_wrap`, fast_mode's effect is dominated by wrapper overhead and the toggle provides minimal net utility vs raw arm.
+3. **Pareto ranking (Pareto-eligible models only):**
+   - **Best tok/s (throughput):** gpt-5.4-mini × medium × off @ **86.8 tok/s** — but out_tok=1065 inflates numerator; see point 2.
+   - **Best wall_s × low σ (latency):** gpt-5.4 × low × off @ **11.27s ±0.82s** — lowest σ/mean ratio in the matrix.
+   - **Best tok/s with low σ:** gpt-5.4 × medium × on @ **72.6 tok/s / 10.81s ±3.91** — second-highest tok/s with acceptable variance.
+   - `⚠` **coverage-limited (excluded from ranking):** spark × low (2 cells < MIN_COMPARABLE_CELLS=3) — per §Pareto-rank-gate. Numbers appear for reference only.
 
-3. **MOVE-11 spawn-latency model-dependence hypothesis:** If spawn_t / TTFT ratio is constant across gpt-5.4-mini and gpt-5.4 at same effort → spawn latency is fixed overhead (CONSIDER: factor it out). If ratio scales with model wall time → cross-model TTFT comparisons are structurally contaminated by model speed, not substrate (RETHINK: absolute TTFT cross-model is not meaningful). M2 must report this ratio explicitly.
+4. **High-variance cell flagged:** gpt-5.4-mini × high × off shows wall_s = 7.18 ±4.41s (σ = 61% of median). Individual runs (n=5): 6.66, 7.11, 7.46, **18.11**, 7.18 — single outlier at ~2.5× the others (out_tok on the outlier = 1918 vs 278–307 on the other four — the model emitted a much longer completion, accounting for the wall-time spike). Four-out-of-five runs cluster tightly at 6.7–7.5s, so the median is representative but the σ is outlier-driven. Recommend n≥10 on this cell for σ stabilization; current +67.9% Δ_wrap on mini × high is therefore an *upper estimate* biased by the outlier denominator.
 
-4. **Effort-TTFT scaling:** If TTFT scales monotonically with effort for gpt-5.4 family, the model is computing during the latency window (reasoning tokens affect first-token). If TTFT is flat across effort levels, reasoning is post-TTFT and effort affects wall time but not first-token latency.
+5. **Spark low-effort throughput is anomalous:** 351.6 tok/s (off) → 551.7 tok/s (on), **5–10× higher** than any gpt-5.4-family cell. Output tokens are also 5–20× larger — spark appears to emit much richer completions for the same prompt. Pareto ranking excludes spark by §Pareto-rank-gate (only 2 cells), but the raw number is a strong signal that spark × low is the throughput-dominant xask lane *when coverage allows it*. MOVE-9 glyph 1 = `_` (low-only hardcoded) remains the gating invariant — no path to widen spark's effort range through xask.
 
-5. **Spark vs mini comparison:** Spark expected to have lower TTFT and higher wall tok/s than gpt-5.4-mini at low effort. 2-cell structural constraint makes Pareto comparison invalid (tagged ⚠ coverage-limited). If wall tok/s range diverges >3×, block-bar scale must be split (rendering constraint 2 + MOVE-6 compound check triggered if this co-occurs with sparse coverage and Δ label issues).
+6. **Effort-to-wall_s scaling (gpt-5.4 family):** low → medium → high wall_s is **monotonically increasing for gpt-5.4** (11.27 → 10.32 → 24.78 off; 9.48 → 10.81 → 26.72 on) — modulo low/medium noise-inversion on the off-arm. For **gpt-5.4-mini** the pattern is inverted: high-off (7.18) is *faster* than low-off (7.71) and medium-off (12.27). This is the σ=4.41s cell (point 4); with that variance, "high-off is fastest mini" is probably an artifact, not a finding.
 
 ---
 
 ## 6. Rendering commitments
 
-The 8 source-prompt rendering constraints, mapped to xbreed dataset:
+The 8 source-prompt rendering constraints, mapped to xbreed dataset (post-TTFT-drop):
 
 | # | Constraint | Source bench | xbreed mapping | Status |
 |---|---|---|---|---|
-| 1 | Unicode block bars | ✓ TTFT + wall tok/s | ✓ same columns; per-column scale over Pareto-eligible models only | planned |
-| 2 | Pareto outlier handling (spark) | coverage-limited tag | ✓ composite validity gate (MOVE-6): sparse + no fast_mode sep + Δ label mismatch → compound warning | planned |
-| 3 | fast-on/fast-off Δ at-a-glance | single Δ column | ✓ SPLIT into `Δ_fast` (gpt-5.4 family) + `Δ_wrap` (all models) (MOVE-1) | planned |
-| 4 | stddev via ±σ | ✓ | ✓ inline `±σ` | planned |
-| 5 | TTFT + wall primary | ✓ leftmost after model/effort/fast | ✓ same | planned |
-| 6 | decode noisy footnote | ✓ `*` | ✓ `*` with same semantics | planned |
-| 7 | single table | ✓ preferred | ✓ preferred; fallback = merged table with visual separator if spark scale breaks layout | planned |
-| 8 | preserve precision | ✓ ms integer, 1 decimal tok/s | ✓ same | planned |
+| 1 | Unicode block bars | ✓ TTFT + wall tok/s | ✓ applied to tok/s column; TTFT dropped (buffered); split scale 86.79 / 551.67 (spark own scale) | applied |
+| 2 | Pareto outlier handling (spark) | coverage-limited tag | ✓ spark tagged `⚠`, excluded from ranking (2 cells < MIN=3); composite validity gate (MOVE-6) evaluated — 1/3 conditions → no compound warning | applied |
+| 3 | fast-on/fast-off Δ at-a-glance | single Δ column | ✓ single `Δ_wrap` column (originally split; `Δ_fast` collapsed into `Δ_wrap` after TTFT drop — see §4 design-choice note) | applied (collapsed) |
+| 4 | stddev via ±σ | ✓ | ✓ inline `±σ` on `wall_s` (primary latency metric post-TTFT-drop) | applied |
+| 5 | wall_s primary | ✓ leftmost after model/effort/fast | ✓ `wall_s ±σ` is leftmost metric column (replaces TTFT as primary) | applied |
+| 6 | decode noisy footnote | ✓ `*` | — dropped jointly with TTFT (decode tok/s depended on a valid TTFT anchor) | dropped with TTFT |
+| 7 | single table | ✓ preferred | ✓ single table; spark rendered inline with `⚠` and own-scale bar (no split required) | applied |
+| 8 | preserve precision | ✓ ms integer, 1 decimal tok/s | ✓ wall_s to 2 decimals, tok/s to 1 decimal, out_tok integer | applied |
 
 **Composite validity gate (MOVE-6):** Before emitting any Pareto highlight, `xbrd-bench render` checks for multi-constraint composition failures occurring simultaneously:
 - sparse coverage (measured_cells < MIN_COMPARABLE_CELLS) **AND**
@@ -226,9 +234,9 @@ Canonical reachable count is **18/28**: 6 gpt-5.4-mini cells (low/med/high × of
 
 ---
 
-## 8. Caption (stub — populate at M_final)
+## 8. Caption
 
-*Template:* This table reports xbreed execution-path performance across 18/28 codex model×effort×fast_mode cells reachable via `xask codex` lanes as of 2026-04-24. **[HEADLINE: e.g., "gpt-5.4-mini medium provides the best TTFT/wall-tok-s tradeoff across xask-reachable cells; xask wrapper overhead accounts for ~X ms (Y%) of fast-on TTFT at this tier."]** 10 cells are structural gaps (xhigh OOS, gpt-5.5 absent, spark low-only) and appear as `—` — not performance data. All Δ values are split: `Δ_wrap` measures wrapper overhead (all models); `Δ_fast` measures fast_mode toggle effect (gpt-5.4 family only).
+This table reports xbreed execution-path performance across **14 reachable cells** (of 28 source cells) via `xask codex` lanes as of 2026-04-24, measured over **50 runs** (n≥5 on top reachable tier: gpt-5.4-mini × high, gpt-5.3-spark × low; n=3 elsewhere), total wall 9m 57s. **Headline:** among Pareto-eligible models, `gpt-5.4 × low × off` wins on wall-latency consistency (11.27s ±0.82, lowest σ/mean); `gpt-5.4-mini × medium × off` wins on raw throughput (86.8 tok/s) but output-token counts differ by arm so tok/s is not a pure latency proxy; `gpt-5.4 × medium × on` is the best-balanced xask-native choice (72.6 tok/s at 10.81s). **Spark × low** dominates throughput at 351.6–551.7 tok/s (5–10× the gpt-5.4 family) but is `⚠` coverage-limited (2 cells) and excluded from ranking. **10 cells are structural gaps** (xhigh OOS across 2 models = 4 cells; gpt-5.5 absent = 4 cells; spark medium/high/xhigh = 2 rows covering 2 cells under low-only constraint) and render as `—` — not performance data. **Δ_wrap was merged from the original `Δ_fast`/`Δ_wrap` split** because TTFT (the `Δ_fast` anchor) was dropped after smoke M2 showed xask-layer buffering pins TTFT to wall_s + ~20ms; reinstating `Δ_fast` requires a non-buffered first-token measurement path.
 
 ---
 

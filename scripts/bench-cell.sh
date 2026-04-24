@@ -25,9 +25,14 @@ for i in $(seq 1 "$N"); do
         && printf '%s\n' "$first_line" \
         && cat) > "$out" || true
 
-  # wall_s: from xask bench log (last JSON line)
+  t_end=$(date +%s.%N)
+
+  # wall_s: from xask bench log (last JSON line); fallback to external timing (raw-arm)
   wall_s=$(tail -1 "$bench_log" 2>/dev/null \
     | jq -r '.wall_s // "NA"' 2>/dev/null || echo NA)
+  if [[ "$wall_s" == "NA" || -z "$wall_s" ]]; then
+    wall_s=$(awk -v s="$t_spawn" -v e="$t_end" 'BEGIN{printf "%.3f", e-s}')
+  fi
 
   # output_tokens: from codex --json turn.completed line
   out_tok=$(grep -m1 'turn\.completed' "$out" 2>/dev/null \
