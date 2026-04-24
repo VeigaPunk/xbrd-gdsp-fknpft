@@ -66,40 +66,52 @@ This report is the xbreed-protocol analogue of a direct `codex exec` benchmark r
 
 ## 3. Coverage matrix (28 cells)
 
-Every unreachable cell renders a row with `—` metric values and Cov annotation (MOVE-3).
+Every unreachable cell renders a row with `—` metric values and mandatory 3-glyph Cov encoding (MOVE-3 + MOVE-9).
 
-| Cell | Model | Effort | Fast | Status | Cov | Gap reason |
-|---|---|---|---|---|---|---|
-| C01 | gpt-5.4-mini | low | off | reachable | ✓ | — |
-| C02 | gpt-5.4-mini | low | on | reachable | ✓ | — |
-| C03 | gpt-5.4-mini | medium | off | reachable | ✓ | — |
-| C04 | gpt-5.4-mini | medium | on | reachable | ✓ | — |
-| C05 | gpt-5.4-mini | high | off | reachable | ✓ | n≥5 (MOVE-5) |
-| C06 | gpt-5.4-mini | high | on | reachable | ✓ | n≥5 (MOVE-5) |
-| C07 | gpt-5.4-mini | xhigh | off | OOS | — | xhigh unreachable via xask (MOVE-5/7) |
-| C08 | gpt-5.4-mini | xhigh | on | OOS | — | xhigh unreachable via xask (MOVE-5/7) |
-| C09 | gpt-5.4 | low | off | reachable | ✓ | — |
-| C10 | gpt-5.4 | low | on | reachable | ✓ | — |
-| C11 | gpt-5.4 | medium | off | reachable | ✓ | — |
-| C12 | gpt-5.4 | medium | on | reachable | ✓ | — |
-| C13 | gpt-5.4 | high | off | reachable | ✓ | — |
-| C14 | gpt-5.4 | high | on | reachable | ✓ | — |
-| C15 | gpt-5.4 | xhigh | off | OOS | — | xhigh unreachable via xask (MOVE-5/7) |
-| C16 | gpt-5.4 | xhigh | on | OOS | — | xhigh unreachable via xask (MOVE-5/7) |
-| C17 | gpt-5.3-spark | low | off | reachable | ✓ | n≥5 (MOVE-5) |
-| C18 | gpt-5.3-spark | low | on | reachable | ✓ | n≥5 (MOVE-5) |
-| C19 | gpt-5.3-spark | medium | off | gap | — | ask.rs:77 hardcodes low-only |
-| C20 | gpt-5.3-spark | medium | on | gap | — | ask.rs:77 hardcodes low-only |
-| C21 | gpt-5.3-spark | high | off | gap | — | ask.rs:77 hardcodes low-only |
-| C22 | gpt-5.3-spark | high | on | gap | — | ask.rs:77 hardcodes low-only |
-| C23 | gpt-5.3-spark | xhigh | off | OOS+gap | — | xhigh OOS + spark low-only (compound) |
-| C24 | gpt-5.3-spark | xhigh | on | OOS+gap | — | xhigh OOS + spark low-only (compound) |
-| C25 | gpt-5.5 | low | off | absent | — | no xask lane |
-| C26 | gpt-5.5 | low | on | absent | — | no xask lane |
-| C27 | gpt-5.5 | medium | off | absent | — | no xask lane |
-| C28 | gpt-5.5 | medium | on | absent | — | no xask lane |
+**Cov glyph key:** `[effort-depth][delta-parity][routing]`
+- Glyph 1: `█`=low/med/high · `▄`=low/med · `_`=low only
+- Glyph 2: `≡`=symmetric env · `≄`=asymmetric wrapper vs raw · `≇`=categorically incomparable (fast\_mode absent on path)
+- Glyph 3: `✗`=routing-excluded WONTFIX · `∅`=measurement gap (reachable, not yet benched)
 
-**Totals:** 18 reachable · 4 xhigh OOS · 4 spark low-only gap · 2 spark xhigh compound · 4 gpt-5.5 absent = 28 cells.
+**Schema-contract invariants triggered by glyph value:**
+- Any row with glyph 2 = `≄` → test asserts raw arm subprocess carries all 4 suppression flags from ask.rs:62–65
+- Any row with glyph 2 = `≇` → test asserts `features.fast_mode=true` is ABSENT from subprocess args
+- Any row with glyph 3 = `✗` → test asserts routing report has WONTFIX entry for that model/effort
+
+| Cell | Model | Effort | Fast | Status | Cov | Invariants triggered | Gap reason |
+|---|---|---|---|---|---|---|---|
+| C01 | gpt-5.4-mini | low | off | reachable | `█≄∅` | suppression-flag test | — |
+| C02 | gpt-5.4-mini | low | on | reachable | `█≄∅` | suppression-flag test | — |
+| C03 | gpt-5.4-mini | medium | off | reachable | `█≄∅` | suppression-flag test | — |
+| C04 | gpt-5.4-mini | medium | on | reachable | `█≄∅` | suppression-flag test | — |
+| C05 | gpt-5.4-mini | high | off | reachable | `█≄∅` | suppression-flag test | n≥5 (MOVE-5) |
+| C06 | gpt-5.4-mini | high | on | reachable | `█≄∅` | suppression-flag test | n≥5 (MOVE-5) |
+| C07 | gpt-5.4-mini | xhigh | off | OOS | `█≇✗` | fast\_mode-absent + WONTFIX | xhigh OOS (MOVE-5/7) |
+| C08 | gpt-5.4-mini | xhigh | on | OOS | `█≇✗` | fast\_mode-absent + WONTFIX | xhigh OOS (MOVE-5/7) |
+| C09 | gpt-5.4 | low | off | reachable | `█≄∅` | suppression-flag test | — |
+| C10 | gpt-5.4 | low | on | reachable | `█≄∅` | suppression-flag test | — |
+| C11 | gpt-5.4 | medium | off | reachable | `█≄∅` | suppression-flag test | — |
+| C12 | gpt-5.4 | medium | on | reachable | `█≄∅` | suppression-flag test | — |
+| C13 | gpt-5.4 | high | off | reachable | `█≄∅` | suppression-flag test | — |
+| C14 | gpt-5.4 | high | on | reachable | `█≄∅` | suppression-flag test | — |
+| C15 | gpt-5.4 | xhigh | off | OOS | `█≇✗` | fast\_mode-absent + WONTFIX | xhigh OOS (MOVE-5/7) |
+| C16 | gpt-5.4 | xhigh | on | OOS | `█≇✗` | fast\_mode-absent + WONTFIX | xhigh OOS (MOVE-5/7) |
+| C17 | gpt-5.3-spark | low | off | reachable | `_≄∅` | suppression-flag test | n≥5 (MOVE-5) |
+| C18 | gpt-5.3-spark | low | on | reachable | `_≄∅` | suppression-flag test | n≥5 (MOVE-5) |
+| C19 | gpt-5.3-spark | medium | off | gap | `_≇✗` | fast\_mode-absent + WONTFIX | ask.rs:77 hardcodes low-only |
+| C20 | gpt-5.3-spark | medium | on | gap | `_≇✗` | fast\_mode-absent + WONTFIX | ask.rs:77 hardcodes low-only |
+| C21 | gpt-5.3-spark | high | off | gap | `_≇✗` | fast\_mode-absent + WONTFIX | ask.rs:77 hardcodes low-only |
+| C22 | gpt-5.3-spark | high | on | gap | `_≇✗` | fast\_mode-absent + WONTFIX | ask.rs:77 hardcodes low-only |
+| C23 | gpt-5.3-spark | xhigh | off | OOS+gap | `_≇✗` | fast\_mode-absent + WONTFIX (compound) | xhigh OOS + spark low-only |
+| C24 | gpt-5.3-spark | xhigh | on | OOS+gap | `_≇✗` | fast\_mode-absent + WONTFIX (compound) | xhigh OOS + spark low-only |
+| C25 | gpt-5.5 | low | off | absent | `_≇✗` | fast\_mode-absent + WONTFIX | no xask lane |
+| C26 | gpt-5.5 | low | on | absent | `_≇✗` | fast\_mode-absent + WONTFIX | no xask lane |
+| C27 | gpt-5.5 | medium | off | absent | `_≇✗` | fast\_mode-absent + WONTFIX | no xask lane |
+| C28 | gpt-5.5 | medium | on | absent | `_≇✗` | fast\_mode-absent + WONTFIX | no xask lane |
+
+**Totals:** 18 reachable (`█≄∅` × 12, `_≄∅` × 2 not yet benched) · 4 xhigh OOS (`█≇✗`) · 4 spark low-only gap (`_≇✗`) · 2 spark xhigh compound (`_≇✗`) · 4 gpt-5.5 absent (`_≇✗`) = 28 cells.
+
+**Invariant coverage:** 14 rows trigger suppression-flag test (glyph 2 = `≄`) · 14 rows trigger fast\_mode-absent + WONTFIX tests (glyph 2 = `≇` + glyph 3 = `✗`).
 
 ---
 
@@ -111,26 +123,26 @@ Every unreachable cell renders a row with `—` metric values and Cov annotation
 
 | Model | Effort | Fast | TTFT (ms) ±σ | wall tok/s ±σ | decode tok/s\* | Δ\_wrap | Δ\_fast | n | Cov |
 |---|---|---|---|---|---|---|---|---|---|
-| gpt-5.4-mini | low | off | TBD | TBD | TBD | — | — | TBD | ✓ |
-| gpt-5.4-mini | low | on | TBD | TBD | TBD | TBD | TBD | TBD | ✓ |
-| gpt-5.4-mini | medium | off | TBD | TBD | TBD | — | — | TBD | ✓ |
-| gpt-5.4-mini | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | ✓ |
-| gpt-5.4-mini | high | off | TBD | TBD | TBD | — | — | ≥5 | ✓ |
-| gpt-5.4-mini | high | on | TBD | TBD | TBD | TBD | TBD | ≥5 | ✓ |
-| gpt-5.4-mini | xhigh | — | — | — | — | — | — | — | OOS |
-| gpt-5.4 | low | off | TBD | TBD | TBD | — | — | TBD | ✓ |
-| gpt-5.4 | low | on | TBD | TBD | TBD | TBD | TBD | TBD | ✓ |
-| gpt-5.4 | medium | off | TBD | TBD | TBD | — | — | TBD | ✓ |
-| gpt-5.4 | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | ✓ |
-| gpt-5.4 | high | off | TBD | TBD | TBD | — | — | TBD | ✓ |
-| gpt-5.4 | high | on | TBD | TBD | TBD | TBD | TBD | TBD | ✓ |
-| gpt-5.4 | xhigh | — | — | — | — | — | — | — | OOS |
-| gpt-5.3-spark | low | off | TBD | TBD | TBD | — | — | ≥5 | ✓ |
-| gpt-5.3-spark | low | on | TBD | TBD | TBD | TBD | — | ≥5 | ✓ ⚠ |
-| gpt-5.3-spark | medium | — | — | — | — | — | — | — | low-only |
-| gpt-5.3-spark | high | — | — | — | — | — | — | — | low-only |
-| gpt-5.3-spark | xhigh | — | — | — | — | — | — | — | OOS+gap |
-| gpt-5.5 | any | — | — | — | — | — | — | — | absent |
+| gpt-5.4-mini | low | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
+| gpt-5.4-mini | low | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4-mini | medium | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
+| gpt-5.4-mini | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4-mini | high | off | TBD | TBD | TBD | — | — | ≥5 | `█≄∅` |
+| gpt-5.4-mini | high | on | TBD | TBD | TBD | TBD | TBD | ≥5 | `█≄∅` |
+| gpt-5.4-mini | xhigh | — | — | — | — | — | — | — | `█≇✗` |
+| gpt-5.4 | low | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
+| gpt-5.4 | low | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4 | medium | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
+| gpt-5.4 | medium | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4 | high | off | TBD | TBD | TBD | — | — | TBD | `█≄∅` |
+| gpt-5.4 | high | on | TBD | TBD | TBD | TBD | TBD | TBD | `█≄∅` |
+| gpt-5.4 | xhigh | — | — | — | — | — | — | — | `█≇✗` |
+| gpt-5.3-spark | low | off | TBD | TBD | TBD | — | — | ≥5 | `_≄∅` |
+| gpt-5.3-spark | low | on | TBD | TBD | TBD | TBD | — | ≥5 | `_≄∅` ⚠ |
+| gpt-5.3-spark | medium | — | — | — | — | — | — | — | `_≇✗` |
+| gpt-5.3-spark | high | — | — | — | — | — | — | — | `_≇✗` |
+| gpt-5.3-spark | xhigh | — | — | — | — | — | — | — | `_≇✗` |
+| gpt-5.5 | any | — | — | — | — | — | — | — | `_≇✗` |
 
 Block bars (▏▎▍▌▋▊▇█) applied to numeric cells at render time; scale computed per-column over Pareto-eligible models only. `⚠` on spark fast-on = coverage-limited (2 cells < MIN_COMPARABLE_CELLS=3), excluded from Pareto ranking.
 
@@ -178,7 +190,7 @@ The 8 source-prompt rendering constraints, mapped to xbreed dataset:
 
 If ≥2 constraints fail together: emit compound warning `⚠ COMPOSITE VALIDITY FAILURE: [conditions]; table rows affected: [list]`. Individual footnotes are insufficient when constraints co-compose.
 
-**M_final optional enhancement (MOVE-9, deferred):** At render time, assess whether 3-glyph Cov provenance (✓ measured / `—` gap / ⚠ partial) fits table width. Implement if layout permits; otherwise retain current Cov annotation string.
+**MOVE-9 Cov 3-glyph (MANDATORY — promoted from deferred):** Cov column is a **schema contract**, not a display choice. All 28 rows carry `[effort-depth][delta-parity][routing]` glyph triple. Glyph 2 = `≄` triggers suppression-flag test invariant; glyph 2 = `≇` triggers fast\_mode-absent assertion; glyph 3 = `✗` triggers WONTFIX routing-report assertion. `xbrd-bench` enforces all three at render time — glyph mismatch = render error.
 
 ---
 

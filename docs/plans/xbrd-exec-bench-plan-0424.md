@@ -250,7 +250,7 @@ xbrd-bench parse          # stdin: raw codex --json stream → stdout: bench JSO
 - Δ label mismatch (Δ_fast applied to spark row, or Δ_wrap missing from any measured row)
 If ≥2 constraints fail together, emit compound warning: `⚠ COMPOSITE VALIDITY FAILURE: [conditions]; table rows affected: [list]`
 
-**M_final addendum (MOVE-9, optional render enhancement):** At render time, assess whether 3-glyph Cov provenance (✓ measured / `—` gap / ⚠ partial) fits table width. Implement if layout permits; otherwise retain current Cov annotation string.
+**MOVE-9 Cov column (schema contract — MANDATORY):** The `Cov` column carries a 3-glyph `[effort][delta-parity][routing]` value for every row. Canonical mapping: C01–C06 = `█≄∅`, C07–C08 = `█≇✗`, C09–C14 = `█≄∅`, C15–C16 = `█≇✗`, C17–C18 = `_≄∅`, C19–C28 = `_≇✗`. Any row with glyph 2 = `≄` triggers the suppression-flag test invariant; glyph 2 = `≇` asserts fast_mode absent; glyph 3 = `✗` asserts WONTFIX in routing report. See MOVE-9 schema-contract section for full spec.
 
 ### Coverage-row annotation standard (for report)
 
@@ -259,7 +259,7 @@ Gap/unreachable rows in the Markdown matrix SHOULD use:
 - `TBD` in all metric cells for unreachable data.
 - `GapTag` in `Coverage` column (`OOS`, `No xask lane`, `xask low-only`) to preserve provenance.
 - `Notes` row text to explain the structural reason and whether alternate raw-arm probing is possible.
-- `Status` as `deferred` for MOVE-9-class scope gaps, `n/a` for model/axis impossible cells.
+- `Cov` column carries 3-glyph `[effort][delta-parity][routing]` value per MOVE-9 schema contract (see above); `∅` = reachable not yet benched, `✗` = routing-excluded WONTFIX.
 
 Example gap row:
 
