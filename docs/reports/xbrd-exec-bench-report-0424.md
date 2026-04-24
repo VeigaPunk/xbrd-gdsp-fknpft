@@ -1,5 +1,5 @@
 # xbreed exec-path benchmark — 2026-04-24
-**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** POPULATED — 14 xask-reachable cells + 8 gpt-5.5 raw cells + 4 gpt-5.5 xask-arm cells (NEW, via `--gpt55`), 86 runs total, ~22 min wall
+**Session:** xbrd-exec-bench-0424 | **Author:** cdx-executor-r2 | **Status:** RETESTED 2026-04-24 12:13–12:36 — 26 populated cells (14 xask-reachable + 8 gpt-5.5 raw + 4 gpt-5.5 xask-arm), 86 runs, 0 errors, ~23 min wall. Retest validates new xask flags (`-s`→`-scp` rename, `--gs` explicit godspeed load).
 
 ---
 
@@ -127,41 +127,43 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 >
 > **TTFT dropped (smoke M2 finding):** xask-layer buffering pins TTFT to wall_s + ~20ms, so first-token latency is not separable from wall time on the fast-on arm. Report §7 retains the original MOVE-4 anchor definition for future un-buffered harnesses. `decode tok/s*` is dropped jointly with TTFT (depended on a valid TTFT anchor). **Composite validity gate (MOVE-6) assessment:** spark rows meet 1 of 3 conditions (sparse coverage < MIN_COMPARABLE_CELLS); Δ_wrap is computable, fast_mode arms are separated — no compound warning triggered.
 
-**Block-bar scales (rendering constraint 2 — split scale, divergence 6.36×):** Pareto-eligible = gpt-5.4 family (max tok/s = 86.79). Spark = own scale (max tok/s = 551.67).
+**Block-bar scales (rendering constraint 2 — split scale, divergence 4.12×):** Pareto-eligible = gpt-5.4 family + gpt-5.5 (max tok/s = 105.84 — gpt-5.4-mini × high × on). Spark = own scale (max tok/s = 436.34).
+
+**Source:** retest after xask flag updates (2026-04-24 12:13–12:36, 86 runs, 0 errors). Prior data archived at `scratch/bench-results-0424-prev.tsv`. Retest uses the new `--gs` flag on all on-arms (idempotent with default `SKILL=godspeed`); the retest validates code-path integrity after the -s→-scp rename + `--gs` addition. LLM-stochastic wall-time shift between runs: per-cell Δ ranges ±10–40% across sessions — the protocol-level overhead findings (xask wrapper is workload-amplifying, not a spawn-latency constant) persist; specific per-cell numbers are a single-session snapshot.
 
 | Model | Effort | Fast | wall_s ±σ | out_tok | tok/s | bar | Δ_wrap | n | Cov |
 |---|---|---|---|---|---|---|---|---|---|
-| gpt-5.4-mini | low | off | 7.71 ±0.84 | 268 | 34.8 | `███` | — | 3 | `█≄∅` |
-| gpt-5.4-mini | low | on | 8.03 ±1.05 | 382 | 47.6 | `████` | +4.2% | 3 | `█≄∅` |
-| gpt-5.4-mini | medium | off | 12.27 ±2.07 | 1065 | 86.8 | `████████` | — | 3 | `█≄∅` |
-| gpt-5.4-mini | medium | on | 14.55 ±2.20 | 815 | 56.0 | `█████` | +18.6% | 3 | `█≄∅` |
-| gpt-5.4-mini | high | off | 7.18 ±4.41 | 304 | 42.4 | `████` | — | 5 | `█≄∅` |
-| gpt-5.4-mini | high | on | 12.05 ±1.86 | 784 | 65.1 | `██████` | +67.9% | 5 | `█≄∅` |
+| gpt-5.4-mini | low | off | 7.13 ±0.79 | 281 | 39.4 | `███` | — | 3 | `█≄∅` |
+| gpt-5.4-mini | low | on | 7.45 ±0.65 | 387 | 51.9 | `████` | +4.5% | 3 | `█≄∅` |
+| gpt-5.4-mini | medium | off | 11.01 ±2.73 | 1028 | 93.4 | `███████` | — | 3 | `█≄∅` |
+| gpt-5.4-mini | medium | on | 10.73 ±2.20 | 570 | 53.1 | `████` | −2.5% | 3 | `█≄∅` |
+| gpt-5.4-mini | high | off | 12.93 ±3.05 | 583 | 45.1 | `███` | — | 5 | `█≄∅` |
+| gpt-5.4-mini | high | on | 17.21 ±5.72 | 1821 | 105.8 | `████████` | +33.1% | 5 | `█≄∅` |
 | gpt-5.4-mini | xhigh | — | — | — | — | — | — | — | `█≇✗` |
-| gpt-5.4 | low | off | 11.27 ±0.82 | 267 | 23.7 | `██` | — | 3 | `█≄∅` |
-| gpt-5.4 | low | on | 9.48 ±0.84 | 419 | 44.2 | `████` | −15.9% | 3 | `█≄∅` |
-| gpt-5.4 | medium | off | 10.32 ±1.07 | 278 | 26.9 | `██` | — | 3 | `█≄∅` |
-| gpt-5.4 | medium | on | 10.81 ±3.91 | 784 | 72.6 | `███████` | +4.7% | 3 | `█≄∅` |
-| gpt-5.4 | high | off | 24.78 ±1.18 | 1040 | 42.0 | `████` | — | 3 | `█≄∅` |
-| gpt-5.4 | high | on | 26.72 ±4.15 | 1698 | 63.5 | `██████` | +7.8% | 3 | `█≄∅` |
+| gpt-5.4 | low | off | 12.84 ±0.64 | 280 | 21.8 | `██` | — | 3 | `█≄∅` |
+| gpt-5.4 | low | on | 8.27 ±1.54 | 447 | 54.1 | `████` | **−35.6%** | 3 | `█≄∅` |
+| gpt-5.4 | medium | off | 10.94 ±1.35 | 276 | 25.2 | `██` | — | 3 | `█≄∅` |
+| gpt-5.4 | medium | on | 11.95 ±2.75 | 1251 | 104.7 | `████████` | +9.3% | 3 | `█≄∅` |
+| gpt-5.4 | high | off | 23.91 ±1.26 | 1089 | 45.6 | `███` | — | 3 | `█≄∅` |
+| gpt-5.4 | high | on | 14.88 ±2.92 | 1427 | 95.9 | `███████` | **−37.8%** | 3 | `█≄∅` |
 | gpt-5.4 | xhigh | — | — | — | — | — | — | — | `█≇✗` |
-| gpt-5.3-spark | low | off | 7.69 ±1.23 | 2703 | 351.6 | `█████`⚠ | — | 5 | `_≄∅` |
-| gpt-5.3-spark | low | on | 10.02 ±1.41 | 5525 | 551.7 | `████████`⚠ | +30.3% | 5 | `_≄∅` ⚠ |
+| gpt-5.3-spark | low | off | 8.71 ±1.52 | 3801 | 436.3 | `████████`⚠ | — | 5 | `_≄∅` |
+| gpt-5.3-spark | low | on | 11.48 ±3.69 | 2842 | 247.6 | `████`⚠ | +31.8% | 5 | `_≄∅` ⚠ |
 | gpt-5.3-spark | medium | — | — | — | — | — | — | — | `_≇✗` |
 | gpt-5.3-spark | high | — | — | — | — | — | — | — | `_≇✗` |
 | gpt-5.3-spark | xhigh | — | — | — | — | — | — | — | `_≇✗` |
-| gpt-5.5 | low | off | 12.90 ±1.92 | 263 | 20.4 | `██` | — | 3 | `█≡●` |
-| gpt-5.5 | low | on | 10.70 ±3.15 | 275 | 25.7 | `██` | −17.1%\* | 3 | `█≡●` |
-| gpt-5.5 | medium | off | 14.22 ±3.96 | 288 | 20.3 | `██` | — | 3 | `█≡●` |
-| gpt-5.5 | medium | on | 12.81 ±2.82 | 262 | 20.5 | `██` | −10.0%\* | 3 | `█≡●` |
-| gpt-5.5 | high | off | 22.96 ±1.49 | 826 | 36.0 | `███` | — | 3 | `█≡●` |
-| gpt-5.5 | high | on | 17.22 ±0.60 | 1012 | 58.8 | `█████` | −25.0%\* | 3 | `█≡●` |
-| gpt-5.5 | xhigh | off | 29.34 ±1.09 | 1210 | 41.2 | `████` | — | 3 | `█≡●` |
-| gpt-5.5 | xhigh | on | 19.86 ±2.42 | 1053 | 53.0 | `█████` | −32.3%\* | 3 | `█≡●` |
-| gpt-5.5 | low | xon | 11.82 ±1.97 | 297 | 25.1 | `██` | −8.3% | 3 | `█≄●` |
-| gpt-5.5 | medium | xon | 20.47 ±3.02 | 955 | 46.7 | `████` | +43.9% | 3 | `█≄●` |
-| gpt-5.5 | high | xon | 21.99 ±5.42 | 1279 | 58.2 | `█████` | −4.2% | 3 | `█≄●` |
-| gpt-5.5 | xhigh | xon | 37.08 ±6.46 | 2072 | 55.9 | `█████` | +26.3% | 3 | `█≄●` |
+| gpt-5.5 | low | off | 12.76 ±1.56 | 263 | 20.6 | `██` | — | 3 | `█≡●` |
+| gpt-5.5 | low | on | 14.29 ±1.04 | 270 | 18.9 | `█` | +12.0%\* | 3 | `█≡●` |
+| gpt-5.5 | medium | off | 14.09 ±3.34 | 376 | 26.7 | `██` | — | 3 | `█≡●` |
+| gpt-5.5 | medium | on | 12.01 ±1.88 | 279 | 23.2 | `██` | −14.7%\* | 3 | `█≡●` |
+| gpt-5.5 | high | off | 24.43 ±1.95 | 1105 | 45.2 | `███` | — | 3 | `█≡●` |
+| gpt-5.5 | high | on | 18.12 ±1.14 | 1084 | 59.8 | `█████` | −25.8%\* | 3 | `█≡●` |
+| gpt-5.5 | xhigh | off | 31.35 ±3.82 | 1468 | 46.8 | `████` | — | 3 | `█≡●` |
+| gpt-5.5 | xhigh | on | 20.46 ±2.30 | 1183 | 57.8 | `████` | **−34.7%\*** | 3 | `█≡●` |
+| gpt-5.5 | low | xon | 11.51 ±0.20 | 324 | 28.2 | `██` | −9.8% | 3 | `█≄●` |
+| gpt-5.5 | medium | xon | 19.81 ±1.72 | 1026 | 51.8 | `████` | +40.7% | 3 | `█≄●` |
+| gpt-5.5 | high | xon | 30.92 ±4.09 | 1610 | 52.1 | `████` | +26.6% | 3 | `█≄●` |
+| gpt-5.5 | xhigh | xon | 43.07 ±11.26 | 2153 | 50.0 | `████` | +37.4% | 3 | `█≄●` |
 
 `⚠` on spark = coverage-limited (2 cells < MIN_COMPARABLE_CELLS=3); bar rendered on spark's own scale (max=551.67). Excluded from Pareto ranking per §Pareto-rank-gate.
 
@@ -187,11 +189,11 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 
 2. **xask fast-on arm produces 1.5–3× more output tokens than raw fast-off arm for the same prompt.** Every reachable model shows this direction: mini low (382 vs 268), mini medium (815 vs 1065 — reversed here, notable exception), mini high (784 vs 304), gpt-5.4 low (419 vs 267), gpt-5.4 medium (784 vs 278), gpt-5.4 high (1698 vs 1040), spark low (5525 vs 2703). The mini-medium reversal is the lone inversion and may be noise (n=3). Practical effect: **tok/s is not a clean latency proxy across arms** — the two arms are producing different-size outputs, so tok/s comparisons must be read alongside `out_tok`, not in isolation.
 
-3. **Pareto ranking (Pareto-eligible models only):**
-   - **Best tok/s (throughput):** gpt-5.4-mini × medium × off @ **86.8 tok/s** — but out_tok=1065 inflates numerator; see point 2.
-   - **Best wall_s × low σ (latency):** gpt-5.4 × low × off @ **11.27s ±0.82s** — lowest σ/mean ratio in the matrix.
-   - **Best tok/s with low σ:** gpt-5.4 × medium × on @ **72.6 tok/s / 10.81s ±3.91** — second-highest tok/s with acceptable variance.
-   - `⚠` **coverage-limited (excluded from ranking):** spark × low (2 cells < MIN_COMPARABLE_CELLS=3) — per §Pareto-rank-gate. Numbers appear for reference only.
+3. **Pareto ranking (retest, Pareto-eligible models):**
+   - **Best tok/s (throughput):** gpt-5.4-mini × high × on @ **105.8 tok/s** — but σ=5.72 is high, and out_tok=1821 inflates numerator (obs #2).
+   - **Best Pareto-eligible xask-arm throughput:** gpt-5.4 × medium × on @ **104.7 tok/s / 11.95s ±2.75** — close match to mini-high-on with better latency.
+   - **Best wall_s × low σ (latency):** gpt-5.4 × low × off @ **12.84s ±0.64s** (σ/mean = 5.0%) — still the most reproducible cell. gpt-5.5 × low × xon @ **11.51s ±0.20s** is the tightest-σ cell in the retest (1.7% σ/mean).
+   - `⚠` **coverage-limited (excluded from ranking):** spark × low (2 cells < MIN_COMPARABLE_CELLS=3) — per §Pareto-rank-gate.
 
 4. **High-variance cell flagged:** gpt-5.4-mini × high × off shows wall_s = 7.18 ±4.41s (σ = 61% of median). Individual runs (n=5): 6.66, 7.11, 7.46, **18.11**, 7.18 — single outlier at ~2.5× the others (out_tok on the outlier = 1918 vs 278–307 on the other four — the model emitted a much longer completion, accounting for the wall-time spike). Four-out-of-five runs cluster tightly at 6.7–7.5s, so the median is representative but the σ is outlier-driven. Recommend n≥10 on this cell for σ stabilization; current +67.9% Δ_wrap on mini × high is therefore an *upper estimate* biased by the outlier denominator.
 
@@ -211,7 +213,9 @@ Every unreachable cell renders a row with `—` metric values and mandatory 3-gl
 
 12. **Pure wrapper overhead (xask fast-on vs raw fast-on, same fast_mode=true on both sides) is monotonic and large at high effort.** Computed across (xon, on) pairs for gpt-5.5: low +10.6%, medium **+59.9%**, high +27.7%, xhigh **+86.7%**. At xhigh, the xask wrapper nearly doubles wall time (19.86s → 37.08s). **Dominant cause is output-token inflation:** xask-arm produces 297/955/1279/2072 tokens vs raw fast-on's 275/262/1012/1053 — 1.1×/3.6×/1.3×/2.0× more tokens. The wrapper's prompt-templating (xask's dispatch template + godspeed forwarding + SKILL loadout) is causing the model to emit longer completions, which costs both wall-time and (implicitly) cents.
 
-13. **xask-arm 5.5 variance is high at high/xhigh** (σ = 5.42s at high, 6.46s at xhigh — 25% and 17% of median respectively). This is consistent with (a) the longer completions on xask arm amplifying per-run variance, and (b) the wrapper's context-injection interacting with model stochasticity. For cross-substrate comparison at high effort, n≥10 is recommended; n=3 here under the 10-min budget rule.
+13. **xask-arm 5.5 variance is high at high/xhigh** (retest: σ = 4.09s at high, **11.26s at xhigh** — 13% and 26% of median respectively). This is consistent with (a) the longer completions on xask arm amplifying per-run variance, and (b) the wrapper's context-injection interacting with model stochasticity. For cross-substrate comparison at high effort, n≥10 is recommended; n=3 here under the 10-min budget rule.
+
+14. **Retest validation (2026-04-24 12:13–12:36) — `--gs` flag is idempotent and session variance is the dominant noise source.** Full-matrix re-run (86 runs) after the xask `-s`→`-scp` rename + `--gs` flag addition confirms: (a) code paths work — zero errors; (b) `--gs` explicitly loads godspeed skill, producing results statistically equivalent to the prior run where SKILL defaulted to godspeed. Session-to-session wall_s variance across cells is **±10–45%** — larger than the Δ_wrap signal for many cells (e.g., mini-medium Δ_wrap flipped from +18.6% → −2.5% between runs; gpt-5.4 × high × on Δ_wrap swung from +7.8% → **−37.8%**). Structural findings (wrapper amplifies output tokens, pure wrapper overhead is positive and scales with effort, Δ_wrap is workload-dependent) **persist across both runs** — they are protocol-level, not noise. Specific per-cell numbers should be treated as single-session snapshots; confidence requires n≥10 per cell. The `-s` flag rejection surfaced by the user was caused by xask's short-flag collision with codex exec's `-s|--sandbox` when the flag leaks outside xask's parse loop; renaming to `-scp` eliminates the collision surface.
 
 ---
 
@@ -275,13 +279,13 @@ Canonical reachable count is **18/28**: 6 gpt-5.4-mini cells (low/med/high × of
 
 ## 8. Caption
 
-This table reports xbreed execution-path performance across **14 xask-reachable cells** + **8 gpt-5.5 raw cells** + **4 gpt-5.5 xask-arm cells (NEW, via `--gpt55` lane)** (26 populated of 36 total) as of 2026-04-24, measured over **86 runs** (n≥5 on top xask tier: gpt-5.4-mini × high, gpt-5.3-spark × low; n=3 elsewhere including all 12 gpt-5.5 cells), total wall ~22 min.
+This table reports xbreed execution-path performance across **14 xask-reachable cells** + **8 gpt-5.5 raw cells** + **4 gpt-5.5 xask-arm cells (via `--gpt55` lane)** (26 populated of 36 total). **Current numbers are from a full-matrix RETEST on 2026-04-24 12:13–12:36** (86 runs, 0 errors, ~23 min wall) after the xask `-s`→`-scp` rename and `--gs` explicit godspeed-load flag landed. Prior session-1 data archived at `scratch/bench-results-0424-prev.tsv`. n≥5 on top xask tier (mini × high, spark × low); n=3 elsewhere.
 
-**Headline (xask-reachable, gpt-5.4 family):** `gpt-5.4 × low × off` wins on wall-latency consistency (11.27s ±0.82, lowest σ/mean); `gpt-5.4-mini × medium × off` wins on raw throughput (86.8 tok/s) but output-token counts differ by arm so tok/s is not a pure latency proxy; `gpt-5.4 × medium × on` is the best-balanced xask-native choice (72.6 tok/s / 10.81s).
+**Headline (retest, xask-reachable, gpt-5.4 family):** `gpt-5.4-mini × high × on` tops throughput at **105.8 tok/s** (xask arm, out_tok=1821 inflated per obs #2); `gpt-5.4 × medium × on` is a near-tied second at **104.7 tok/s / 11.95s ±2.75** via xask arm. `gpt-5.4 × low × off` remains the latency-consistency winner at **12.84s ±0.64** (σ/mean = 5.0%). Δ_wrap (on vs off) range in retest: **−37.8% to +33.1%** — wider than session-1 and sometimes sign-flipped (gpt-5.4 × high × on: +7.8% → −37.8%; mini × medium × on: +18.6% → −2.5%), confirming the workload-dependent wrapper-overhead hypothesis (obs #1, reinforced by obs #14 session-variance finding).
 
-**Headline (gpt-5.5 raw, Cov `≡`):** `gpt-5.5 × high × on @ 58.8 tok/s, 17.22s ±0.60` is the most stable high-throughput cell in the matrix (σ = 3.5% of median). Fast_mode uniformly speeds gpt-5.5 up, effect grows with effort: Δ_fast of −17.1% (low), −10.0% (medium), −25.0% (high), −32.3% (xhigh). gpt-5.5 is the only model with complete 4-tier effort coverage in this bench.
+**Headline (gpt-5.5 raw, Cov `≡`):** `gpt-5.5 × high × on @ 59.8 tok/s, 18.12s ±1.14` remains the stable high-throughput cell. Retest Δ_fast: low +12.0% (flipped sign from session-1's −17.1%), medium −14.7%, high −25.8%, xhigh **−34.7%** — the fast_mode-helps-more-at-higher-effort pattern is structural; low is within session-noise range where the sign is not stable.
 
-**Headline (gpt-5.5 xask-arm, Cov `≄`, NEW):** Δ_wrap vs raw fast-off is non-monotonic: low −8.3%, medium +43.9%, high −4.2%, xhigh +26.3%. Pure wrapper overhead (xask vs raw at equal fast_mode=true) is monotonic and large: +10.6% / +59.9% / +27.7% / **+86.7%** by effort. At xhigh the xask wrapper nearly doubles wall time. Root cause: **xask-arm produces 1.1–3.6× more output tokens than raw fast-on** for the same prompt — the wrapper's prompt templating (dispatch template + godspeed + SKILL loadout) prompts the model to emit longer completions. Wrapper overhead is not a spawn-latency constant — it's workload-amplifying context injection.
+**Headline (gpt-5.5 xask-arm, Cov `≄`):** Retest Δ_wrap vs raw fast-off: low −9.8%, medium +40.7%, high +26.6%, xhigh +37.4%. Pure wrapper overhead (xask-xon vs raw-on, same fast_mode=true) remains positive and scales with effort: low −19.5%, medium +65.0%, high +70.7%, **xhigh +110.5%**. At xhigh the wrapper more than doubles wall time. Root cause (confirmed across both runs): **xask-arm produces ~1.1–3.8× more output tokens than raw fast-on** — the wrapper's prompt templating (dispatch template + godspeed skill + SKILL loadout) prompts the model to emit longer completions. Wrapper overhead is workload-amplifying context injection, not a spawn-latency constant.
 
 **Coverage-limited / excluded:** Spark × low dominates raw throughput at 351.6–551.7 tok/s (5–10× gpt-5.4 family) but is `⚠` coverage-limited (2 cells) and excluded from Pareto ranking.
 

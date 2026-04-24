@@ -1,11 +1,18 @@
 #!/bin/bash
 # xask — minimal routing protocol for cross-model orchestration
-# Usage: xask [-d] [-s <scope>] [-r] [--spk] [-R] [-F] [--gpt55] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
+# Usage: xask [-d] [-scp <scope>] [-r] [--spk] [-R] [-F] [--gpt55] [--gs] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
 #
 # All dispatches route through `xbreed ask`. Always-on: suppression, approval bypass,
 # auth cascade, godspeed forwarding, fast_mode (gpt-5.4 family). See docs/xask-protocol.md.
 #
-# Flags: -d (debug) | -s (scope) | -r (rich) | --spk (spark) | -R (review) | -F (full) | --gpt55 (gpt-5.5) | -e (effort) | -o (output-last-message) | --json
+# Always-on codex exec flags (applied by src/ask.rs, not user-togglable here):
+#   --skip-git-repo-check · --color never · --ephemeral · --sandbox danger-full-access
+#   -c approval_policy="never" · -c include_permissions_instructions=false
+#   -c include_apps_instructions=false · -c include_environment_context=false
+#
+# Flags: -d (debug) | -scp (scope; was -s, renamed 2026-04-24 — -s conflicted)
+#      | -r (rich) | --spk (spark) | -R (review) | -F (full) | --gpt55 (gpt-5.5)
+#      | --gs (explicit godspeed SKILL load) | -e (effort) | -o (output-last-message) | --json
 #
 # codex model lanes:
 #   default:       gpt-5.4-mini + fast_mode + reasoning=high (user directive 2026-04-17)
@@ -15,13 +22,14 @@
 #   --gpt55:       gpt-5.5 + fast_mode (xbrd-exec bench xask-arm measurement, 2026-04-24)
 #
 # Examples:
-#   xask gemini "What patterns exist?"              # clean, godspeed loaded
-#   xask -s "src/ask.rs" gemini "Review this"       # scoped clean dispatch
+#   xask gemini "What patterns exist?"              # clean, godspeed loaded (default SKILL)
+#   xask --gs gemini "What patterns exist?"         # explicit godspeed load (SKILL override)
+#   xask -scp "src/ask.rs" gemini "Review this"     # scoped clean dispatch
 #   xask -r gemini "Explore the codebase"           # full context, dir tree ON
 #   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
 #   xask -R codex "Adversarial review of <diff>"    # review lane — gpt-5.4-mini
 #   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.4 (1.05M ctx)
-#   xask --gpt55 -e high codex "Deep question"      # gpt-5.5 lane, high effort
+#   xask --gpt55 --gs -e high codex "Deep question" # gpt-5.5 lane, explicit godspeed, high effort
 #   xask -e high codex "Deep question"              # explicit reasoning effort
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 
@@ -33,6 +41,7 @@ SPARK=false
 REVIEW=false
 FULL=false
 GPT55=false
+FORCE_GS=false
 EFFORT=""
 OUTPUT_LAST_MESSAGE=""
 EFFORT_FLAGS=()
@@ -45,16 +54,17 @@ JSON_FLAGS=()
 while [[ "$1" == -* ]]; do
   case "$1" in
     --debug  | -d)   DEBUG=true; shift ;;
-    --scope  | -s)   SCOPE="$2"; shift 2 ;;
+    --scope  | -scp) SCOPE="$2"; shift 2 ;;
     --rich   | -r)   RICH=true; shift ;;
     --spark  | --spk) SPARK=true; shift ;;
     --review | -R)   REVIEW=true; shift ;;
     --full   | -F)   FULL=true; shift ;;
     --gpt55) GPT55=true; shift ;;
+    --gs) FORCE_GS=true; shift ;;
     --effort | -e)   EFFORT="$2"; shift 2 ;;
     --output-last-message | -o) OUTPUT_LAST_MESSAGE="$2"; shift 2 ;;
     --json) JSON=true; shift ;;
-    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -s|--scope, -r|--rich, --spk|--spark, -R|--review, -F|--full, --gpt55, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
+    *) echo "xask: unknown flag '$1' (valid: -d|--debug, -scp|--scope, -r|--rich, --spk|--spark, -R|--review, -F|--full, --gpt55, --gs, -e|--effort, -o|--output-last-message, --json)" >&2; exit 1 ;;
   esac
 done
 
@@ -76,6 +86,14 @@ MODEL="$1"
 QUERY="$2"
 CONTEXT="${3:-No prior context.}"
 SKILL="${4:-godspeed}"
+
+# --gs forces SKILL=godspeed regardless of the 4th positional (explicit load
+# through our xask <skill> dispatch — idempotent with the default since SKILL
+# already defaults to "godspeed", but makes intent visible and overrides any
+# non-default positional). Added 2026-04-24 after user request.
+if [ "$FORCE_GS" = true ]; then
+  SKILL="godspeed"
+fi
 
 # Validate MODEL before template construction to prevent path traversal
 # (previously: `xask -d ../../docs/xask-protocol probe` would exfil docs via

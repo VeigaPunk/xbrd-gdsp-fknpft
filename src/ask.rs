@@ -475,6 +475,10 @@ mod tests {
         assert!(args.contains(&"include_environment_context=false".to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert!(args.contains(&"--ephemeral".to_string()));
+        // --color never: codex's TTY-color autodetection misfires in headless
+        // dispatch (emits ANSI escapes that poison downstream parsers). Always-on.
+        assert!(args.contains(&"--color".to_string()));
+        assert!(args.contains(&"never".to_string()));
         // Default lane pins CODEX_MINI_MODEL (gpt-5.4-mini) explicitly.
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
