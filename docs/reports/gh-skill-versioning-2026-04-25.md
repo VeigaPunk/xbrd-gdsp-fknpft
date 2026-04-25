@@ -127,31 +127,62 @@ gh skill install <owner>/<repo> <skill-name> --pin v1.2.0
 
 **Caveat — dedicated repo required for publish**: `gh skill publish` creates a GitHub release on the **whole repo**, no subdirectory scoping. The xbreed monorepo (Rust binary at v0.4.0) cannot host published skills without semver collision. **Adoption shape: dedicated `xbreed-skills` repo if/when curated skills emerge.** The xbreed monorepo continues to host source code; a separate skills repo hosts versioned skill bundles.
 
-### Agents — PATH B (xbreed-Owned `gh api` Fetch + Lockfile)
+### Agents — Symlink-to-Git-Checkout (PRIMARY, post-correction 2026-04-25)
+
+> **Correction notice**: an earlier version of this map prescribed a "manual `cp` from xbreed-agents repo back to `~/.claude/agents/`" workflow. User challenged this as ridiculously over-complicated; the `agents-trivial-extension-r1` mission (2026-04-25) confirmed the simpler shape and is the source for this section. See `docs/reports/agents-trivial-extension-r1-2026-04-25.md`.
+
+The trivially-simpler shape is **symlink-to-git-checkout via a one-liner** — same primitive `scripts/install-commands.sh` already uses for commands; same pattern as the 4 production agent symlinks (ocnus, almanacker, musketeer, puppeteer) that have been working since 2026-04-17.
+
+**One-time setup (idempotent):**
 
 ```bash
-# xbreed-side fetch (proposed src/sync.rs subcommand)
+for f in ~/projects/xbreed-agents/agents/*.md; do
+  ln -sfn "$f" ~/.claude/agents/$(basename "$f")
+done
+```
+
+`-f` overwrites; `-n` no-deref-existing. The loop only iterates over what's in `xbreed-agents/agents/` (the 14 xbreed-canonical agents) → the 4 external symlinks (ocnus, almanacker, musketeer, puppeteer) are NOT touched. **No script file needed**; the one-liner is fully self-documenting and lives in the xbreed-agents README.
+
+**Workflow after setup:**
+
+| Action | Mechanism | Where it lands |
+|---|---|---|
+| Edit an agent | Edit `~/.claude/agents/<name>.md` (the symlink) | Goes directly into `~/projects/xbreed-agents/agents/<name>.md` (the symlink target) |
+| Checkpoint a working state | `cd ~/projects/xbreed-agents && git add . && git commit -m "..." && git tag vX.Y.Z && git push --tags` | Tagged release on private repo |
+| Rollback | `cd ~/projects/xbreed-agents && git checkout vX.Y.Z` | Symlinks transparently resolve to the new content (empirically confirmed via labrat P4b probe) |
+| Add a new agent to repo | Add file to `xbreed-agents/agents/` + re-run the one-liner | Symlink created; agent loads on next session |
+
+**Loader semantics** (per labrat P5 probe): CC's agent loader is per-session-startup, NOT per-read-per-turn. Agent definitions are read into context at session init. **Mid-session `git checkout` does NOT mutate already-loaded teammates** — only NEW spawns or Re-Read paths see post-checkout content.
+
+**Why this works for the user's stated workflow**: "save states I deem are working well" → `git commit && git tag`. "Comeback if I end up not liking it after testing some more" → `git checkout <previous-tag>`. **The symlink shape IS the user's stated mental model expressed in git primitives.**
+
+#### Three gate conditions before adoption (informational; user decides)
+
+| # | Gate | Why | Mitigation |
+|---|---|---|---|
+| (i) | **Canonicality inversion authorization** | `AGENTS.md:4`, `README.md:48`, `xbreed-shared.md:309` all currently declare `~/.claude/agents/` canonical (per 2026-04-17 directive). Adopting symlinks silently flips SSoT to xbreed-agents repo. Distiller verified all 3 line numbers exact. | Update doctrine docs to declare xbreed-agents authoritative, OR don't adopt the symlink shape. |
+| (ii) | **Operator-discipline serial-only invariant** | Mid-round `git checkout` or `git pull` while xbgst is live → split-persona team (existing teammates have HEAD frozen in context, new spawns get rolled-back content). Empirically confirmed by labrat probe B. NOT detectable; no error signal. | Document in CLAUDE.md: "no `git checkout`/`git pull` in xbreed-agents during active xbgst rounds." |
+| (iii) | **Idempotent re-run protocol** | When adding a new agent to xbreed-agents repo, re-run the one-liner. Otherwise the agent file exists in the repo but has no symlink in `~/.claude/agents/` → silent invisibility. Same pattern as `feedback_half_landed_routing_pattern.md`. | One-line README reminder; the loop is idempotent so re-running is safe. |
+
+#### What changed from the prior framing
+
+Prior map framed the answer around "`gh skill install` can't write to `~/.claude/agents/`" (a narrow CLI fact) and concluded any agents adoption needs xbreed-side fetch tooling. **This conflated "gh skill install can't reach agents" with "GitHub-substrate can't manage agents"** — a much weaker conclusion that doesn't follow. The substrate is just git+GitHub; the loader doesn't care whether the file is direct or symlinked; the rollback is `git checkout` not `cp`. xbreed already has the precedent (`install-commands.sh` for commands; 4 production agent symlinks) — the prior map missed it because it was framed around the wrong tool's limitation.
+
+#### Fallback — PATH B (`gh api` Fetch + Lockfile)
+
+**Demoted to FALLBACK** for cases where symlink-to-checkout doesn't apply:
+- Installing agents from EXTERNAL/community repos that you don't want as a local working tree
+- Multi-source pinning where each agent has a different upstream + ref
+- Provenance-grade trust-grade plus optional pre-load hash verification (operator builds the verifier in xbreed Rust)
+
+```bash
 gh api repos/<owner>/<repo>/contents/agents/<name>.md?ref=<tag> \
   | jq -r .content | base64 -d > ~/.claude/agents/<name>.md
 ```
 
-With a project-managed `agents.lock` TOML:
+With a project-managed `agents.lock` TOML (per-agent `repo + ref + sha256`). New scope in `src/sync.rs`. Trendsetter-compliant ONLY if motivated by an independent agent-versioning goal (per the discriminator in §S); pure gap-patching for `gh skill`'s limitation = disqualifying.
 
-```toml
-# agents.lock — xbreed-managed (prospective)
-[[agent]]
-name = "the-judge"
-repo = "veigapunk/xbreed-agents"
-ref = "v1.0.0"
-sha256 = "..."
-```
-
-**Why this is trendsetter-compliant** (per simplifier + critic + reviewer convergence):
-- `gh skill install` doesn't reach `~/.claude/agents/` (path-scoped to skills only). Using it for agents would require renaming agents to SKILL.md format = layout/semantic adaptation = trendsetter VIOLATION.
-- PATH B uses `gh api` (a generic GitHub primitive) + xbreed's existing subprocess dispatch (`src/ask.rs`) + a stub sync module (`src/sync.rs` already exists for settings.json). This is xbreed-natively-owned tooling, NOT adapting xbreed to fit `gh skill`'s shape.
-- `~/.claude/agents/` stays canonical per 2026-04-17 directive. Repo gets a provenance read-mirror.
-
-**Symlink fallback**: 4 live symlinks already exist in `~/.claude/agents/` (ocnus, almanacker, musketeer, puppeteer) → symlink-to-local-checkout is empirically proven viable. Use as fallback for in-development agents before formal lockfile-managed sync.
+**For the 14 xbreed-canonical agents in xbreed-agents repo**: PATH B is over-engineered relative to symlink-to-checkout. Skip it.
 
 ### Commands — In-Repo (No-Op, PASS)
 
