@@ -43,7 +43,7 @@ For each surface from Phase 1, probe:
 - **Auth bypass:** broken access control, privilege escalation, session fixation
 - **Secrets:** hardcoded keys, leaked tokens, insecure storage, .env exposure
 - **Deserialization:** untrusted input to deserialize, type confusion
-- **Dependencies:** known CVEs (cross-reference with `xask gemini` for CVE databases)
+- **Dependencies:** known CVEs (cross-reference with `xask codex` for CVE databases)
 - **Config:** permissive CORS, debug mode in prod, default credentials
 
 ### Phase 3 — REPORT
@@ -69,7 +69,7 @@ Fall back to manual grep patterns when scanners aren't installed.
 ## Delegation
 
 - Primary: `xask --scope "<auth|input|secrets>" --effort high codex "<exploit analysis>"` (escalate to xhigh only when explicitly requested for deep architectural exploit chains — xhigh reasoning is slow)
-- Secondary: `xask --effort medium gemini "<CVE/hardening prior art for this stack>"`
+- Secondary: `xask --effort medium codex "<CVE/hardening prior art for this stack>"`
 - Escalation: `advisor()` for multi-hop exploit chains (false-negative-sensitive)
 
 ## Interaction with other agents

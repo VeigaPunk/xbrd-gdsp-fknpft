@@ -1,12 +1,12 @@
 ---
-description: Godspeed Pareto + cross-model delegation — combines /xgs speed with /xbt depth. Teammates invoke xask gemini/codex at godspeed pace.
+description: Godspeed Pareto + cross-model delegation — combines /xgs speed with /xbt depth. Teammates invoke xask codex at godspeed pace.
 argument-hint: <prompt for the judge>
 allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, TaskOutput, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xbgst — Godspeed Pareto + Cross-Model Delegation
 
-The full crossbreed: godspeed Pareto walk (parallel proposals, axis-scored, round-capped) with cross-model delegation (teammates invoke `xask gemini`/`xask codex`). Combines the speed of `/xgs` with the external perspectives of `/xbt`.
+The full crossbreed: godspeed Pareto walk (parallel proposals, axis-scored, round-capped) with cross-model delegation (teammates invoke `xask codex`). Combines the speed of `/xgs` with the external perspectives of `/xbt`.
 
 Use when you want fast Pareto convergence AND cross-model views. For all-Claude speed without cross-model, use `/xgs`. For slower deliberative mediation with cross-model, use `/xbt`.
 
@@ -65,11 +65,11 @@ Composition: `/xbgst /wwkd <spec>` is the explicit form of the same behavior —
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
 Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-**high** for orchestrator depth, downgraded from xhigh 2026-04-19):
-- Research, prior art → `scout` — `xask --effort medium --gs gemini`
+- Research, prior art → `scout` — `xask --effort medium --gs codex`
 - Correctness, bugs → `reviewer` — `xask --gpt55 --gs -e low codex`
 - Empirical probes → `labrat` — `xask --spark --gs codex`
 - Code execution → `executor` — `xask --spark --gs codex`
-- Cross-axis patterns → `connector` — `xask --effort medium gemini`
+- Cross-axis patterns → `connector` — `xask --effort medium codex`
 - Synthesis, dedup → `distiller` — in-session
 - Complexity reduction → `simplifier` — CC native
 
@@ -85,15 +85,15 @@ Each brief includes:
 
 | Role | Verbatim Layer-1 string to include in brief |
 |---|---|
-| `scout` | `Your FIRST tool call MUST be Bash: xask --effort medium --gs gemini '<research question>' '<context>'. No other tool before xask returns.` |
+| `scout` | `Your FIRST tool call MUST be Bash: xask --effort medium --gs codex '<research question>'. No other tool before xask returns.` |
 | `reviewer` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<review question>'. No other tool before xask returns.` |
 | `labrat` | `Your FIRST tool call MUST be Bash: xask --spark --gs codex '<probe hypothesis>'. No other tool before xask returns.` |
 | `executor` | `Your FIRST tool call MUST be Bash: xask --spark --gs codex '<task>'. No other tool before xask returns.` |
-| `connector` | `Your FIRST tool call MUST be Bash: xask --effort medium gemini '<pattern question>'. No other tool before xask returns.` |
+| `connector` | `Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns.` |
 | `the-revenger` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'. No other tool before xask returns.` |
 | `sentinel` | `Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<exploit/vulnerability analysis question>'. No other tool before xask returns.` |
 | `critic` | `Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --gpt55 --gs -e low codex '<design review question>'. No other tool before xask returns.` |
-| `mutation-tester` | `Your FIRST tool call MUST be Bash, EITHER (a) xask --spark --gs codex '<generate mutation>' for ≤4 targets OR (b) xask --effort low --gs gemini 'trigger a fanout on: 10 mutations of <fn>...' for ≥5 targets. No other tool before xask returns.` |
+| `mutation-tester` | `Your FIRST tool call MUST be Bash, EITHER (a) xask --spark --gs codex '<generate mutation>' for ≤4 targets OR (b) xask --effort high --gs codex '<generate N mutations of <fn>; vary angle>' for ≥5 targets. No other tool before xask returns.` |
 | `the-planner` | `Your FIRST tool call MUST be Skill(skill='wwkd') — this is Layer 0. NO Layer-1 xask gate.` |
 | `simplifier`/`distiller`/`scribe` | No xask gate, no Layer 0 skill load. |
 
@@ -125,7 +125,7 @@ Agent(
   team_name="<team>",
   name="ccs-distiller",
   model="sonnet",
-  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. DO NOT rewrite, summarize, or absorb any line beginning with `evidence:` — copy it verbatim, byte-for-byte, into the corresponding move in your synthesis output. This is a structural requirement, not guidance; the Pareto filter reads the field post-synthesis. SendMessage your synthesis to the judge (team lead) when done. |godspeed"
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (codex vs claude), assign confidence. DO NOT rewrite, summarize, or absorb any line beginning with `evidence:` — copy it verbatim, byte-for-byte, into the corresponding move in your synthesis output. This is a structural requirement, not guidance; the Pareto filter reads the field post-synthesis. SendMessage your synthesis to the judge (team lead) when done. |godspeed"
 )
 ```
 
@@ -139,8 +139,8 @@ Every surviving move must carry a structured `evidence:` field matching the **Pa
 ```
 CONFLICTS (emit only if cross-model contradictions exist):
   - claim: <contested fact>
-    model: gemini (via <teammate>) — <position>
     model: codex (via <teammate>) — <position>
+    model: claude (via <teammate>) — <position>
     judge_resolution: <chosen + rationale>
     escalate_to: <sub-role if unresolved>
 ```

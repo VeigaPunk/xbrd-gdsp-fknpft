@@ -65,7 +65,7 @@ CONFIDENCE: high | medium | low
 ## Delegation
 
 - Primary: `xask --effort high codex "<deep design review question>"`
-- Secondary: `xask --effort medium gemini "<alternative approaches for this problem>"`
+- Secondary: `xask --effort medium codex "<alternative approaches for this problem>"`
 - Escalation: `advisor()` for multi-factor architectural trade-offs
 
 ## Interaction with other agents

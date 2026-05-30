@@ -1,12 +1,12 @@
 ---
-description: Judge-orchestrated TEAM mode — cross-model delegation (gemini/codex via xask), deliberative rounds with judge mediation. Slower, pondered.
+description: Judge-orchestrated TEAM mode — cross-model delegation (codex via xask), deliberative rounds with judge mediation. Slower, pondered.
 argument-hint: <prompt for the judge, or leave blank to init an empty squad>
 allowed-tools: [Agent, Bash, Read, Write, Edit, Glob, Grep, TaskCreate, TaskGet, TaskList, TaskUpdate, TaskOutput, SendMessage, TeamCreate, TeamDelete, WebFetch, WebSearch, LSP, Monitor]
 ---
 
 # /xbreed-team — Judge-Orchestrated Team Mode (Deliberative)
 
-This command initializes a **persistent native agent team** with YOUR current session as the team lead. You adopt the-judge persona and orchestrate specialist sub-roles (scout, reviewer, labrat) as **real teammates** with **cross-model delegation** — teammates invoke `xask gemini` / `xask codex` to bring external model perspectives into the draft.
+This command initializes a **persistent native agent team** with YOUR current session as the team lead. You adopt the-judge persona and orchestrate specialist sub-roles (scout, reviewer, labrat) as **real teammates** with **cross-model delegation** — teammates invoke `xask codex` to bring external model perspectives into the draft.
 
 Unlike `/xbreed` (solo one-shot subagents) or `/xgs` (godspeed Pareto all-Claude), `/xbreed-team` is the **deliberative** mode: slower, pondered, with the judge mediating cross-model views across multiple rounds.
 
@@ -126,7 +126,7 @@ Using the distiller's synthesis, the judge **mediates**:
 2. **Challenge** specific findings via targeted SendMessage follow-ups to individual teammates. Push back on weak claims, probe gaps, ask for deeper investigation.
 3. **Teammates refine** and re-report. Peer DMs flow again.
 4. **Re-distill** if findings changed substantially (send updated reports to distiller via SendMessage). For minor refinements, judge aggregates directly.
-5. **Populate CONFLICTS block** if cross-model divergence found (gemini vs. codex contradictions on the same claim).
+5. **Populate CONFLICTS block** if cross-model divergence found (codex vs. claude contradictions on the same claim).
 6. **Repeat 2-5** until the judge is satisfied with the DRAFT quality.
 
 **Soft ceiling: 4 deliberative rounds** (aligned with judge godspeed limit). After 4 rounds with no DRAFT progress, emit a CONFLICTS-only output and halt, naming unresolved items. Judge can override but must state why.
