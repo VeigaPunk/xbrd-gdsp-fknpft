@@ -117,6 +117,22 @@ for role in "${!ROLE_PATTERNS[@]}"; do
       drift "missing pattern in templates/agents/${role}.md" "expected: $pattern"
     fi
   done <<< "${ROLE_PATTERNS[$role]}"
+
+  # critic(c) — scope-arg registry: for roles with documented scoped invocations,
+  # assert the raw -scp arg in the template matches the SSoT-documented form.
+  # Extend this case block when a new role documents a -scp scoped form.
+  expected_scp=""
+  case "$role" in
+    sentinel) expected_scp='"<auth|input|secrets>"' ;;
+  esac
+  if [[ -n "$expected_scp" ]]; then
+    actual_scp=$(extract_xask_strings "$file" | grep '^xask -scp ' \
+      | grep -oP '(?<=^xask -scp )("[^"]*"|\S+)' | head -1 || true)
+    if [[ -n "$actual_scp" && "$actual_scp" != "$expected_scp" ]]; then
+      drift "-scp scope-arg mismatch in templates/agents/${role}.md" \
+        "expected: -scp ${expected_scp}  got: -scp ${actual_scp}"
+    fi
+  fi
 done
 
 # ---------- Step 4: Shared surfaces — row-scoped (M-G) + membership (M-J) ----------
