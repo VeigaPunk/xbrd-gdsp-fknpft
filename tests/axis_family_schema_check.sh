@@ -16,9 +16,27 @@ AGENTS_DIR="${XBREED_AGENTS_DIR:-$HOME/.claude/agents}"
 TARGET="$AGENTS_DIR/executor.md"
 BAK="$TARGET.m9-bak"
 
+# Record whether TARGET is a symlink before any mutation so restore can
+# re-create the link form. sed -i on Linux breaks symlinks: it creates a new
+# regular file via rename(), leaving the link target untouched but dropping
+# the symlink at $TARGET. mv "$BAK" "$TARGET" would then restore CONTENT but
+# not LINK FORM — executor.md would silently become a regular file every run.
+TARGET_LINK=""
+if [[ -L "$TARGET" ]]; then
+  TARGET_LINK="$(readlink "$TARGET")"
+fi
+
 restore() {
   if [[ -f "$BAK" ]]; then
-    mv "$BAK" "$TARGET"
+    rm -f "$TARGET"
+    if [[ -n "$TARGET_LINK" ]]; then
+      # sed -i did not touch the link target — content there is still original.
+      # Just re-create the symlink; no need to write $BAK content anywhere.
+      ln -sfn "$TARGET_LINK" "$TARGET"
+    else
+      mv "$BAK" "$TARGET"
+    fi
+    rm -f "$BAK"
     echo "RESTORED: $TARGET"
   fi
 }
@@ -111,7 +129,8 @@ echo "--- end mutation-step output ---"
 echo "STEP 3 OK: SCHEMA DRIFT caught — axis_family='bogus_value' rejected"
 
 # Step 4 — restore and reconfirm baseline
-mv "$BAK" "$TARGET"
+# Use restore() so symlink form is preserved (mv would leave a regular file).
+restore
 trap - EXIT INT TERM HUP
 
 set +e
