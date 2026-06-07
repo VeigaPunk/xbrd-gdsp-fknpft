@@ -128,9 +128,11 @@ for rel in "${SHARED_SURFACES[@]}"; do
   file="$REPO_ROOT/$rel"
   if [[ ! -f "$file" ]]; then drift "missing shared surface: $rel"; continue; fi
 
+  matched_roles=0
   for role in "${!ROLE_PATTERNS[@]}"; do
     role_lines=$(grep -E "(\*\*${role}\*\*|\`${role}\`)" "$file" | grep -F 'xask ' || true)
     [[ -n "$role_lines" ]] || continue   # surface doesn't document this role's lanes
+    matched_roles=$((matched_roles + 1))
 
     # (a) at least one of the role's own canonical patterns in its rows
     own_found=0
@@ -151,6 +153,15 @@ for rel in "${SHARED_SURFACES[@]}"; do
       fi
     done < <(extract_xask_strings /dev/stdin <<< "$role_lines")
   done
+
+  # Gutted-surface floor: every shared surface documents most lanes today
+  # (data-walked: AGENTS.md 9, the-judge.md 9, xbgst.md 9). An emptied or
+  # truncated surface must NOT pass vacuously by skipping all roles — this
+  # exact hole let a 0-byte AGENTS.md sail through the certification gate
+  # (a21c7b6, caught post-push 2026-06-07).
+  if (( matched_roles < 5 )); then
+    drift "shared surface gutted: $rel documents only ${matched_roles} role lanes (floor 5)" "emptied/truncated surface would otherwise pass vacuously"
+  fi
 
   # (c) file-wide bidirectional sweep (M-J): catches phantom rows whose role
   # is unknown to the SSoT (their role anchor never enters the loop above).

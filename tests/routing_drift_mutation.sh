@@ -66,10 +66,20 @@ rm -f "$TMP_SSOT"
 grep -q "Class C" <<< "$OUT" || fail "P7 Class C diagnostic missing"
 echo "STEP 5 OK: deprecated row caught (Class C)"
 
+# P8 — gutted shared surface: a 0-byte AGENTS.md must NOT pass vacuously.
+# (Live incident: emptied AGENTS.md sailed through the a21c7b6 certification
+# gate because every role-row check skipped on an absent role.)
+: > AGENTS.md
+set +e; OUT=$(bash "$CHECKER" 2>&1); ST=$?; set -e
+restore
+[[ $ST -eq 1 ]] || fail "P8 gutted surface not caught (exit $ST)"
+grep -q "gutted" <<< "$OUT" || fail "P8 diagnostic missing"
+echo "STEP 6 OK: gutted surface caught (vacuous-pass floor)"
+
 # Baseline re-pass + sha postconditions.
 bash "$CHECKER" >/dev/null 2>&1 || fail "baseline did not re-pass after mutations"
 trap - EXIT INT TERM HUP
 rm -f "$BAK_JUDGE" "$BAK_AGENTS"
 [[ "$(sha256sum "$JUDGE_MD" | awk '{print $1}')" == "$BASE_SHA_JUDGE" ]] || fail "$JUDGE_MD diverged from baseline"
 [[ "$(sha256sum AGENTS.md | awk '{print $1}')" == "$BASE_SHA_AGENTS" ]] || fail "AGENTS.md diverged from baseline"
-echo "PASS: verify-routing.sh catches all five mutation classes; baseline restored"
+echo "PASS: verify-routing.sh catches all six mutation classes; baseline restored"
