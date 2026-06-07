@@ -31,12 +31,30 @@ if ! ./scripts/verify-docs.sh >/dev/null 2>&1; then
 fi
 echo "STEP 1 OK: baseline verify-docs passed"
 
-# Step 2 — mutate the connector-row routing in AGENTS.md: gemini -> codex
+# Step 2 — mutate the connector-row routing in AGENTS.md by flipping the model
+# token of the canonical lane (codex<->gemini). Derive CANONICAL from the SSoT
+# the same way verify-docs.sh does, so this test self-synchronizes with future
+# lane changes instead of hardcoding a routing string that drifts stale (the
+# pre-68695ff version hardcoded 'xask --effort high gemini' and silently
+# no-op'd after the gemini->codex swap).
+SSOT="$REPO_ROOT/commands/references/xbreed-shared.md"
+CANONICAL=$(grep -m1 -F '| Cross-axis patterns' "$SSOT" \
+  | grep -oE 'xask --effort [a-z]+ [a-z]+' | head -1 || true)
+if [[ -z "$CANONICAL" ]]; then
+  echo "FAIL: cannot extract canonical connector routing from $SSOT" >&2
+  exit 1
+fi
+MODEL="${CANONICAL##* }"
+if [[ "$MODEL" == "codex" ]]; then MUT_MODEL="gemini"; else MUT_MODEL="codex"; fi
+MUTATED="${CANONICAL% *} $MUT_MODEL"
+
 cp "$AGENTS_MD" "$BAK"
 # Restrict the sed to lines mentioning connector to avoid clobbering scout/others.
-sed -i '/connector/ s|xask --effort high gemini|xask --effort high codex|' "$AGENTS_MD"
+sed -i "/connector/ s|$CANONICAL|$MUTATED|" "$AGENTS_MD"
 
-if ! grep -q 'xask --effort high codex' "$AGENTS_MD"; then
+# Landing check is also connector-scoped: MUTATED may legitimately appear in
+# other agents' rows (e.g. a different lane using the same effort tier).
+if ! grep 'connector' "$AGENTS_MD" | grep -qF "$MUTATED"; then
   echo "FAIL: mutation did not land in AGENTS.md" >&2
   exit 1
 fi
@@ -59,17 +77,17 @@ if ! printf '%s' "$OUT" | grep -q "DRIFT"; then
 fi
 
 # Assert the diagnostic names the expected vs actual routing
-if ! printf '%s' "$OUT" | grep -q 'expected: xask --effort high gemini'; then
+if ! printf '%s' "$OUT" | grep -qF "expected: $CANONICAL"; then
   echo "FAIL: DRIFT did not name the canonical SSoT routing" >&2
   printf '%s\n' "$OUT" >&2
   exit 1
 fi
-if ! printf '%s' "$OUT" | grep -q 'actual:   xask --effort high codex'; then
+if ! printf '%s' "$OUT" | grep -qF "actual:   $MUTATED"; then
   echo "FAIL: DRIFT did not name the actual mutated routing" >&2
   printf '%s\n' "$OUT" >&2
   exit 1
 fi
-echo "STEP 3 OK: DRIFT caught — expected gemini, actual codex"
+echo "STEP 3 OK: DRIFT caught — expected $MODEL, actual $MUT_MODEL"
 
 # Step 4 — restore and reconfirm baseline
 mv "$BAK" "$AGENTS_MD"

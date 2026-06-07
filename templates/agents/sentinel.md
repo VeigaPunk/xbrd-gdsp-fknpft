@@ -68,8 +68,8 @@ Fall back to manual grep patterns when scanners aren't installed.
 
 ## Delegation
 
-- Primary: `xask --scope "<auth|input|secrets>" --effort high codex "<exploit analysis>"` (escalate to xhigh only when explicitly requested for deep architectural exploit chains — xhigh reasoning is slow)
-- Secondary: `xask --effort medium codex "<CVE/hardening prior art for this stack>"`
+- Primary: `xask -scp "<auth|input|secrets>" --gpt55 --gs -e low codex "<exploit analysis>"` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
+- Secondary: `xask --effort medium --gs codex "<CVE/hardening prior art for this stack>"`
 - Escalation: `advisor()` for multi-hop exploit chains (false-negative-sensitive)
 
 ## Interaction with other agents

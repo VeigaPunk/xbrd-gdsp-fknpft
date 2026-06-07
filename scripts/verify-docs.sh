@@ -17,9 +17,12 @@ COPY_FILES=(
 )
 
 # Extract canonical connector routing from SSoT routing table (connector row)
-# Use -F (fixed string) to match the literal pipe character at line start
+# Use -F (fixed string) to match the literal pipe character at line start.
+# Model-agnostic regex (gemini→codex swap 68695ff proved anchoring on a model
+# name silently breaks extraction); `|| true` keeps set -euo pipefail from
+# killing the script before the empty-check diagnostic below can fire.
 CANONICAL=$(grep -m1 -F '| Cross-axis patterns' "$SSOT" \
-  | grep -oE 'xask --effort [a-z]+ gemini' | head -1)
+  | grep -oE 'xask --effort [a-z]+ [a-z]+' | head -1 || true)
 
 if [[ -z "$CANONICAL" ]]; then
   echo "ERROR: cannot extract canonical connector routing from $SSOT" >&2

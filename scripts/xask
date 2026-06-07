@@ -113,7 +113,7 @@ TEMPLATE_DIR="${XBREED_DISPATCH_DIR:-$SCRIPT_DIR/../templates/dispatch}"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
 if [ -z "$MODEL" ] || [ -z "$QUERY" ]; then
-  echo "Usage: xask [-d|--debug] [-s|--scope <scope>] [-r|--rich] [--spk|--spark] [-R|--review] [-F|--full] [-e|--effort <level>] [-o|--output-last-message <FILE>] [--json] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
+  echo "Usage: xask [-d|--debug] [-scp|--scope <scope>] [-r|--rich] [--spk|--spark] [-R|--review] [-F|--full] [-e|--effort <level>] [-o|--output-last-message <FILE>] [--json] <model> \"<query>\" [\"<context>\"] [\"<skill>\"]" >&2
   exit 1
 fi
 

@@ -26,9 +26,9 @@ You are the-judge. Top of the stack. You orchestrate, judge, and aggregate.
 | Cross-axis patterns, breadth | `connector` | `xask --effort medium codex "<q>"` (no `--gs` — avoids double-godspeed frame on pontification-prone lane) | All |
 | Findings synthesis, dedup | `distiller` | spawned after peer DMs land, before Pareto filter; persistent across rounds | All |
 | Deletion, YAGNI | `simplifier` (sonnet · medium) | direct analysis | All |
-| Reverse engineering, intent reconstruction | `the-revenger` (opus 4.7 medium) | `xask --gpt55 --gs -e high codex` for RECON (gpt-5.5 + fast_mode + reasoning=high, uniform codex lane per 2026-04-24); for deep single-file RE, skip xask and use advisor() | All |
+| Reverse engineering, intent reconstruction | `the-revenger` (sonnet · medium) | `xask --gpt55 --gs -e high codex` for RECON (gpt-5.5 + fast_mode + reasoning=high, uniform codex lane per 2026-04-24); for deep single-file RE, skip xask and use advisor() | All |
 | Security auditing, adversarial analysis | `sentinel` | `xask --gpt55 --gs -e low codex` + `xask --effort medium --gs codex` for CVEs | All |
-| Planning, Phase 0, WWKD sequencing | `the-planner` (opus 4.7 high · Layer-0 wwkd skill) | CC native — spawn FIRST at Phase 0 to map skeleton baseline before specialist dispatch | All |
+| Planning, Phase 0, WWKD sequencing | `the-planner` (sonnet · medium · Layer-0 wwkd skill) | CC native — spawn FIRST at Phase 0 to map skeleton baseline before specialist dispatch | All |
 | Adversarial design, approach review | `critic` | `xask --gpt55 --gs -e low codex` | All |
 | Test validation, mutation testing | `mutation-tester` | `xask --spark --gs codex` (single, ≤4 targets) or `xask --effort high --gs codex` for ≥5-target breadth | All |
 | Documentation, audit trail | `scribe` (sonnet · medium) | CC native; spawn after SYNTHESIS_READY, concurrent with Pareto scoring; filter-exempt | All |
@@ -41,7 +41,7 @@ Prepend model prefix to descriptive name: `{prefix}-{role}-{suffix}`
 |---|---|
 | `g-` | Gemini (via `xask gemini`) |
 | `ccs-` | Claude Sonnet |
-| `cco-` | Claude Opus 4.7 (effort: high — LOCKED) |
+| `cco-` | Claude Opus 4.8 (effort: xhigh — LOCKED, user directive 2026-06-07; supersedes 4.7-high) |
 | `cdx-` | Codex (via `xbreed ask codex`) |
 
 Examples: `ccs-scout-docs`, `g-labrat-probe`, `cdx-reviewer-auth`, `ccs-executor-tests`
