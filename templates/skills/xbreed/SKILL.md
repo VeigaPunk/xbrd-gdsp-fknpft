@@ -1,6 +1,6 @@
 ---
 name: xbreed
-description: Judge-orchestrated pipeline — fable 5 takes the prompt, dispatches scout/reviewer/labrat with cross-model delegation (xask), drafts an implementation. Triggered by /xbreed or /xb.
+description: Judge-orchestrated pipeline — the judge (Fable 5) takes the prompt, dispatches scout/reviewer/labrat with cross-model delegation (xask), drafts an implementation. Triggered by /xbreed or /xb.
 ---
 
 # /xbreed — Judge-Orchestrated Pipeline (Solo)
@@ -26,13 +26,13 @@ Treat this as the problem to judge/draft. If it names multiple proposals, score 
 
 You may dispatch specialist sub-roles: **scout** (research), **reviewer** (surgical review), **labrat** (cheap dry-run), **executor** (parallel leaf-task executor), **distiller** (multi-source deduplication). Personas live at `~/.claude/agents/{scout,reviewer,labrat,executor,distiller}.md`.
 
-**Architectural quirk (Claude Code 2.1.101):** `Agent(subagent_type="<user-scope-name>")` ONLY resolves user-scope agent definitions when spawned inside a team context. Out-of-team, only built-in subagent types work.
+**Architectural quirk (Claude Code 2.1.101):** `Agent(subagent_type="<user-scope-name>")` ONLY resolves user-scope agent definitions when spawned inside a team context. The session now has a single implicit team by default (there is no TeamCreate/TeamDelete or team_name to pass) — so this quirk rarely bites in practice, but if user-scope resolution ever fails, fall back to path 2.
 
 Dispatch rule:
 
-1. **Preferred path — team spawn.** If you are already running inside a team (check `~/.claude/teams/` for active team config matching current session), use `Agent(subagent_type="scout" | "reviewer" | "labrat", team_name=<current team>, name="<role>-N", prompt="<task>")` and wait for their `SendMessage` reply.
+1. **Preferred path — direct spawn.** Use `Agent(subagent_type="scout" | "reviewer" | "labrat", name="<role>-N", prompt="<task>")` and wait for their `SendMessage` reply. Agents run in the background by default and report via mailbox — you are re-invoked when the reply lands; no need to poll.
 
-2. **Fallback path — inlined persona.** If you are NOT on a team (solo CC session), spawn via built-in `general-purpose` and inline the persona body:
+2. **Fallback path — inlined persona.** If user-scope `subagent_type` resolution fails, spawn via built-in `general-purpose` and inline the persona body:
 
    ```
    Agent(
@@ -47,13 +47,13 @@ Dispatch rule:
 
 Every sub-role brief MUST include the structural xask gate as the FIRST instruction:
 
-- **scout**: `"Your FIRST tool call MUST be Bash running: xask gemini '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **reviewer**: `"Your FIRST tool call MUST be Bash running: xask codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **labrat**: `"Your FIRST tool call MUST be Bash running: xask --spark codex '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **scout**: `"Your FIRST tool call MUST be Bash running: xask --effort medium --gs codex '<your research question>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **reviewer**: `"Your FIRST tool call MUST be Bash running: xask --gpt55 --gs -e low codex '<your review question>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **labrat**: `"Your FIRST tool call MUST be Bash running: xask --spark --gs codex '<your probe hypothesis>'. Do not call Read, Grep, or any other tool until xask returns."`
 
 Raw-quote gate: `"After running xask, paste at least one verbatim passage from xask stdout inside <raw_output> tags before your analysis. Empty <raw_output> = invalid."`
 
-Fallback: if xask returns dry or errors, teammate notes `[xask dry — in-session fallback]` and continues in-session. Do not deadlock.
+Fallback: if xask returns dry or errors, teammate notes `[xask dry — in-session fallback]` with the exact stderr and continues in-session. A BLOCKED/dry marker is only valid after the Bash invocation actually ran and errored — never for a tool the teammate didn't invoke. Do not deadlock.
 
 Epistemic role: `"AT MOST one non-obvious claim and AT MOST one rejected alternative. Do not fabricate — return nothing if no well-grounded finding exists."`
 

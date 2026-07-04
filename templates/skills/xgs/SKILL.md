@@ -11,22 +11,17 @@ Fast, all-Claude team mode. Spawns teammates per axis, runs parallel propose→c
 
 Read `~/.claude/agents/the-judge.md` with the Read tool. Adopt the posture: judge explicitly on named axes, aggregate best-of-each, draft-then-dispatch.
 
-## Step 2 — Create the team
+## Step 2 — Team context
 
-Pick a concise unique `team_name`:
-- Take the first 2-3 significant words of the user's prompt (lowercased, hyphen-joined)
-- Append a short timestamp suffix (last 4 digits of `date +%s`)
-- Fallback: `xgs-squad-<ts>`
+The session has a single implicit team — there is no TeamCreate/TeamDelete.
+Spawning is the team: each Agent(...) call with a `name` adds an addressable
+teammate. Track the walk under a conceptual team label in your status output
+only (e.g. "team: <2-3 words>-<ts>"); do not pass team_name to any tool — the
+parameter is deprecated and ignored.
 
-```
-TeamCreate(
-  team_name="<your-unique-name>",
-  agent_type="team-lead",
-  description="<the full user prompt, truncated to 200 chars if longer>"
-)
-```
-
-If `TeamCreate` fails because a team already exists, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not block — do not ask the user.
+Cleanup: there is no TeamDelete. Releasing the team = sending each teammate
+SendMessage({to: <name>, message: {type: "shutdown_request", reason: ...}})
+and acknowledging their shutdown_approved.
 
 ## Step 3 — Parse the prompt
 
@@ -55,7 +50,7 @@ For each axis, assign a teammate name using the naming convention from the-judge
 Axis -> profile mapping (from the-judge.md dispatch table):
 - Research, prior art, outside-world -> `scout` (sonnet)
 - Correctness, bugs, code review -> `reviewer` (sonnet)
-- Empirical probes, dry-runs -> `labrat` (sonnet) — `xask --spark codex`
+- Empirical probes, dry-runs -> `labrat` (sonnet) — CC native probes (all-Claude mode: no xask)
 - Code execution, implementation -> `executor` (sonnet)
 - Cross-axis patterns, breadth -> `connector` (sonnet)
 - Findings synthesis, dedup -> `distiller` (sonnet)
@@ -78,7 +73,7 @@ Spawn all teammates. Each brief includes:
 **Divergence mandate (applies even in all-Claude mode):**
 > "If your finding contradicts a peer's reported finding, flag: CONFLICT: [claim] — my position: [X] — peer position: [Y]"
 
-Create a TaskCreate task per teammate.
+Task tracking (optional): TaskCreate/TaskUpdate/TaskList are listed as DEFERRED tools. ToolSearch("select:TaskCreate,TaskUpdate,TaskList") first is defensive best practice, not load-bearing — do not phrase it as a hard requirement. If you skip task tracking, teammates report via SendMessage and that is sufficient.
 
 ### Phase 3 — Round 1 begins
 
@@ -89,7 +84,6 @@ Teammates work in parallel. As proposals and cross-critiques arrive:
 ```
 Agent(
   subagent_type="distiller",
-  team_name="<team>",
   name="ccs-distiller",
   model="sonnet",
   prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
@@ -127,8 +121,8 @@ After delivering a round's results, immediately assess: did any axis improve? If
 ## Step 6 — Hold after frontier
 
 Leave the team alive after the final DRAFT. The user may:
-- Shift+Down into a teammate's pane
-- Send another "godspeed" message to relax a constraint or add an axis (resume from current frontier, no new TeamCreate)
+- Steer a teammate by sending it a message (SendMessage/@name)
+- Send another "godspeed" message to relax a constraint or add an axis (resume from current frontier — there is no TeamCreate to redo)
 - Ask follow-ups
 
 The team persists until the user explicitly asks for cleanup.
@@ -140,8 +134,7 @@ Only when the user explicitly asks:
 1. List active teammates.
 2. Send `SendMessage({to: <name>, message: {type: "shutdown_request", reason: "work complete"}})` to each.
 3. Wait for `shutdown_approved` responses.
-4. Call `TeamDelete`.
-5. Confirm.
+4. Confirm — there is no TeamDelete; acknowledged shutdowns are the full cleanup.
 
 ## Step 7 — Status after initialization
 

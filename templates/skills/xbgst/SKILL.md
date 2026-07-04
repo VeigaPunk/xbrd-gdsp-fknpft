@@ -1,11 +1,11 @@
 ---
 name: xbgst
-description: Godspeed Pareto orchestrator with cross-model delegation — combines /xgs speed (axis-scored Pareto rounds) with /xbt depth (xask gemini/codex). Teammates bring external model perspectives at godspeed pace. Triggered by /xbgst.
+description: Godspeed Pareto orchestrator with cross-model delegation — combines /xgs speed (axis-scored Pareto rounds) with /xbt depth (xask codex). Teammates bring external model perspectives at godspeed pace. Triggered by /xbgst.
 ---
 
 # /xbgst — Godspeed Pareto + Cross-Model Delegation
 
-The full crossbreed: godspeed Pareto walk (parallel proposals, axis-scored, round-capped) with cross-model delegation (teammates invoke `xask gemini`/`xask codex`). Combines the speed of `/xgs` with the external perspectives of `/xbt`.
+The full crossbreed: godspeed Pareto walk (parallel proposals, axis-scored, round-capped) with cross-model delegation (teammates invoke `xask codex`). Combines the speed of `/xgs` with the external perspectives of `/xbt`.
 
 Use when you want fast Pareto convergence AND cross-model views. For all-Claude speed without cross-model, use `/xgs`. For slower deliberative mediation with cross-model, use `/xbt`.
 
@@ -13,21 +13,17 @@ Use when you want fast Pareto convergence AND cross-model views. For all-Claude 
 
 Read `~/.claude/agents/the-judge.md` with the Read tool. Adopt the posture: judge explicitly on named axes, aggregate best-of-each, draft-then-dispatch.
 
-## Step 2 — Create the team
+## Step 2 — Team context
 
-Pick a concise unique `team_name`:
-- First 2-3 significant words of prompt (lowercased, hyphen-joined) + timestamp suffix
-- Fallback: `xbgst-squad-<ts>`
+The session has a single implicit team — there is no TeamCreate/TeamDelete.
+Spawning is the team: each Agent(...) call with a `name` adds an addressable
+teammate. Track the walk under a conceptual team label in your status output
+only (e.g. "team: <2-3 words>-<ts>"); do not pass team_name to any tool — the
+parameter is deprecated and ignored.
 
-```
-TeamCreate(
-  team_name="<your-unique-name>",
-  agent_type="team-lead",
-  description="<the full user prompt, truncated to 200 chars>"
-)
-```
-
-If `TeamCreate` fails because a team already exists, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not ask the user.
+Cleanup: there is no TeamDelete. Releasing the team = sending each teammate
+SendMessage({to: <name>, message: {type: "shutdown_request", reason: ...}})
+and acknowledging their shutdown_approved.
 
 ## Step 3 — Parse the prompt
 
@@ -48,11 +44,11 @@ Emit up to 8 axes (name + direction + observable). Incorporate user-named axes; 
 For each axis, assign a name using the-judge.md naming convention: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
 Axis -> profile mapping (from the-judge.md dispatch table):
-- Research, prior art, outside-world -> `scout` (sonnet) — delegates to `xask --effort medium --gs gemini`
+- Research, prior art, outside-world -> `scout` (sonnet) — delegates to `xask --effort medium --gs codex`
 - Correctness, bugs, code review -> `reviewer` (sonnet) — delegates to `xask --gpt55 --gs -e low codex`
 - Empirical probes, dry-runs -> `labrat` (sonnet) — delegates to `xask --spark --gs codex`
 - Code execution, implementation -> `executor` (sonnet) — delegates to `xask --spark --gs codex`
-- Cross-axis patterns, breadth -> `connector` (sonnet) — delegates to `xask --effort medium gemini` (no `--gs`; avoids double-godspeed frame on pontification-prone lane)
+- Cross-axis patterns, breadth -> `connector` (sonnet) — delegates to `xask --effort medium codex` (no `--gs`; avoids double-godspeed frame on pontification-prone lane)
 - Findings synthesis, dedup -> `distiller` (sonnet) — in-session text synthesis (no xask)
 - Complexity reduction, YAGNI -> `simplifier` (sonnet) — uses CC native tools
 
@@ -73,10 +69,10 @@ Each brief includes:
 
 **Layer 1 — Gate (structural, per-role):**
 
-- **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --effort medium --gs gemini '<your research question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
+- **scout** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --effort medium --gs codex '<your research question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **reviewer** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --gpt55 --gs -e low codex '<your review question for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **labrat** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark --gs codex '<your probe hypothesis for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
-- **connector** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --effort medium gemini '<your cross-axis pattern question>'. Do not call Read, Grep, or any other tool until xask returns. Note: no --gs — connector deliberately skips explicit godspeed-skill load to avoid double-frame stacking."`
+- **connector** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --effort medium codex '<your cross-axis pattern question>'. Do not call Read, Grep, or any other tool until xask returns. Note: no --gs — connector deliberately skips explicit godspeed-skill load to avoid double-frame stacking."`
 - **executor** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark --gs codex '<your implementation task for this axis>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **mutation-tester** brief prefix: `"Your FIRST tool call MUST be Bash running: xask --spark --gs codex '<generate mutation for this function>'. Do not call Read, Grep, or any other tool until xask returns."`
 - **simplifier/distiller**: No xask gate. These use CC native tools or in-session synthesis.
@@ -90,7 +86,7 @@ Each brief includes:
 > "If xask returns dry or errors: note `[xask dry — in-session fallback]` on the finding, continue in-session with CC native tools. Do not deadlock. Do not stall the round."
 
 - scout/reviewer/connector: xask failure -> continue in-session with `[xask dry]` marker. DM judge is NOT required in godspeed (would stall the round). Just mark the source.
-- labrat: xask failure -> emit `obs: xask BLOCKED [reason]` as the finding, despawn.
+- labrat: xask failure -> emit `obs: xask BLOCKED [exact stderr]` as the finding (only after the Bash invocation actually ran and errored — never for a tool you didn't invoke), despawn.
 
 **Layer 4 — Confidence rule:**
 
@@ -104,7 +100,7 @@ Each brief includes:
 
 > "If your finding contradicts a peer's reported finding, flag: `CONFLICT: [claim] — my position: [X] — peer position: [Y]`"
 
-Create TaskCreate per teammate.
+Task tracking (optional): TaskCreate/TaskUpdate/TaskList are listed as DEFERRED tools. ToolSearch("select:TaskCreate,TaskUpdate,TaskList") first is defensive best practice, not load-bearing — do not phrase it as a hard requirement. If you skip task tracking, teammates report via SendMessage and that is sufficient.
 
 ### Phase 3 — Rounds begin
 
@@ -115,10 +111,9 @@ Teammates work in parallel, invoking xask as their first tool call, then proposi
 ```
 Agent(
   subagent_type="distiller",
-  team_name="<team>",
   name="ccs-distiller",
   model="sonnet",
-  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model contradictions (gemini vs codex), assign confidence. SendMessage your synthesis to the judge (team lead) when done."
+  prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model (codex) vs in-session (claude) contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```
 
@@ -130,13 +125,13 @@ Agent(
 ```
 CONFLICTS (emit only if cross-model contradictions exist):
   - claim: <contested fact>
-    model: gemini (via <teammate-name>) — <position>
     model: codex (via <teammate-name>) — <position>
+    model: claude (in-session, via <teammate-name>) — <position>
     judge_resolution: <chosen position + rationale>
     escalate_to: <sub-role if unresolved>
 ```
 
-Trigger: opposite verdicts on same claim from different models.
+Trigger: opposite verdicts on same claim — cross-model (codex) vs in-session (claude).
 
 **Falsification probe (after Pareto filter, before exit check):** If the highest-divergence surviving move has a claim that no other teammate challenged, dispatch ONE targeted xask call to the opposing model for attack. Cap: one exchange, one claim. This adds 3-8s but catches convergent blind spots. Skip if all claims were cross-critiqued.
 
@@ -153,13 +148,13 @@ After each round, immediately assess and dispatch next round if frontier still m
 ## Step 6 — Hold after frontier
 
 Team stays alive. User may:
-- Shift+Down into a teammate's pane
+- Steer a teammate by sending it a message (SendMessage/@name)
 - Send another message to resume with new axis
 - Ask follow-ups
 
 ## Cleanup
 
-On explicit user request only: shutdown all teammates -> TeamDelete -> confirm.
+On explicit user request only: SendMessage shutdown_request to each teammate, await shutdown_approved, confirm.
 
 ## Step 7 — Status after init
 
