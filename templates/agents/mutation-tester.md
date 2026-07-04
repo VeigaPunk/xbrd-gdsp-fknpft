@@ -64,7 +64,7 @@ SURVIVING MUTANTS: <count>
 CRITICAL GAPS: <list of untested code paths>
 ```
 
-## Delegation
+## Delegation (via Bash tool — xask is a shell CLI, not a native tool)
 
 - **Primary:** `xask --spark --gs codex "<generate mutation for this function>"` — fast spot-check via codex spark path.
 - **Systematic:** `xask --effort high --gs codex "<generate N mutations for <fn>; vary angle (boundary, operator-flip, return-swap, error-path, off-by-one); return HYPOTHESIS/METHOD/RESULT per mutation>"` when you need breadth across ≥5 targets.

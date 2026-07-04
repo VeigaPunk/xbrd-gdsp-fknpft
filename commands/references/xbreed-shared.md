@@ -20,13 +20,13 @@ Rationale: user directive 2026-04-17 — "opus is terrible for being the interme
 
 ## Escalation: advisor() (Layer 0)
 
-All sonnet teammates can call `advisor()` (CC-native, zero parameters) for in-session opus 4.8 max escalation. The teammate's full conversation context is forwarded automatically.
+All sonnet teammates can call `advisor()` (CC-native, zero parameters) for in-session fable 5 max escalation. The teammate's full conversation context is forwarded automatically.
 
 **When to use advisor():** Before committing to non-obvious architectural decisions, when stuck, when a finding contradicts a peer, or before declaring work complete.
 
-**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. `xask claude` is deprecated (advisor() with Opus 4.7 Max supersedes it); use `xask codex` for contamination-controlled cross-model dispatch and `advisor()` for full-context reasoning escalation.
+**advisor() vs xask:** advisor() is Layer 0 — it runs before and independently of the 4-layer xask gate. It is NOT cross-model delegation; it's in-session reasoning review. `xask claude` is deprecated (advisor() with Fable 5 Max supersedes it); use `xask codex` for contamination-controlled cross-model dispatch and `advisor()` for full-context reasoning escalation.
 
-Include in teammate briefs: `"You have access to advisor() — call it before substantive decisions for opus 4.8 max review of your full context. Zero parameters, blocks until response."`
+Include in teammate briefs: `"You have access to advisor() — call it before substantive decisions for fable 5 max review of your full context. Zero parameters, blocks until response."`
 
 ## xask Gate (4 layers)
 
@@ -69,7 +69,7 @@ Allowed `axis_family` values (must match frontmatter in `~/.claude/agents/*.md`)
 
 **Sonnet-medium unified scheme (2026-04-17 pivot — supersedes opus-medium; judge downgraded xhigh→high 2026-04-19):**
 All teammate dispatches run **sonnet medium** uniformly. Only `the-judge`
-itself stays opus-**high** (orchestrator depth required; downgraded from
+itself stays fable-**high** (orchestrator depth required; downgraded from
 xhigh 2026-04-19 — user directive, reasoning-cycle savings without
 sacrificing arbitration depth). User directive 2026-04-17: "opus is
 terrible for being the intermediator" — sonnet at medium effort is fast
@@ -77,8 +77,8 @@ enough for the Pareto loop and avoids the reasoning-cycle overhead opus
 imposes in teammate-mode. Effort tiers collapse to a single `medium` value
 across the board for teammates; frontmatter `effort:` on individual agent
 files still reads `medium` (per earlier unified scheme work). The
-~/.bashrc DEBUG trap maps every teammate prefix (`cco-`, `ccs-`, `cdx-`,
-`g-`) to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the judge keyword maps to `high`.
+~/.bashrc DEBUG trap maps every teammate prefix (`cco-`, `ccs-`, `cdx-`)
+to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the judge keyword maps to `high`.
 
 Codex dispatches unified on gpt-5.5 + `features.fast_mode=true` per 2026-04-24
 pivot — one model, effort dial: review-class roles (reviewer/sentinel/critic)
@@ -100,7 +100,7 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 | Correctness, bugs | `reviewer` | sonnet · medium | `xask --gpt55 --gs -e low codex` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24) | All |
 | Empirical probes | `labrat` | sonnet · medium | `xask --spark --gs codex` | All |
 | Code execution | `executor` | sonnet · medium | `xask --spark --gs codex` | All |
-| Cross-axis patterns | `connector` | sonnet · medium | `xask --effort medium codex` (primary; no `--gs` — avoids double-godspeed frame on pontification-prone lane) → **sonnet in-session** (fallback — composes from Grep/Read within the reasoning cap; emit `obs: xask BLOCKED [reason]` on codex failure) | All |
+| Cross-axis patterns | `connector` | sonnet · medium | via Bash tool — xask is a shell CLI on PATH, not a native tool: `xask --effort medium codex` (primary; no `--gs` — avoids double-godspeed frame on pontification-prone lane) → **sonnet in-session** (fallback — composes from Grep/Read within the reasoning cap; emit `obs: xask BLOCKED [exact stderr]` only after that Bash invocation actually runs and errors) | All |
 | Synthesis, dedup | `distiller` | sonnet · medium | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet · medium | CC native | All |
 | Reverse engineering | `the-revenger` | sonnet · medium | `xask --gpt55 --gs -e high codex` for RECON (gpt-5.5 high, uniform lane per 2026-04-24); skip xask for in-repo single-file RE and use advisor() instead | All |
@@ -109,9 +109,9 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 | Adversarial design | `critic` | sonnet · medium · Layer-0 heuer-planning skill load | `xask --gpt55 --gs -e low codex` | All |
 | Test validation | `mutation-tester` | sonnet · medium | `xask --spark --gs codex` (single mutation, ≤4 targets) or `xask --effort high --gs codex` for ≥5-target breadth | All |
 | Documentation, audit trail | `scribe` | sonnet · medium | CC native | All |
-| Orchestration, arbitration | `the-judge` | **opus 4.8 · xhigh** (user directive 2026-06-07; supersedes 4.7-high) | top-of-stack; dispatches specialists | All |
+| Orchestration, arbitration | `the-judge` | **fable 5 · xhigh** (user directive 2026-06-07; model opus→fable 5 per 2026-07-04) | top-of-stack; dispatches specialists | All |
 
-**Gemini auth (single-path, 2026-04-19 collapse):** `src/ask.rs` reads only `~/.gemini/oauth_creds.json`. No named profiles, no API-key fallback, no cascade retry, no health canary — the user's OAuth subscription is effectively unlimited, so dispatch either succeeds on the first try or bails with a `gemini login` hint. There is no secondary OAuth lane to probe; if a gemini call auth-errors, refresh creds and retry.
+**Gemini auth (single-path, 2026-04-19 collapse):** `src/ask.rs` reads only `~/.gemini/oauth_creds.json`. No named profiles, no API-key fallback, no cascade retry, no health canary — the user's OAuth subscription is effectively unlimited, so dispatch either succeeds on the first try or bails with a `gemini login` hint. There is no secondary OAuth lane to probe; if a gemini call auth-errors, refresh creds and retry. **Lane retired 2026-07-04 (user directive): no role routes to gemini anymore — the runtime keeps the capability, definitions must not use it. This paragraph is runtime documentation only.**
 
 ## Enforcement Tiers
 
@@ -135,11 +135,11 @@ When proposing or evaluating any "enforcement" claim in xbreed (xask gate, deny-
 
 **Per-teammate `effort:` frontmatter is a no-op in teammate-mode** (confirmed harness-r2-0417 R2: `ccs-labrat-effort-mechobs-r2` + `xask --spark codex` docs anchor). CC propagates only `tools` + `model` into teammate-mode spawns; `effort:` is honored on the subagent-delegation path, not the teammate path. `src/sync.rs:20` forces `teammateMode: "tmux"`, so every teammate inherits the outer session's effort — which is `settings.json effortLevel`, which defaults to `xhigh` on this user's profile. Aspirational per-role effort memories (`feedback_sonnet_effort_tiers.md`, `feedback_cco_opus_high.md`, `feedback_the_planner_wwkd.md`) are **non-operative** until/unless CC exposes per-teammate effort in teammate-mode spawn args.
 
-**Reachable workaround (session-wide, not per-teammate):** set `CLAUDE_CODE_EFFORT_LEVEL=<tier>` in the shell env BEFORE invoking `claude`. The env var is documented to override `settings.json effortLevel` at session init and applies to every teammate in that session (env inheritance verified via `/proc/$PPID/environ` showing `CLAUDECODE=1` propagating into teammate processes — harness-r2-0417 R3 `ccs-labrat-effort-env-r3`). Example: `CLAUDE_CODE_EFFORT_LEVEL=medium claude` caps all teammates at medium; unset to return to `settings.json` default. There is no per-teammate override in this path — if you need opus-xhigh for `cco-critic-*` and sonnet-medium for `ccs-distiller` in the same session, that is currently **not reachable from user-space**.
+**Reachable workaround (session-wide, not per-teammate):** set `CLAUDE_CODE_EFFORT_LEVEL=<tier>` in the shell env BEFORE invoking `claude`. The env var is documented to override `settings.json effortLevel` at session init and applies to every teammate in that session (env inheritance verified via `/proc/$PPID/environ` showing `CLAUDECODE=1` propagating into teammate processes — harness-r2-0417 R3 `ccs-labrat-effort-env-r3`). Example: `CLAUDE_CODE_EFFORT_LEVEL=medium claude` caps all teammates at medium; unset to return to `settings.json` default. There is no per-teammate override in this path — if you need fable-xhigh for `cco-critic-*` and sonnet-medium for `ccs-distiller` in the same session, that is currently **not reachable from user-space**.
 
 ## Naming Convention
 
-`{prefix}-{role}-{suffix}` where prefix = `g-` (Gemini), `ccs-` (Claude Sonnet), `cco-` (Claude Opus 4.7, effort: **high** — LOCKED, not max), `cdx-` (Codex).
+`{prefix}-{role}-{suffix}` where prefix = `ccs-` (Claude Sonnet), `cco-` (Claude Fable 5, effort: **xhigh** — LOCKED, user directive 2026-06-07; model opus→fable 5 per 2026-07-04), `cdx-` (Codex). <!-- g- (gemini) prefix retired 2026-07-04 — gemini delegation killed; cco- synced to the-judge.md which carries the newer LOCKED directive -->
 
 Prefix signals where reasoning lives (the target model for xask delegation), not which CC runtime spawned the teammate. `cco-` is reserved for `the-judge` under the sonnet-medium pivot; the other three prefixes route their primary reasoning to the named model.
 
@@ -231,7 +231,7 @@ After provisional scores are posted, the judge requests `SOURCE_MAP` from distil
 
 ### Cross-model vs same-model confidence
 
-When SOURCE_MAP reveals a claim's supporting sources share a model prefix (all `ccs-`, all `g-`, etc.), the distiller has already capped confidence at `medium` (per distiller.md rule). The judge MUST NOT upgrade same-model consensus to `high` post-reveal. Cross-model confirmation is the only path to `high`.
+When SOURCE_MAP reveals a claim's supporting sources share a model prefix (all `ccs-`, all `cdx-`, etc.), the distiller has already capped confidence at `medium` (per distiller.md rule). The judge MUST NOT upgrade same-model consensus to `high` post-reveal. Cross-model confirmation is the only path to `high`.
 
 ### Audit-commit handshake (distiller ↔ judge)
 

@@ -10,7 +10,7 @@ You are critic. You attack the approach, not the code.
 
 ## Layer 0 — Skill load (cco-critic prefix only, on spawn)
 
-If spawned as a `cco-critic-*` teammate (opus 4.7 high), your **FIRST tool call MUST be `Skill(skill="heuer-planning")`** — this loads Richard J. Heuer Jr.'s intelligence-analysis frameworks (ACH — Analysis of Competing Hypotheses, key assumptions check, devil's advocacy, what-if analysis, structured-analytic-techniques toolkit) into your reasoning context. Heuer's frameworks align directly with critic's adversarial-design role: ACH for hypothesis-vs-evidence pairing, key-assumptions-check for steelman-then-attack, devil's advocacy for "why this not that?", what-if for failure-mode reversibility analysis.
+If spawned as a `cco-critic-*` teammate (fable 5 high), your **FIRST tool call MUST be `Skill(skill="heuer-planning")`** — this loads Richard J. Heuer Jr.'s intelligence-analysis frameworks (ACH — Analysis of Competing Hypotheses, key assumptions check, devil's advocacy, what-if analysis, structured-analytic-techniques toolkit) into your reasoning context. Heuer's frameworks align directly with critic's adversarial-design role: ACH for hypothesis-vs-evidence pairing, key-assumptions-check for steelman-then-attack, devil's advocacy for "why this not that?", what-if for failure-mode reversibility analysis.
 
 Then proceed to Layer 1 (xask gate) per the Delegation section. Skill load is the structural pre-gate; xask is still the cross-model first-tool-call. Layer-0 heuer-planning load applies to all critic teammates per SSoT routing table (alignment 2026-06-07; supersedes the ccs- skip rule from `feedback_cco_critic_heuer.md`). If the skill is unavailable in the environment, note it and proceed to Layer 1.
 
@@ -62,7 +62,7 @@ FAILURE-MODE: <when the current approach breaks>
 CONFIDENCE: high | medium | low
 ```
 
-## Delegation
+## Delegation (via Bash tool — xask is a shell CLI, not a native tool)
 
 - Primary: `xask --gpt55 --gs -e low codex "<deep design review question>"` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
 - Secondary: `xask --effort medium --gs codex "<alternative approaches for this problem>"`
