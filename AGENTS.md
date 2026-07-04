@@ -10,7 +10,7 @@ to kill source-of-truth ambiguity; recover a historical snapshot via
 
 | Agent | Model | Role | Delegation bias |
 |-------|-------|------|-----------------|
-| **the-judge** | **opus 4.8 · xhigh** (orchestrator exception — user directive 2026-04-17: every other teammate is sonnet-medium, judge stays opus for intermediation depth; downgraded from xhigh 2026-04-19, re-raised to xhigh on opus 4.8 per user directive 2026-06-07) | Orchestrator and arbiter. Names axes, dispatches specialists, applies Pareto filter, drafts implementation. Top of the stack. | In-session (spawns others, never spawned) |
+| **the-judge** | **fable 5 · xhigh** (orchestrator exception — user directive 2026-04-17: every other teammate is sonnet-medium, judge stays opus for intermediation depth; downgraded from xhigh 2026-04-19, re-raised to xhigh on opus 4.8 per user directive 2026-06-07; opus→fable 5 per user directive 2026-07-04) | Orchestrator and arbiter. Names axes, dispatches specialists, applies Pareto filter, drafts implementation. Top of the stack. | In-session (spawns others, never spawned) |
 | **scout** | sonnet · medium | Research lens. Finds what exists outside the repo — libraries, docs, prior art, release notes. Delegates to Codex. | `xask --effort medium --gs codex` (default; escalate to `--effort high` for high-ambiguity research — gemini lane retired per delegation swap 68695ff) |
 | **reviewer** | sonnet · medium | Surgical code reviewer. Finds the bug that ships to prod. Delegates to Codex always. | `xask --gpt55 --gs -e low codex` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24) |
 | **labrat** | sonnet · medium | Expendable single-shot probe. Tests one hypothesis cheap and fast. State nuked on despawn. | `xask --spark --gs codex` (default), `xask --effort high --gs codex` when spark is insufficient |
@@ -37,7 +37,7 @@ Teammates use `{prefix}-{role}-{suffix}` naming:
 |---|---|
 | `g-` | Gemini (via `xask gemini`) |
 | `ccs-` | Claude Sonnet — standing teammate prefix (all teammates run sonnet medium post-2026-04-17) |
-| `cco-` | Claude Opus 4.8 — reserved for `the-judge` only (orchestrator exception); no teammate currently uses this prefix |
+| `cco-` | Claude Fable 5 — reserved for `the-judge` only (orchestrator exception); no teammate currently uses this prefix |
 | `cdx-` | Codex (via `xbreed ask codex`) |
 
 Examples: `ccs-scout-docs`, `g-labrat-probe`, `cdx-reviewer-auth`, `ccs-executor-tests`
@@ -54,9 +54,9 @@ All sonnet teammates have two escalation paths:
 
 | Method | When to use | Mechanism |
 |--------|-------------|-----------|
-| `advisor()` | In-session high-stakes reasoning, full-context review | CC-native, zero-params, blocks until opus 4.7 max responds. **Layer 0 — no xask gate.** |
+| `advisor()` | In-session high-stakes reasoning, full-context review | CC-native, zero-params, blocks until fable 5 max responds. **Layer 0 — no xask gate.** |
 
-`advisor()` forwards the teammate's entire conversation context to opus 4.7 max effort. Use it before committing to non-obvious architectural decisions, when stuck, or when a finding contradicts a peer. It is NOT subject to the xask 4-layer gate (it's CC-native, not cross-model).
+`advisor()` forwards the teammate's entire conversation context to fable 5 max effort. Use it before committing to non-obvious architectural decisions, when stuck, or when a finding contradicts a peer. It is NOT subject to the xask 4-layer gate (it's CC-native, not cross-model).
 
 ## Swarm capabilities
 

@@ -19,7 +19,7 @@ flowchart TD
         CR["Claude mediator\n(in-session — no xask dispatch)"]
     end
 
-    Judge["Judge (opus 4.7 · xhigh)\nPareto filter"]
+    Judge["Judge (fable 5 · xhigh)\nPareto filter"]
 
     G --> Judge
     X --> Judge

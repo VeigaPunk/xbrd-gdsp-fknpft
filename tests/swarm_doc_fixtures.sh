@@ -25,17 +25,17 @@ check() {
 }
 
 # 1. Judge tier must be xhigh (not max)
-check "opus 4.7 xhigh present" \
-  "grep -qE 'opus 4\\.7 · xhigh|opus 4\\.7 xhigh' \"$DOC\""
+check "fable 5 xhigh present" \
+  "grep -qE 'fable 5 · xhigh|fable 5 xhigh' \"$DOC\""
 
 # 2. No stale 'opus 4.7 max' anywhere
-check "no stale 'opus 4.7 max'" \
-  "! grep -q 'opus 4\\.7 max' \"$DOC\""
+check "no stale judge-tier 'max'" \
+  "! grep -qE 'opus 4\\.7 max|fable 5 max' \"$DOC\""
 
 # 1b. Negation-flip guard: positively confirm xhigh co-located with opus 4.7 (independent path)
 # Catches: typo in check 1 pattern, negation-flip on check 2, or both simultaneously.
-check "xhigh co-located with opus 4.7" \
-  "grep -E 'opus 4\\.7' \"$DOC\" | grep -qiE 'xhigh'"
+check "xhigh co-located with fable 5" \
+  "grep -E 'fable 5' \"$DOC\" | grep -qiE 'xhigh'"
 
 # 3. templates/ refs are now allowed (templates/ restored 2026-04-17 via f3882aa)
 

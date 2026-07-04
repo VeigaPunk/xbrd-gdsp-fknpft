@@ -64,7 +64,7 @@ Composition: `/xbgst /wwkd <spec>` is the explicit form of the same behavior —
 
 For each axis, assign a name: `{prefix}-{role}-{suffix}`. Commit ALL names before spawning.
 
-Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays opus-**high** for orchestrator depth, downgraded from xhigh 2026-04-19):
+Axis → profile mapping (see `~/.claude/commands/references/xbreed-shared.md` for full details). All teammates run **sonnet medium** uniformly (2026-04-17 pivot — supersedes earlier opus-medium unified scheme; only `the-judge` itself stays fable-**high** for orchestrator depth, downgraded from xhigh 2026-04-19):
 - Research, prior art → `scout` — `xask --effort medium --gs codex`
 - Correctness, bugs → `reviewer` — `xask --gpt55 --gs -e low codex`
 - Empirical probes → `labrat` — `xask --spark --gs codex`

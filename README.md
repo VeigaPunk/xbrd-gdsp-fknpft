@@ -55,7 +55,7 @@ Inside a Claude Code session, say:
 
     godspeed-team: <your task>
 
-The lead (the-judge, opus 4.7 max) names 2-3 optimization axes, spawns teammates
+The lead (the-judge, fable 5 max) names 2-3 optimization axes, spawns teammates
 from the 8-agent roster — scout, reviewer, labrat, connector, distiller,
 executor, simplifier — runs them in parallel, applies a Pareto filter, and
 reports the surviving frontier. Teammates delegate to other CLIs via

@@ -11,7 +11,7 @@
 xask [-d] [-s <scope>] [-r] [--spk] [-R] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
 ```
 
-`<model>` is one of `gemini` or `codex`. (`claude` dispatch was removed in R2-A5 — advisor() with opus 4.7 max supersedes it.)  
+`<model>` is one of `gemini` or `codex`. (`claude` dispatch was removed in R2-A5 — advisor() with fable 5 max supersedes it.)  
 `<context>` defaults to `"No prior context."`.  
 `<skill>` defaults to `"godspeed"`.
 
@@ -137,7 +137,7 @@ Agent and teammate names use a prefix that signals where reasoning lives:
 | `g-` | Gemini | `g-scout-research`, `g-connector-axes` |
 | `cdx-` | Codex | `cdx-labrat-probe`, `cdx-reviewer-security` |
 | `ccs-` | Claude Code (Sonnet) | `ccs-executor-docs`, `ccs-simplifier-refactor` |
-| `cco-` | Claude Code (Opus 4.7, effort: high — LOCKED; unified 2026-04-19 — the-judge now also runs at high, downgraded from xhigh) | `cco-judge`, `cco-distiller` |
+| `cco-` | Claude Code (Fable 5, effort: high — LOCKED; unified 2026-04-19 — the-judge now also runs at high, downgraded from xhigh) | `cco-judge`, `cco-distiller` |
 
 The prefix is the xask delegation target, not the model running the agent (which is always Claude). A `g-scout-*` agent's first tool call must be `xask gemini`.
 

@@ -57,7 +57,7 @@ flowchart TD
     A[xbreed claude] --> B[load policy.yaml]
     B --> C[sync: write settings.json]
     C --> D[load models.yaml]
-    D --> E["claude --model opus \n--effort high \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
+    D --> E["claude --model fable \n--effort high \n--dangerously-skip-permissions \n--settings generated/settings.json \n[passthrough args]"]
     E --> F[Claude Code TUI session]
 ```
 
@@ -298,7 +298,7 @@ The full crossbreed. Godspeed Pareto walk with xask cross-model delegation.
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant J as Judge (Opus 4.7 max)
+    participant J as Judge (Fable 5 max)
     participant T as Teammates (N)
     participant X as xask CLI
     participant G as Gemini CLI
@@ -437,20 +437,20 @@ actually runs. Later layers override earlier ones.
 
 | Layer | Source | Controls | Precedence |
 |---|---|---|---|
-| Frontmatter | `~/.claude/agents/<name>.md` | `model:` (opus/sonnet/full ID) + `effort:` default | lowest |
+| Frontmatter | `~/.claude/agents/<name>.md` | `model:` (fable/opus/sonnet/full ID) + `effort:` default | lowest |
 | DEBUG trap | `~/.bashrc` `__xbreed_effort_trap` | `CLAUDE_CODE_EFFORT_LEVEL` env var via role-keyword match on `--agent-name` | overrides frontmatter `effort:` |
 | `CLAUDE_CODE_SUBAGENT_MODEL` env | user shell | full model override for every subagent | overrides everything (rarely set) |
 
 **Current tier map (2026-04-17, sonnet-medium pivot):**
 
-- `*the-judge*` → **high** (orchestrator; opus 4.7 + high — downgraded from xhigh 2026-04-19)
+- `*the-judge*` → **high** (orchestrator; fable 5 + high — downgraded from xhigh 2026-04-19)
 - `cco-*` / `ccs-*` / `cdx-*` / `g-*` → **medium** (every teammate)
 - unmapped → NOMATCH (trap leaves env unset; CC falls back to frontmatter `effort:`)
 
 **Every teammate runs `model: sonnet` + `effort: medium` uniformly** — the
 earlier opus-medium unified scheme was replaced 2026-04-17 per user
 directive ("opus is terrible for being the intermediator"). Only
-`the-judge` itself stays on opus 4.7 (orchestrator depth required). The
+`the-judge` itself stays on fable 5 (orchestrator depth required). The
 former critic/connector/planner high-effort exceptions were collapsed
 when the tier pivoted; every teammate prefix now maps to medium in the
 DEBUG trap.

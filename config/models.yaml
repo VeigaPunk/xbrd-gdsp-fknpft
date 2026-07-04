@@ -1,5 +1,5 @@
 claude:
-  default: opus
+  default: fable
   effort: xhigh
 codex:
   default: gpt-5.4

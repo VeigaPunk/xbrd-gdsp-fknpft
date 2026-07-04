@@ -38,14 +38,14 @@ mod tests {
     #[test]
     fn launcher_has_max_power_flags() {
         let settings = PathBuf::from("/tmp/settings.json");
-        let cmd = build_claude_launcher("opus", "max", &settings, &[]);
+        let cmd = build_claude_launcher("fable", "max", &settings, &[]);
         let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
         let args_str: Vec<String> = args
             .iter()
             .map(|a| a.to_string_lossy().to_string())
             .collect();
         assert!(args_str.contains(&"--model".to_string()));
-        assert!(args_str.contains(&"opus".to_string()));
+        assert!(args_str.contains(&"fable".to_string()));
         assert!(args_str.contains(&"--effort".to_string()));
         assert!(args_str.contains(&"max".to_string()));
         assert!(args_str.contains(&"--dangerously-skip-permissions".to_string()));
@@ -56,7 +56,7 @@ mod tests {
     fn launcher_appends_passthrough_args() {
         let settings = PathBuf::from("/tmp/settings.json");
         let cmd = build_claude_launcher(
-            "opus",
+            "fable",
             "max",
             &settings,
             &["-p".to_string(), "hello".to_string()],
