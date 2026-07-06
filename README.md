@@ -7,17 +7,11 @@ See `docs/superpowers/specs/2026-04-10-xbreeder-design.md` for full design.
 See [`AGENTS.md`](AGENTS.md) for the full agent roster and dispatch table.
 See [`docs/command-flows.md`](docs/command-flows.md) for visual flow diagrams of every command.
 
-## The essence
-
 **Trust Claude, godspeed, and let it rip.**
 
 Pareto frontier chasing, no target. Improve one axis, harm none — that's the
-antimetabole, and that's the only nudge the lead gets. Roster, rounds, and
-next move are its problem. Walk stops when nothing improves without a
+antimetabole, and that's the only nudge the lead gets. Walk stops when nothing improves without a
 tradeoff.
-
-> when the going gets tough,
-> the tough gets going.
 
 Core three: the orchestration schema, the runtime (`xask` on the native
 mailbox), the godspeed directive.
