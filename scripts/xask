@@ -31,6 +31,14 @@
 #   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.4 (1.05M ctx)
 #   xask --gpt55 --gs -e high codex "Deep question" # gpt-5.5 lane, explicit godspeed, high effort
 #   xask -e high codex "Deep question"              # explicit reasoning effort
+# PATH self-heal: agent-spawned non-login non-interactive shells get the minimal
+# default PATH and miss ~/.local/bin, where xbreed (called by bare name below) lives.
+# Real script dir first (readlink -f dereferences the /usr/local/bin shim symlink).
+_XASK_DIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
+case ":$PATH:" in *":$_XASK_DIR:"*) ;; *) PATH="$_XASK_DIR:$PATH" ;; esac
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH" ;; esac
+export PATH
+
 GEMINI_SETTINGS_FILE="$HOME/.gemini/settings.json"
 
 # Handle flags
@@ -104,7 +112,9 @@ case "$MODEL" in
   *) echo "xask: unknown model '$MODEL'. Use gemini or codex." >&2; exit 1 ;;
 esac
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Real dir, not the invoked path — /usr/local/bin holds a shim symlink to this
+# script, and TEMPLATE_DIR below is relative to the real install location.
+SCRIPT_DIR="$_XASK_DIR"
 # Dispatch-template dir. templates/ was briefly removed 2026-04-17 but restored
 # the same day — dispatch substitution (gemini {{THINKING_BUDGET}} injection) is
 # load-bearing for multi-level effort routing, and xask's raw-$QUERY fallback
