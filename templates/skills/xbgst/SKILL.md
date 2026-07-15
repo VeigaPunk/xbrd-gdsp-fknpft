@@ -25,6 +25,20 @@ Cleanup: there is no TeamDelete. Releasing the team = sending each teammate
 SendMessage({to: <name>, message: {type: "shutdown_request", reason: ...}})
 and acknowledging their shutdown_approved.
 
+## Scratch working directory (team cwd)
+
+Judge-orchestrated runs work in an isolated **scratch checkout**, NOT per-agent git worktrees. Before spawning teammates, create it and `cd` in:
+
+```bash
+ORIGIN_URL=$(git remote get-url origin)
+SCRATCH=$(mktemp -d "/tmp/xbgst-XXXXXX")
+git clone --no-hardlinks . "$SCRATCH"
+cd "$SCRATCH" && git remote set-url origin "$ORIGIN_URL"
+git checkout -b "xbgst/<topic>-<ts>"
+```
+
+All teammates operate inside `$SCRATCH`. Do NOT spawn agents with `isolation: "worktree"`.
+
 ## Step 3 — Parse the prompt
 
 The user's prompt is:
@@ -164,6 +178,19 @@ Team stays alive. User may:
 ## Cleanup
 
 On explicit user request only: SendMessage shutdown_request to each teammate, await shutdown_approved, confirm.
+
+## Terminal step — commit + push (mandatory)
+
+When the frontier is reached (or the run completes), the judge's LAST act is to commit and push from the scratch dir, then discard it:
+
+```bash
+git add -A
+git commit -m "xbgst: <one-line summary of the frontier result>"
+git push -u origin "xbgst/<topic>-<ts>"
+cd - >/dev/null && rm -rf "$SCRATCH"
+```
+
+The orchestration ends with a pushed branch — not a dirty tree the user has to clean up.
 
 ## Step 7 — Status after init
 

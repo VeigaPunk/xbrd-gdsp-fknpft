@@ -36,6 +36,20 @@ If this check fails, stop and report the limit instead of attempting the team la
 
 If `TeamCreate` fails because a team already exists, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not ask the user.
 
+## Scratch working directory (team cwd)
+
+Judge-orchestrated runs work in an isolated **scratch checkout**, NOT per-agent git worktrees. Before spawning teammates, create it and `cd` in:
+
+```bash
+ORIGIN_URL=$(git remote get-url origin)
+SCRATCH=$(mktemp -d "/tmp/xgs-XXXXXX")
+git clone --no-hardlinks . "$SCRATCH"
+cd "$SCRATCH" && git remote set-url origin "$ORIGIN_URL"
+git checkout -b "xgs/<topic>-<ts>"
+```
+
+All teammates operate inside `$SCRATCH`. Do NOT spawn agents with `isolation: "worktree"`.
+
 ## Step 3 — Parse the prompt
 
 $ARGUMENTS
@@ -134,6 +148,19 @@ After each round, immediately assess and dispatch next round if frontier still m
 When the frontier stops moving (zero survivors / duplicates / 4 rounds / user halt): emit the final DRAFT, then immediately shutdown all teammates via `SendMessage shutdown_request` in parallel, wait for shutdown_approved, then `TeamDelete`. If TeamDelete fails with "active members", run `xbreed-cleanup <team-name>` via Bash. Do not ask for permission — the team has served its purpose, kill it.
 
 If the user wants a new axis, they invoke `/xgs` again; spawning is cheap.
+
+## Terminal step — commit + push (mandatory)
+
+When the frontier is reached (or the run completes), the judge's LAST act is to commit and push from the scratch dir, then discard it:
+
+```bash
+git add -A
+git commit -m "xgs: <one-line summary of the frontier result>"
+git push -u origin "xgs/<topic>-<ts>"
+cd - >/dev/null && rm -rf "$SCRATCH"
+```
+
+The orchestration ends with a pushed branch — not a dirty tree the user has to clean up.
 
 ## Step 7 — Status after init
 
