@@ -28,6 +28,14 @@ TeamCreate(
 )
 ```
 
+**Pre-flight hardening:** run once before create:
+
+```bash
+xbreed precheck pane-cap --team-size 12
+```
+
+If this check fails, stop and report the limit instead of attempting the team launch.
+
 If `TeamCreate` fails because a team already exists, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not ask the user.
 
 ## Step 3 — Parse the prompt

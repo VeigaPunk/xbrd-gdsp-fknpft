@@ -1,8 +1,21 @@
-use xbreed::precheck::{compute_cap, CapResult, MIN_ROWS};
+use xbreed::precheck::{compute_cap, CapResult, MAX_TEAM_SIZE, MIN_ROWS};
 
 #[test]
 fn constants_correct() {
     assert_eq!(MIN_ROWS, 8);
+    assert_eq!(MAX_TEAM_SIZE, 12);
+}
+
+#[test]
+fn hard_cap_exceeded_returns_error() {
+    let result = compute_cap(200, 0, 42);
+    match result {
+        CapResult::HardCapExceeded { requested, max } => {
+            assert_eq!(requested, 42);
+            assert_eq!(max, MAX_TEAM_SIZE);
+        }
+        other => panic!("expected HardCapExceeded, got {other:?}"),
+    }
 }
 
 #[test]
@@ -65,14 +78,30 @@ fn fail_carries_panes_in_use() {
 }
 
 #[test]
-fn large_team_in_normal_window_fails() {
-    // 46-row window, 1 pane in use, spawning 40 teammates
-    // total = 41; practical_cap = 46 - 40 = 6 < 8 → Fail
+fn large_team_in_normal_window_hits_hard_cap_first() {
     let result = compute_cap(46, 1, 40);
-    assert!(
-        matches!(result, CapResult::Fail { .. }),
-        "expected Fail for 40-pane batch in 46-row window, got {result:?}"
-    );
+    match result {
+        CapResult::HardCapExceeded { requested, max } => {
+            assert_eq!(requested, 40);
+            assert_eq!(max, MAX_TEAM_SIZE);
+        }
+        other => panic!(
+            "expected HardCapExceeded for 40-pane batch in 46-row window, got {other:?}"
+        ),
+    }
+}
+
+#[test]
+fn geometry_failure_can_apply_when_team_size_within_hard_cap() {
+    let result = compute_cap(10, 1, 12);
+    match result {
+        CapResult::Fail { panes_in_use, cap, team_size } => {
+            assert_eq!(panes_in_use, 1);
+            assert_eq!(cap, 0);
+            assert_eq!(team_size, 12);
+        }
+        other => panic!("expected Fail for capped geometry case, got {other:?}"),
+    }
 }
 
 #[test]

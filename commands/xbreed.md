@@ -59,7 +59,7 @@ Read `~/.claude/commands/references/xbreed-shared.md` for the full xask gate (4 
 
 ### Budget
 
-Max 8 total sub-role dispatches unless the prompt lowers the cap.
+Max 12 total sub-role dispatches (hard cap).
 
 ## Step 4 — Output
 

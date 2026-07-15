@@ -63,7 +63,7 @@ Judge weighting: weight xask quotes that contradict the agent's conclusion more 
 
 ### Budget
 
-Max 3 total sub-role dispatches per `/xbreed` invocation unless the prompt explicitly lifts the cap. If you finish with zero, that is fine and cheap.
+Max 12 total sub-role dispatches per `/xbreed` invocation (hard cap). If you finish with zero, that is fine and cheap.
 
 ## Step 4 — Output
 

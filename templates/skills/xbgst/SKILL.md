@@ -57,9 +57,18 @@ Cap: <=12 teammates per round.
 ### Phase 2 — Spawn all with full peer roster AND xask gate
 
 Each brief includes:
+
+**Pre-flight hardening:** run this check once before spawning:
+
+```bash
+xbreed precheck pane-cap --team-size 12
+```
+
+If this check fails, halt and report the limit instead of spawning.
+
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment (name + direction + observable)
-3. **Godspeed mode** (always — /xbgst is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+3. Append ` | godspeed` to the teammate prompt. Do not add verbose preambles.
 4. **Structural xask gate** (mandatory for roles that delegate)
 5. Task: propose ONE move on their axis (<=200 words)
 6. After proposing, DM each peer by name with a one-line critique
@@ -160,4 +169,3 @@ On explicit user request only: SendMessage shutdown_request to each teammate, aw
 
 Emit: team name, axes, teammates spawned (with their xask delegation targets), waiting on Round 1.
 Do not narrate. Immediately compile and dispatch next round when findings arrive.
-

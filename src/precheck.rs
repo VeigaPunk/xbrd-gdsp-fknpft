@@ -1,11 +1,17 @@
 /// Minimum acceptable pane height in rows (matches adaptive-panes.sh MIN_ROWS).
 pub const MIN_ROWS: u32 = 8;
+pub const MAX_TEAM_SIZE: u32 = 12;
 
 /// Result of a pane-cap preflight check.
 #[derive(Debug, PartialEq)]
 pub enum CapResult {
     /// Spawn is safe — practical cap remains at or above MIN_ROWS.
     Ok,
+    /// team_size is above the configured hard ceiling.
+    HardCapExceeded {
+        requested: u32,
+        max: u32,
+    },
     /// Spawn would push the practical cap below MIN_ROWS.
     Fail {
         panes_in_use: u32,
@@ -21,6 +27,13 @@ pub enum CapResult {
 /// `practical_cap = WIN_H − (current_panes + team_size − 1)`
 /// Fails when `practical_cap < MIN_ROWS`.
 pub fn compute_cap(win_h: u32, current_panes: u32, team_size: u32) -> CapResult {
+    if team_size > MAX_TEAM_SIZE {
+        return CapResult::HardCapExceeded {
+            requested: team_size,
+            max: MAX_TEAM_SIZE,
+        };
+    }
+
     let total = current_panes.saturating_add(team_size);
     let practical_cap = win_h.saturating_sub(total.saturating_sub(1));
     if practical_cap < MIN_ROWS {

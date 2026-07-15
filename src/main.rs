@@ -82,6 +82,10 @@ fn main() -> anyhow::Result<()> {
                     println!("tmux not detected, cap check skipped");
                     Ok(())
                 }
+                xbreed::precheck::CapResult::HardCapExceeded { requested, max } => {
+                    eprintln!("team_size {requested} exceeds hard cap {max}");
+                    std::process::exit(1);
+                }
                 xbreed::precheck::CapResult::Fail {
                     panes_in_use,
                     cap,

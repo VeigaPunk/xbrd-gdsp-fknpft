@@ -26,6 +26,14 @@ TeamCreate(
 )
 ```
 
+**Pre-flight hardening:** run once before create:
+
+```bash
+xbreed precheck pane-cap --team-size 12
+```
+
+If this check fails, stop and report the limit instead of attempting the team launch.
+
 If `TeamCreate` fails because a team already exists, auto-cleanup: shutdown idle teammates + TeamDelete + retry. Do not ask the user.
 
 ## Step 3 — Parse the prompt
@@ -72,7 +80,7 @@ Cap: <=12 teammates per round.
 Each brief includes:
 1. Full peer roster (all names from Phase 1)
 2. Axis assignment
-3. **Godspeed mode** (always — /xgs is inherently godspeed): `"GODSPEED MODE (inherited from judge): You are a Godspeed-enabled subagent. (1) Name the axes. (2) Iterate cheap, in parallel. (3) Keep moves that improve any axis and harm none. (4) Don't aim — let the frontier walk itself. IMMEDIATELY STOP ASKING CLARIFYING QUESTIONS. Execute tool calls concurrently in large batches. Do not serialize what can run in parallel. Do not output philosophical reasoning or verbose plans. Act directly via tool calls."`
+3. Append ` | godspeed` to the teammate prompt. Do not add any verbose godspeed preamble.
 4. Task: propose ONE move (<=200 words)
 5. After proposing, DM each peer by name with one-line critique
 6. Mark task completed

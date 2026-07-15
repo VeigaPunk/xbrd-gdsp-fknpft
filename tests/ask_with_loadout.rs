@@ -157,6 +157,33 @@ fn ask_without_with_flag_dispatches_cleanly() {
 }
 
 #[test]
+fn ask_codex_treats_command_like_text_as_literal_prompt() {
+    let tmp = tempdir().unwrap();
+    let home = tmp.path();
+    let bin_dir = home.join("bin");
+    let log = home.join("codex.log");
+
+    write_stub(&bin_dir, "codex", &log);
+
+    let query = "$(id) and whoami";
+    let out = run_xbreed_ask(home, &bin_dir, &["ask", "codex", query]);
+    assert!(out.status.success(), "xbreed ask codex failed: {:?}", out);
+
+    let argv = read_log(&log);
+    let expected_prompt = format!("{query} | godspeed");
+    assert_eq!(
+        *argv.last().unwrap(),
+        expected_prompt,
+        "command-like payload was not preserved as a literal final arg: {argv:?}"
+    );
+    assert!(argv
+        .last()
+        .unwrap()
+        .contains("$(id)"), "payload lost command text: {argv:?}");
+    assert!(argv.last().unwrap().contains("whoami"), "payload lost command text: {argv:?}");
+}
+
+#[test]
 fn ask_with_missing_skill_errors_cleanly() {
     let tmp = tempdir().unwrap();
     let home = tmp.path();
