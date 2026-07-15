@@ -96,7 +96,7 @@ flowchart TD
 
     Cdx -->|--spark| Csp["codex exec -m gpt-5.3-codex-spark \n-c model_reasoning_effort=low \n(no fast_mode)"]
     Cdx -->|--gpt55| Cg5["codex exec -m gpt-5.5 \n-c features.fast_mode=true \n(-e low|medium|high|xhigh via flag) \n**xbreed uniform codex lane 2026-04-24**"]
-    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n(legacy; -R -F escapes to full gpt-5.4)"]
+    Cdx -->|"-R / --review"| Crv["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n(legacy; -R -F escapes to full gpt-5.5)"]
     Cdx -->|default| Cdf["codex exec -m gpt-5.4-mini \n-c features.fast_mode=true \n-c model_reasoning_effort=high"]
 
     H --> Ha{success?}
@@ -125,7 +125,7 @@ flowchart TD
 |------|-------|-----------|-----------|---------|
 | `--spark` | `gpt-5.3-codex-spark` | low | off | labrat, executor, mutation-tester (single, ≤4 targets) |
 | `--gpt55` | `gpt-5.5` | via `-e` flag | on | **xbreed uniform codex lane (2026-04-24)**: reviewer/sentinel/critic at `-e low`, the-revenger at `-e high` |
-| `-R -F` / `--review --full` | `gpt-5.4` (full, 1.05M ctx) | xhigh (inherited) | on | escape hatch — reserved for RECON where gpt-5.5 window insufficient |
+| `-R -F` / `--review --full` | `gpt-5.5` (full, 1.05M ctx) | xhigh (inherited) | on | escape hatch — reserved for RECON where gpt-5.5 still needs extra headroom |
 | `-R` / `--review` | `gpt-5.4-mini` | xhigh (inherited) | on | legacy; superseded by `--gpt55 -e low` in xbreed dispatch |
 | default | `gpt-5.4-mini` | high | on | legacy; direct `xask codex` without lane flags |
 
@@ -359,7 +359,7 @@ a connector teammate every Pareto round, Round 1 through terminal. Reference:
 
 **Timing annotations** (from empirical labrat probes, 2026-04-12; default-lane
 codex calls post-2026-04-17 use `gpt-5.4-mini`, so the `~6s codex` figure
-reflects the mini path — `-R` review-lane calls against full `gpt-5.4` may be
+reflects the mini path — `-R --full` calls against `gpt-5.5` may be slightly
 slower):
 
 | Phase | Wall time | Bottleneck |
@@ -465,7 +465,7 @@ marker IS the whole directive; sonnet-medium teammates read it as
 
 - `--spark` → `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode) — labrat/executor/mutation-tester-single
 - `--gpt55` → `gpt-5.5` + `features.fast_mode=true` (reasoning via `-e low|medium|high|xhigh`) — **xbreed uniform codex lane per 2026-04-24**: reviewer/sentinel/critic at `-e low`, the-revenger at `-e high`
-- `-R -F` / `--review --full` → `gpt-5.4` (full, 1.05M ctx) + `features.fast_mode=true` — escape hatch, reserved for large-context RECON when gpt-5.5 window insufficient
+- `-R -F` / `--review --full` → `gpt-5.5` (full, 1.05M ctx) + `features.fast_mode=true` — escape hatch, reserved for large-context RECON where extra headroom is needed
 - `-R` / `--review` → `gpt-5.4-mini` + `features.fast_mode=true` — legacy review lane; superseded by `--gpt55 -e low` in xbreed dispatch
 - default → `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high` — legacy, kept for direct `xask codex` without lane flags
 

@@ -61,7 +61,7 @@ These are injected by xask/xbreed regardless of user flags.
 | `-c include_permissions_instructions=false` | `build_codex_ask_with_loadout` | Suppression |
 | `-c include_apps_instructions=false` | `build_codex_ask_with_loadout` | Suppression |
 | `-c include_environment_context=false` | `build_codex_ask_with_loadout` | Suppression |
-| `-c features.fast_mode=true` | `build_codex_ask_with_loadout` (non-spark only) | Faster output on gpt-5.4 family; omitted on spark (gpt-5.3-codex-spark) |
+| `-c features.fast_mode=true` | `build_codex_ask_with_loadout` (non-spark only) | Faster output on Codex non-spark lanes (`gpt-5.5` and `gpt-5.4-mini`); omitted on spark (`gpt-5.3-codex-spark`) |
 | `-c model_reasoning_effort=low` | `build_codex_ask_with_loadout` (spark only) | Hard-wired to low on spark path |
 
 **Note (v0.120.0):** `include_skills_instructions` and `include_plugins_instructions` are not available in the current codex release — no further suppression keys exist.
@@ -90,7 +90,7 @@ Pinned to `gemini-3.1-pro-preview` (input id). The gemini CLI routes this intern
 
 Default: `gpt-5.4-mini` + `features.fast_mode=true` + `model_reasoning_effort=high` (pinned via `-m` flag).
 Review lane (`-R/--review`): `gpt-5.4-mini` + `features.fast_mode=true`.
-Full (`-R -F`): `gpt-5.4` (1.05M ctx) + `features.fast_mode=true` — escape hatch.
+Full (`-R -F`): `gpt-5.5` (1.05M ctx) + `features.fast_mode=true` — escape hatch.
 gpt-5.5 lane (`--gpt55`): `gpt-5.5` + `features.fast_mode=true` — the uniform xbreed codex lane per 2026-04-24 pivot (reviewer/sentinel/critic at `-e low`, the-revenger at `-e high`).
 Spark (`--spark`): `gpt-5.3-codex-spark` + `model_reasoning_effort=low` (no fast_mode).
 
@@ -158,7 +158,7 @@ Findings from gemini and codex probing their own CLI behavior — surfaced durin
 
 ### Codex self-report (from `xask --spark codex` + `codex exec --help` + `src/ask.rs` direct read)
 
-- **`features.fast_mode=true` confirmed** — correct key, gpt-5.4 non-spark path only. Spark always hard-wires `model_reasoning_effort=low`.
+- **`features.fast_mode=true` confirmed** — correct key, non-spark Codex paths only (`gpt-5.4-mini` / `gpt-5.5`). Spark always hard-wires `model_reasoning_effort=low`.
 - **Effort is a `-c` config key, not a CLI flag** — codex exec has no `--effort` flag; xbreed maps `--effort <level>` → `-c model_reasoning_effort=<level>` (confirmed `src/ask.rs:407`).
 - **Validated effort levels**: `low`, `medium`, `high`, `xhigh`. Level `none` not validated by xbreed; may fail at codex runtime.
 - **`-e` shell alias gap (now closed)** — xask previously only parsed `--effort` long form; `xbreed ask` Rust CLI already had `-e`. Shell-layer parity restored by this update.

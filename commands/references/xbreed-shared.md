@@ -284,7 +284,7 @@ For xbgst/xgs/xbt runs whose topic IS codex itself (defaults, flags, latency, ro
 
 - **Godspeed Pareto** (xgs, xbgst): 4 rounds max
 - **Deliberative** (xbt): 4 rounds max (sequential depth)
-- **Solo pipeline** (xbreed, xb): 8 sub-role dispatches max
+- **Solo pipeline** (xbreed, xb): 12 sub-role dispatches max
 - **Labrat Codex swarm**: 3 refire rounds (30 probes) — independent of judge rounds
 
 ## Exit Condition (strict, applies to xgs/xbgst/xbt)

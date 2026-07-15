@@ -3,7 +3,7 @@
 # Usage: xask [-d] [-scp <scope>] [-r] [--spk] [-R] [-F] [--gpt55] [--gs] [-e <level>] [-o <file>] [--json] <model> "<query>" ["<context>"] ["<skill>"]
 #
 # All dispatches route through `xbreed ask`. Always-on: suppression, approval bypass,
-# auth cascade, godspeed forwarding, fast_mode (gpt-5.4 family). See docs/xask-protocol.md.
+# auth cascade, godspeed forwarding, fast_mode (non-spark Codex lanes). See docs/xask-protocol.md.
 #
 # Always-on codex exec flags (applied by src/ask.rs, not user-togglable here):
 #   --skip-git-repo-check · --color never · --ephemeral · --sandbox danger-full-access
@@ -18,7 +18,7 @@
 #   default:       gpt-5.4-mini + fast_mode + reasoning=high (user directive 2026-04-17)
 #   --spark:       gpt-5.3-codex-spark + reasoning=low (labrat probes)
 #   --review / -R: gpt-5.4-mini + fast_mode (reviewer/critic/sentinel default per 2026-04-18)
-#   -R --full/-F:  gpt-5.4 full + fast_mode (the-revenger RECON escape hatch, 1.05M ctx)
+#   -R --full/-F:  gpt-5.5 full + fast_mode (the-revenger RECON escape hatch, 1.05M ctx)
 #   --gpt55:       gpt-5.5 + fast_mode (xbrd-exec bench xask-arm measurement, 2026-04-24)
 #
 # Examples:
@@ -28,7 +28,7 @@
 #   xask -r gemini "Explore the codebase"           # full context, dir tree ON
 #   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
 #   xask -R codex "Adversarial review of <diff>"    # review lane — gpt-5.4-mini
-#   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.4 (1.05M ctx)
+#   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.5 (1.05M ctx)
 #   xask --gpt55 --gs -e high codex "Deep question" # gpt-5.5 lane, explicit godspeed, high effort
 #   xask -e high codex "Deep question"              # explicit reasoning effort
 # PATH self-heal: agent-spawned non-login non-interactive shells get the minimal
