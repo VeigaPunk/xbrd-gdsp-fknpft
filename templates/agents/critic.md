@@ -64,7 +64,7 @@ CONFIDENCE: high | medium | low
 
 ## Delegation (via Bash tool — xask is a shell CLI, not a native tool)
 
-- Primary: `xask --gpt55 --gs -e low codex "<deep design review question>"` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
+- Primary: `xask --gpt55 --gs -e low codex "<deep design review question>"` (gpt-5.6 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
 - Secondary: `xask --effort medium --gs codex "<alternative approaches for this problem>"`
 - Escalation: `advisor()` for multi-factor architectural trade-offs
 

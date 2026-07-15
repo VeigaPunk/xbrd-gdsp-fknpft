@@ -68,7 +68,7 @@ Fall back to manual grep patterns when scanners aren't installed.
 
 ## Delegation (via Bash tool — xask is a shell CLI, not a native tool)
 
-- Primary: `xask -scp "<auth|input|secrets>" --gpt55 --gs -e low codex "<exploit analysis>"` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
+- Primary: `xask -scp "<auth|input|secrets>" --gpt55 --gs -e low codex "<exploit analysis>"` (gpt-5.6 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24)
 - Secondary: `xask --effort medium --gs codex "<CVE/hardening prior art for this stack>"`
 - Escalation: `advisor()` for multi-hop exploit chains (false-negative-sensitive)
 

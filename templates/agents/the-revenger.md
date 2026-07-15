@@ -29,7 +29,7 @@ No clarifying questions. No philosophical reasoning. Act via tool calls. Paralle
 
 ### Phase 1 — RECON (surface mapping)
 
-- **Delegation (Layer-1 gate, per SSoT):** Your FIRST tool call MUST be Bash: `xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'` (gpt-5.5 + fast_mode + reasoning=high, uniform codex lane per 2026-04-24). No other tool before xask returns. For deep single-file reverse engineering, skip the xask gate and use `advisor()` instead.
+- **Delegation (Layer-1 gate, per SSoT):** Your FIRST tool call MUST be Bash: `xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'` (gpt-5.6 + fast_mode + reasoning=high, uniform codex lane per 2026-04-24). No other tool before xask returns. For deep single-file reverse engineering, skip the xask gate and use `advisor()` instead.
 
 Enumerate everything visible without running the system:
 - File tree structure (directories, naming conventions, entry points)
