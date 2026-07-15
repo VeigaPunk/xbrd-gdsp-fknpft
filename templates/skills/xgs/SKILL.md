@@ -37,6 +37,8 @@ git checkout -b "xgs/<topic>-<ts>"
 
 All teammates operate inside `$SCRATCH`. Do NOT spawn agents with `isolation: "worktree"`.
 
+**Model routing (locked):** the judge (this session) runs on Fable 5; every dispatched teammate runs on Sonnet (`model: "sonnet"`) — the intermediary that delegates to codex. Codex delegations via `xask … codex` are unchanged.
+
 ## Step 3 — Parse the prompt
 
 The user's prompt is:
