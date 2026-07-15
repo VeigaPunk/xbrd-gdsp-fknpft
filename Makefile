@@ -43,6 +43,8 @@ verify-install:
 	XBREED_AGENTS_DIR="$$H/.claude/agents" bash tests/axis_family_schema_check.sh
 	@echo "verify: tests/xask_template_missing_fail_loud.sh"; bash tests/xask_template_missing_fail_loud.sh
 	@echo "verify: tests/xask_thinking_budget_reachable.sh"; bash tests/xask_thinking_budget_reachable.sh
+	@echo "verify: tests/xask_dispatch_dir_guard.sh"; bash tests/xask_dispatch_dir_guard.sh
+	@echo "verify: tests/xask_selfheal_smoke.sh"; bash tests/xask_selfheal_smoke.sh
 
 ## verify-docs: check connector routing consistency across SSoT copies
 verify-docs:

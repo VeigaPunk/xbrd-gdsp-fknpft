@@ -99,6 +99,12 @@ SKILL="${4:-godspeed}"
 # through our xask <skill> dispatch — idempotent with the default since SKILL
 # already defaults to "godspeed", but makes intent visible and overrides any
 # non-default positional). Added 2026-04-24 after user request.
+#
+# NOTE (audit 2026-07-15, B5): --gs affects SKILL load ONLY — it does NOT change
+# the codex model. The backing model is fixed by the lane flags above
+# (--spark/--gpt55/-R/default). Model *self-report* ("I am GPT-5.5") is a
+# completion artifact, not a routing oracle — never infer the backing model from
+# what the model says about itself; read the --json usage fields if you must.
 if [ "$FORCE_GS" = true ]; then
   SKILL="godspeed"
 fi
@@ -119,6 +125,24 @@ SCRIPT_DIR="$_XASK_DIR"
 # the same day — dispatch substitution (gemini {{THINKING_BUDGET}} injection) is
 # load-bearing for multi-level effort routing, and xask's raw-$QUERY fallback
 # drops that behavior silently. Override via XBREED_DISPATCH_DIR if needed.
+#
+# XBREED_DISPATCH_DIR confused-deputy guard (audit 2026-07-15, B6). A poisoned env
+# (rogue MCP tool, parent-agent env injection) could point template loading at an
+# attacker-controlled dir whose contents are fed verbatim to
+# `codex exec --sandbox danger-full-access` → RCE. Only honor the override when it
+# canonically resolves to an EXISTING dir under a trusted prefix ($HOME or the
+# install tree). A non-existent override falls through to the fail-loud below.
+if [ -n "${XBREED_DISPATCH_DIR:-}" ] && [ -e "$XBREED_DISPATCH_DIR" ]; then
+  _dd_canon=$(realpath -m -- "$XBREED_DISPATCH_DIR" 2>/dev/null || printf '%s' "$XBREED_DISPATCH_DIR")
+  _home_canon=$(realpath -m -- "$HOME" 2>/dev/null || printf '%s' "$HOME")
+  _inst_canon=$(realpath -m -- "$SCRIPT_DIR/.." 2>/dev/null || printf '%s' "$SCRIPT_DIR/..")
+  case "$_dd_canon/" in
+    "$_home_canon"/*|"$_inst_canon"/*) ;;
+    *) echo "xask: refusing XBREED_DISPATCH_DIR outside trusted tree: $XBREED_DISPATCH_DIR" >&2
+       echo "xask: it must resolve under \$HOME or the xask install tree" >&2
+       exit 1 ;;
+  esac
+fi
 TEMPLATE_DIR="${XBREED_DISPATCH_DIR:-$SCRIPT_DIR/../templates/dispatch}"
 TEMPLATE="$TEMPLATE_DIR/${MODEL}.md"
 
@@ -228,6 +252,15 @@ with open(f, 'w') as fh: json.dump(d, fh, indent=2)
 gemini_rich_cleanup() {
   [ -n "$RICH_TMPDIR" ] && rm -rf "$RICH_TMPDIR"
 }
+
+# Real scope rooting (audit 2026-07-15, B3). --scope is prompt-text advisory: the
+# codex sandbox is danger-full-access, so it does NOT sandbox the filesystem. But
+# when --scope names an existing directory, root the model process there so
+# relative file ops are actually scoped, not merely hinted. String/file scopes
+# (e.g. "entire project", "src/ask.rs") stay advisory-only.
+if [ -d "$SCOPE" ]; then
+  cd "$SCOPE" || { echo "xask: cannot cd into scope dir: $SCOPE" >&2; exit 1; }
+fi
 
 t_start_s=$(date +%s.%N)
 
