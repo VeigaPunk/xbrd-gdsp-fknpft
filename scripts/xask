@@ -11,15 +11,15 @@
 #   -c include_apps_instructions=false · -c include_environment_context=false
 #
 # Flags: -d (debug) | -scp (scope; was -s, renamed 2026-04-24 — -s conflicted)
-#      | -r (rich) | --spk (spark) | -R (review) | -F (full) | --gpt55 (gpt-5.5)
+#      | -r (rich) | --spk (spark) | -R (review) | -F (full) | --gpt55 (gpt-5.6-sol)
 #      | --gs (explicit godspeed SKILL load) | -e (effort) | -o (output-last-message) | --json
 #
 # codex model lanes:
-#   default:       gpt-5.4-mini + fast_mode + reasoning=high (user directive 2026-04-17)
+#   default:       gpt-5.6-sol + fast_mode + reasoning=high (user directive 2026-04-17)
 #   --spark:       gpt-5.3-codex-spark + reasoning=low (labrat probes)
-#   --review / -R: gpt-5.4-mini + fast_mode (reviewer/critic/sentinel default per 2026-04-18)
-#   -R --full/-F:  gpt-5.5 full + fast_mode (the-revenger RECON escape hatch, 1.05M ctx)
-#   --gpt55:       gpt-5.5 + fast_mode (xbrd-exec bench xask-arm measurement, 2026-04-24)
+#   --review / -R: gpt-5.6-sol + fast_mode (reviewer/critic/sentinel default per 2026-04-18)
+#   -R --full/-F:  gpt-5.6-sol full + fast_mode (the-revenger RECON escape hatch, 1.05M ctx)
+#   --gpt55:       gpt-5.6-sol + fast_mode (xbrd-exec bench xask-arm measurement, 2026-04-24)
 #
 # Examples:
 #   xask gemini "What patterns exist?"              # clean, godspeed loaded (default SKILL)
@@ -27,9 +27,9 @@
 #   xask -scp "src/ask.rs" gemini "Review this"     # scoped clean dispatch
 #   xask -r gemini "Explore the codebase"           # full context, dir tree ON
 #   xask --spk codex "Probe this hypothesis"        # fast codex-spark, low effort
-#   xask -R codex "Adversarial review of <diff>"    # review lane — gpt-5.4-mini
-#   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.5 (1.05M ctx)
-#   xask --gpt55 --gs -e high codex "Deep question" # gpt-5.5 lane, explicit godspeed, high effort
+#   xask -R codex "Adversarial review of <diff>"    # review lane — gpt-5.6-sol
+#   xask -R -F codex "RECON codebase-scale"         # -R + -F escape hatch — full gpt-5.6-sol (1.05M ctx)
+#   xask --gpt55 --gs -e high codex "Deep question" # gpt-5.6-sol lane, explicit godspeed, high effort
 #   xask -e high codex "Deep question"              # explicit reasoning effort
 # PATH self-heal: agent-spawned non-login non-interactive shells get the minimal
 # default PATH and miss ~/.local/bin, where xbreed (called by bare name below) lives.

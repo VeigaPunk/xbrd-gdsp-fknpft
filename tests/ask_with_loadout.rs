@@ -243,7 +243,7 @@ fn ask_codex_route_preserves_full_unlock_contract() {
 
     // M7 (mutation sentinels): --ephemeral and features.fast_mode=true must
     // survive any refactor. Ephemeral ensures no session bleed across headless
-    // dispatches. fast_mode=true is the non-spark performance path for gpt-5.4
+    // dispatches. fast_mode=true is the non-spark performance path for gpt-5.6-sol
     // family. Mutation-r1 confirmed both are live kill-switch targets.
     assert!(
         argv.iter().any(|a| a == "--ephemeral"),
@@ -255,11 +255,11 @@ fn ask_codex_route_preserves_full_unlock_contract() {
     );
 
     // M10 (explicit codex default model pin): the default (non-spark, non-review)
-    // dispatch lane must include -m gpt-5.4-mini so a codex version bump that
+    // dispatch lane must include -m gpt-5.6-sol so a codex version bump that
     // shifts the default model is caught at argv audit time, not silently.
     // Pairs with ask.rs constant CODEX_MINI_MODEL and ~/.codex/config.toml SSoT.
     // User directive 2026-04-17: mini is the standing default; review lane
-    // (`xask -R codex`) is the path to gpt-5.4-mini.
+    // (`xask -R codex`) is the path to gpt-5.6-sol.
     let m_idx = argv.iter().position(|a| a == "-m");
     assert!(
         m_idx.is_some(),
@@ -267,8 +267,8 @@ fn ask_codex_route_preserves_full_unlock_contract() {
     );
     assert_eq!(
         argv[m_idx.unwrap() + 1],
-        "gpt-5.4-mini",
-        "default (non-spark, non-review) path must pin -m gpt-5.4-mini: {argv:?}"
+        "gpt-5.6-sol",
+        "default (non-spark, non-review) path must pin -m gpt-5.6-sol: {argv:?}"
     );
 }
 
@@ -497,9 +497,9 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
 }
 
 /// M12 (-R -F escape hatch plumb) — end-to-end contract: when
-/// `xbreed ask codex --review --full` is invoked, `-m gpt-5.5` (not
-/// `gpt-5.4-mini`) must reach codex argv. Without --full, -R routes to
-/// gpt-5.4-mini default.
+/// `xbreed ask codex --review --full` is invoked, `-m gpt-5.6-sol` (not
+/// `gpt-5.6-sol`) must reach codex argv. Without --full, -R routes to
+/// gpt-5.6-sol default.
 ///
 /// Guards the three-layer plumb: cli.rs (--full/-F field) → main.rs
 /// (destructure + pass) → ask.rs (review && full branch pins CODEX_FULL_MODEL).
@@ -511,7 +511,7 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
     let home = tmp.path();
     let bin_dir = home.join("bin");
 
-    // Case 1: -R --full → -m gpt-5.5 (full)
+    // Case 1: -R --full → -m gpt-5.6-sol (full)
     let log_full = home.join("codex_full.log");
     write_stub(&bin_dir, "codex", &log_full);
     let out_full = run_xbreed_ask(
@@ -531,11 +531,11 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
         .expect("missing -m flag in -R -F argv");
     assert_eq!(
         argv_full[m_idx + 1],
-        "gpt-5.5",
-        "-R --full must pin -m gpt-5.5 (full): {argv_full:?}"
+        "gpt-5.6-sol",
+        "-R --full must pin -m gpt-5.6-sol (full): {argv_full:?}"
     );
 
-    // Case 2: -R without --full → -m gpt-5.4-mini (review lane default)
+    // Case 2: -R without --full → -m gpt-5.6-sol (review lane default)
     let log_mini = home.join("codex_mini.log");
     write_stub(&bin_dir, "codex", &log_mini);
     let out_mini = run_xbreed_ask(home, &bin_dir, &["ask", "codex", "--review", "review this"]);
@@ -547,8 +547,8 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
         .expect("missing -m in -R argv");
     assert_eq!(
         argv_mini[m_idx_mini + 1],
-        "gpt-5.4-mini",
-        "-R without --full must pin -m gpt-5.4-mini (review default 2026-04-18): {argv_mini:?}"
+        "gpt-5.6-sol",
+        "-R without --full must pin -m gpt-5.6-sol (review default 2026-04-18): {argv_mini:?}"
     );
 
     // Case 3: --full without -R is a no-op → mini (not full)
@@ -563,7 +563,7 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
         .expect("missing -m in --full-only argv");
     assert_eq!(
         argv_noop[m_idx_noop + 1],
-        "gpt-5.4-mini",
+        "gpt-5.6-sol",
         "--full without -R must route to mini (default lane): {argv_noop:?}"
     );
 }
@@ -595,8 +595,8 @@ fn dispatch_codex_full_flag_threads_through() {
         .expect("missing -m flag in -R -F argv");
     assert_eq!(
         argv[m_idx + 1],
-        "gpt-5.5",
-        "-R --full must pin -m gpt-5.5 and thread it through dispatch: {argv:?}"
+        "gpt-5.6-sol",
+        "-R --full must pin -m gpt-5.6-sol and thread it through dispatch: {argv:?}"
     );
 }
 

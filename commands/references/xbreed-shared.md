@@ -34,11 +34,11 @@ Include as FIRST instruction in every teammate brief that requires cross-model d
 
 **Layer 1 — Gate (structural):**
 - **scout**: `"Your FIRST tool call MUST be Bash: xask --effort medium --gs codex '<research question>'. No other tool before xask returns."` (scout applies built-in curation taste; escalate to `--effort high` for high-ambiguity research.)
-- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<review question>'. No other tool before xask returns."` (`--gpt55 -e low` = gpt-5.5 + `features.fast_mode=true` + reasoning=low; uniform codex lane for review-class roles per 2026-04-24 pivot — supersedes the prior `-R codex` → gpt-5.4-mini routing. For diffs spanning >10 files, caller MUST pass `-scp <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.)
+- **reviewer**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<review question>'. No other tool before xask returns."` (`--gpt55 -e low` = gpt-5.6-sol + `features.fast_mode=true` + reasoning=low; uniform codex lane for review-class roles per 2026-04-24 pivot — supersedes the prior `-R codex` → gpt-5.6-sol routing. For diffs spanning >10 files, caller MUST pass `-scp <behavioral-change-files>` to scope the review (e.g. `git diff --name-only | grep -v generated | grep -v lock`). Closes the churn-padding attack vector where reviewer misses real bugs behind noisy renames/lockfiles.)
 - **labrat**: `"Your FIRST tool call MUST be Bash: xask --spark --gs codex '<probe hypothesis>'. No other tool before xask returns."`
 - **connector**: `"Your FIRST tool call MUST be Bash: xask --effort medium codex '<pattern question>'. No other tool before xask returns."` *(codex-medium primary; fallback on failure is **sonnet in-session** — compose from Grep/Read within the reasoning cap. Connector deliberately omits `--gs` to avoid stacking a second godspeed frame on top of the `| godspeed` suffix on a lane already prone to pontification (`feedback_connector_stall.md`).)*
-- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'. No other tool before xask returns."` (`--gpt55 -e high` = gpt-5.5 + fast_mode + reasoning=high; uniform with other codex lanes per 2026-04-24. Supersedes the prior `-R -F codex` → full gpt-5.4 / 1.05M context route — RECON now works within gpt-5.5's default window. For deep single-file reverse engineering, skip the xask gate and use advisor() instead.)
-- **sentinel**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."` (gpt-5.5-low, uniform codex lane)
+- **the-revenger**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e high codex '<RECON / surface enumeration question>'. No other tool before xask returns."` (`--gpt55 -e high` = gpt-5.6-sol + fast_mode + reasoning=high; uniform with other codex lanes per 2026-04-24. Supersedes the prior `-R -F codex` → full gpt-5.6-sol / 1.05M context route — RECON now works within gpt-5.6-sol's default window. For deep single-file reverse engineering, skip the xask gate and use advisor() instead.)
+- **sentinel**: `"Your FIRST tool call MUST be Bash: xask --gpt55 --gs -e low codex '<exploit/vulnerability analysis question>'. No other tool before xask returns."` (gpt-5.6-sol-low, uniform codex lane)
 - **critic**: `"Your FIRST tool call MUST be Skill(skill='heuer-planning') — this is Layer 0. After the skill loads, your SECOND tool call MUST be Bash: xask --gpt55 --gs -e low codex '<design review question>'. No other tool before xask returns."` (critic runs sonnet · medium per the unified scheme 2026-04-17 — the Axis → Profile Mapping below is authoritative; Layer-0 heuer-planning load applies to all critic teammates via on_spawn_skill frontmatter. If the skill is unavailable in the environment, the critic notes it and proceeds to Layer 1.)
 - **mutation-tester**: `"Your FIRST tool call MUST be Bash, EITHER: (a) `xask --spark --gs codex '<generate mutation for this function>'` for a single targeted mutation (fast spot-check), OR (b) `xask --effort high --gs codex '<generate N mutations of <fn>; vary angle per mutation (boundary, operator-flip, return-swap, error-path, off-by-one); return HYPOTHESIS/METHOD/RESULT per mutation>'` for systematic breadth coverage. No other tool before xask returns. Pick (a) for ≤4 mutation targets, (b) for ≥5 or for breadth discovery."`
 - **executor**: `"Your FIRST tool call MUST be Bash: xask --spark --gs codex '<task>'. No other tool before xask returns."`
@@ -80,12 +80,13 @@ files still reads `medium` (per earlier unified scheme work). The
 ~/.bashrc DEBUG trap maps every teammate prefix (`cco-`, `ccs-`, `cdx-`)
 to `CLAUDE_CODE_EFFORT_LEVEL=medium`; the judge keyword maps to `high`.
 
-Codex dispatches unified on gpt-5.5 + `features.fast_mode=true` per 2026-04-24
+Codex dispatches unified on gpt-5.6-sol + `features.fast_mode=true` per 2026-04-24
 pivot — one model, effort dial: review-class roles (reviewer/sentinel/critic)
 route via `xask --gpt55 --gs -e low codex`; the-revenger RECON via
 `xask --gpt55 --gs -e high codex`; labrat/executor/mutation-tester-single
 via `xask --spark --gs codex` (gpt-5.3-codex-spark, reasoning=low). Supersedes
-the prior `gpt-5.4-mini`/`-R`-default + `gpt-5.4`-full/`-R -F`-escape split
+the prior `--review`/`-R` and `-R -F` split now routes on the single
+codex family (`gpt-5.6-sol`) via `src/ask.rs` constants and `features.fast_mode`
 (handled by `src/ask.rs` `CODEX_55_MODEL` / `CODEX_SPARK_MODEL`).
 
 **Mandatory connector on every round:** the-judge MUST spawn a `connector`
@@ -97,13 +98,13 @@ construction. Skipping connector is a structural gap, not a speed optimization.
 | Axis family | Role | Model | xask target | Tools |
 |---|---|---|---|---|
 | Research, prior art | `scout` | sonnet · medium | `xask --effort medium --gs codex` (scout applies built-in curation taste; escalate to `--effort high` for high-ambiguity research) | All |
-| Correctness, bugs | `reviewer` | sonnet · medium | `xask --gpt55 --gs -e low codex` (gpt-5.5 + fast_mode + reasoning=low, uniform codex lane per 2026-04-24) | All |
+| Correctness, bugs | `reviewer` | sonnet · medium | `xask --gpt55 --gs -e low codex` (gpt-5.6-sol + fast_mode + reasoning=low, uniform codex lane per 2026-04-24) | All |
 | Empirical probes | `labrat` | sonnet · medium | `xask --spark --gs codex` | All |
 | Code execution | `executor` | sonnet · medium | `xask --spark --gs codex` | All |
 | Cross-axis patterns | `connector` | sonnet · medium | via Bash tool — xask is a shell CLI on PATH, not a native tool: `xask --effort medium codex` (primary; no `--gs` — avoids double-godspeed frame on pontification-prone lane) → **sonnet in-session** (fallback — composes from Grep/Read within the reasoning cap; emit `obs: xask BLOCKED [exact stderr]` only after that Bash invocation actually runs and errors) | All |
 | Synthesis, dedup | `distiller` | sonnet · medium | in-session | All |
 | Deletion, YAGNI | `simplifier` | sonnet · medium | CC native | All |
-| Reverse engineering | `the-revenger` | sonnet · medium | `xask --gpt55 --gs -e high codex` for RECON (gpt-5.5 high, uniform lane per 2026-04-24); skip xask for in-repo single-file RE and use advisor() instead | All |
+| Reverse engineering | `the-revenger` | sonnet · medium | `xask --gpt55 --gs -e high codex` for RECON (gpt-5.6-sol high, uniform lane per 2026-04-24); skip xask for in-repo single-file RE and use advisor() instead | All |
 | Security auditing | `sentinel` | sonnet · medium | `xask --gpt55 --gs -e low codex` + `xask --effort medium --gs codex` for CVE prior art | All |
 | Planning, Phase 0, WWKD sequencing | `the-planner` | sonnet · medium · Layer-0 wwkd skill load | CC native — spawned FIRST at Phase 0 by the-judge to map skeleton before specialist dispatch | All |
 | Adversarial design | `critic` | sonnet · medium · Layer-0 heuer-planning skill load | `xask --gpt55 --gs -e low codex` | All |

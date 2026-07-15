@@ -15,15 +15,15 @@ use std::process::Command;
 /// Five lanes select the codex model family:
 /// - `spark=true`            → [`CODEX_SPARK_MODEL`] + `model_reasoning_effort=low`
 ///   (no fast_mode). Labrat probes, cheap/fast/expendable.
-/// - `gpt55=true` (and not spark) → [`CODEX_55_MODEL`] (`gpt-5.5`) +
+/// - `gpt55=true` (and not spark) → [`CODEX_55_MODEL`] (`gpt-5.6-sol`) +
 ///   `features.fast_mode=true`. Added 2026-04-24 for the xbrd-exec bench
-///   (xask-arm gpt-5.5 measurement). Orthogonal to review/full — those are
+///   (xask-arm gpt-5.6-sol measurement). Orthogonal to review/full — those are
 ///   5.5-family lanes; `gpt55` short-circuits them.
-/// - `review=true, full=true` → [`CODEX_FULL_MODEL`] (`gpt-5.5` full, 1.05M ctx) +
+/// - `review=true, full=true` → [`CODEX_FULL_MODEL`] (`gpt-5.6-sol` full, 1.05M ctx) +
 ///   `features.fast_mode=true`. The escape hatch (user directive 2026-04-18) for
 ///   the-revenger RECON where stitching codebase-scale evidence needs the larger
 ///   context window.
-/// - `review=true` (no full)  → [`CODEX_MINI_MODEL`] (`gpt-5.4-mini`, 400K ctx) +
+/// - `review=true` (no full)  → [`CODEX_MINI_MODEL`] (`gpt-5.6-sol`, 400K ctx) +
 ///   `features.fast_mode=true`. Review lane default per 2026-04-18 directive.
 /// - otherwise                → [`CODEX_MINI_MODEL`] + `features.fast_mode=true`.
 ///   Default non-spark lane; mini handles execution/labrat/scout/etc.
@@ -82,14 +82,14 @@ pub fn build_codex_ask_with_loadout(
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
     } else if gpt55 {
-        // Explicit gpt-5.5 lane — short-circuits review/full (those are
+        // Explicit gpt-5.6-sol lane — short-circuits review/full (those are
         // 5.5-family). fast_mode enabled for parity with mini/full lanes
         // so `xask --gpt55 -e <effort> codex` is the canonical xbreed
         // entry point for 5.5 xask-arm dispatches.
         c.arg("-m").arg(CODEX_55_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
     } else if review && full {
-        // -R -F escape hatch: full gpt-5.5 (1.05M ctx) for the-revenger RECON
+        // -R -F escape hatch: full gpt-5.6-sol (1.05M ctx) for the-revenger RECON
         // where the larger context window earns the cost. User directive 2026-04-18.
         c.arg("-m").arg(CODEX_FULL_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
@@ -134,28 +134,28 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
 /// The codex model used for spark (cheap/fast/expendable) probes.
 pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
 
-/// The codex model used for the `-R -F` escape hatch — full `gpt-5.5`,
+/// The codex model used for the `-R -F` escape hatch — full `gpt-5.6-sol`,
 /// codex's full-capacity model in v0.120.0 (1.05M context window). Reserved
 /// for the-revenger RECON tasks stitching codebase-scale evidence where
 /// mini's 400K ceiling would silently truncate. User directive 2026-04-18.
-pub const CODEX_FULL_MODEL: &str = "gpt-5.5";
+pub const CODEX_FULL_MODEL: &str = "gpt-5.6-sol";
 
-/// The codex model used for the default non-spark lane — `gpt-5.4-mini`,
+/// The codex model used for the default non-spark lane — `gpt-5.6-sol`,
 /// introduced as the standing default 2026-04-17 and extended to the review
 /// lane default 2026-04-18. Handles execution/labrat/scout/planning/synthesis
 /// AND reviewer/critic/sentinel work at a fraction of the cost and round-time
 /// of full 5.4, while still supporting `features.fast_mode=true`. The-revenger
 /// RECON escalates via `-R -F` to reach [`CODEX_FULL_MODEL`] for the larger
 /// context window.
-pub const CODEX_MINI_MODEL: &str = "gpt-5.4-mini";
+pub const CODEX_MINI_MODEL: &str = "gpt-5.6-sol";
 
-/// The codex model reached via `xask --gpt55 codex` — `gpt-5.5`. Added
+/// The codex model reached via `xask --gpt55 codex` — `gpt-5.6-sol`. Added
 /// 2026-04-24 so the xbrd-exec bench can measure xask-arm latency/throughput
 /// for 5.5 and compute Δ_wrap (xask wrapper overhead) by comparison against
-/// the raw `codex exec -m gpt-5.5` arm already benched. Supports all four
+/// the raw `codex exec -m gpt-5.6-sol` arm already benched. Supports all four
 /// effort levels (low/medium/high/xhigh) via the standard `-e` flag — fast_mode
 /// enabled to mirror the mini/full lanes' default posture.
-pub const CODEX_55_MODEL: &str = "gpt-5.5";
+pub const CODEX_55_MODEL: &str = "gpt-5.6-sol";
 
 // ========================================================================
 // Gemini OAuth — single default path (2026-04-19 cascade collapse)
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn codex_ask_default_lane_uses_mini_model() {
-        // Default lane (spark=false, review=false, full=false) = gpt-5.4-mini + fast_mode.
+        // Default lane (spark=false, review=false, full=false) = gpt-5.6-sol + fast_mode.
         // User directive 2026-04-17 — mini is the standing default; 2026-04-18
         // extended mini to the review lane default, with -R -F as escape hatch
         // to full 5.4 for the-revenger RECON.
@@ -479,7 +479,7 @@ mod tests {
         // dispatch (emits ANSI escapes that poison downstream parsers). Always-on.
         assert!(args.contains(&"--color".to_string()));
         assert!(args.contains(&"never".to_string()));
-        // Default lane pins CODEX_MINI_MODEL (gpt-5.4-mini) explicitly.
+        // Default lane pins CODEX_MINI_MODEL (gpt-5.6-sol) explicitly.
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
         // Yolo / allow-all-tools sandbox unlock — see feedback_yolo_routing.md
@@ -492,8 +492,8 @@ mod tests {
 
     #[test]
     fn codex_ask_review_default_uses_mini_model() {
-        // Review lane default (review=true, full=false) routes to gpt-5.4-mini
-        // per user directive 2026-04-18 (migrated from full gpt-5.4).
+        // Review lane default (review=true, full=false) routes to gpt-5.6-sol
+        // per user directive 2026-04-18 (migrated from prior full-review defaults).
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, false, false, None);
         c.arg("review this").arg(""); // second arg is a no-op placeholder
@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn codex_ask_review_full_flag_uses_full_model() {
-        // -R -F escape hatch (review=true, full=true) routes to full gpt-5.5
+        // -R -F escape hatch (review=true, full=true) routes to full gpt-5.6-sol
         // for the-revenger RECON with 1.05M context window. User directive
         // 2026-04-18.
         let mut c =
@@ -515,7 +515,7 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(
             args.contains(&CODEX_FULL_MODEL.to_string()),
-            "-R -F must pin -m gpt-5.5 (full) for the-revenger RECON: {args:?}"
+            "-R -F must pin -m gpt-5.6-sol (full) for the-revenger RECON: {args:?}"
         );
         assert!(
             !args.contains(&CODEX_MINI_MODEL.to_string()),
@@ -540,7 +540,7 @@ mod tests {
 
     #[test]
     fn codex_ask_gpt55_lane_uses_55_model_with_fast_mode() {
-        // --gpt55 routes to gpt-5.5 with fast_mode enabled. Effort is applied
+        // --gpt55 routes to gpt-5.6-sol with fast_mode enabled. Effort is applied
         // by dispatch() via -c model_reasoning_effort=<e> (not this function).
         // Added 2026-04-24 for xbrd-exec bench xask-arm measurement.
         let mut c =
@@ -550,7 +550,7 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(
             args.contains(&CODEX_55_MODEL.to_string()),
-            "--gpt55 must pin -m gpt-5.5: {args:?}"
+            "--gpt55 must pin -m gpt-5.6-sol: {args:?}"
         );
         assert!(
             !args.contains(&CODEX_MINI_MODEL.to_string()),
@@ -577,8 +577,8 @@ mod tests {
 
     #[test]
     fn codex_ask_gpt55_short_circuits_review_and_full() {
-        // --gpt55 short-circuits review/full (those route to 5.5 family; explicit
-        // gpt-5.5 model pin wins over review-lane defaulting).
+        // --gpt55 short-circuits review/full (those route to 5.6 family; explicit
+        // gpt-5.6-sol model pin wins over review-lane defaulting).
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, true, false, None);
         c.arg("probe");
