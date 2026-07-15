@@ -111,10 +111,10 @@ deny_tools: []"#
         writeln!(
             f,
             r#"claude:
-  default: fable
+  default: claude-opus-4-7
   effort: max
 codex:
-  default: gpt-5.4
+  default: gpt-5.5
   reasoning_effort: xhigh
   features:
     fast_mode: true
@@ -123,8 +123,8 @@ gemini:
         )
         .unwrap();
         let m = Models::load(f.path()).unwrap();
-        assert_eq!(m.claude.default, "fable");
-        assert_eq!(m.codex.default, "gpt-5.4");
+        assert_eq!(m.claude.default, "claude-opus-4-7");
+        assert_eq!(m.codex.default, "gpt-5.5");
         assert_eq!(m.codex.reasoning_effort, "xhigh");
         assert_eq!(m.codex.features.get("fast_mode"), Some(&true));
         assert_eq!(m.gemini.default, "gemini-3.1-pro-preview");

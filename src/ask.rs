@@ -18,8 +18,8 @@ use std::process::Command;
 /// - `gpt55=true` (and not spark) → [`CODEX_55_MODEL`] (`gpt-5.5`) +
 ///   `features.fast_mode=true`. Added 2026-04-24 for the xbrd-exec bench
 ///   (xask-arm gpt-5.5 measurement). Orthogonal to review/full — those are
-///   5.4-family lanes; `gpt55` short-circuits them.
-/// - `review=true, full=true` → [`CODEX_FULL_MODEL`] (`gpt-5.4` full, 1.05M ctx) +
+///   5.5-family lanes; `gpt55` short-circuits them.
+/// - `review=true, full=true` → [`CODEX_FULL_MODEL`] (`gpt-5.5` full, 1.05M ctx) +
 ///   `features.fast_mode=true`. The escape hatch (user directive 2026-04-18) for
 ///   the-revenger RECON where stitching codebase-scale evidence needs the larger
 ///   context window.
@@ -83,13 +83,13 @@ pub fn build_codex_ask_with_loadout(
         c.arg("-c").arg("model_reasoning_effort=low");
     } else if gpt55 {
         // Explicit gpt-5.5 lane — short-circuits review/full (those are
-        // 5.4-family). fast_mode enabled for parity with mini/full lanes
+        // 5.5-family). fast_mode enabled for parity with mini/full lanes
         // so `xask --gpt55 -e <effort> codex` is the canonical xbreed
         // entry point for 5.5 xask-arm dispatches.
         c.arg("-m").arg(CODEX_55_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
     } else if review && full {
-        // -R -F escape hatch: full gpt-5.4 (1.05M ctx) for the-revenger RECON
+        // -R -F escape hatch: full gpt-5.5 (1.05M ctx) for the-revenger RECON
         // where the larger context window earns the cost. User directive 2026-04-18.
         c.arg("-m").arg(CODEX_FULL_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
@@ -134,11 +134,11 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-3.1-pro-preview";
 /// The codex model used for spark (cheap/fast/expendable) probes.
 pub const CODEX_SPARK_MODEL: &str = "gpt-5.3-codex-spark";
 
-/// The codex model used for the `-R -F` escape hatch — full `gpt-5.4`,
+/// The codex model used for the `-R -F` escape hatch — full `gpt-5.5`,
 /// codex's full-capacity model in v0.120.0 (1.05M context window). Reserved
 /// for the-revenger RECON tasks stitching codebase-scale evidence where
 /// mini's 400K ceiling would silently truncate. User directive 2026-04-18.
-pub const CODEX_FULL_MODEL: &str = "gpt-5.4";
+pub const CODEX_FULL_MODEL: &str = "gpt-5.5";
 
 /// The codex model used for the default non-spark lane — `gpt-5.4-mini`,
 /// introduced as the standing default 2026-04-17 and extended to the review
@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn codex_ask_review_full_flag_uses_full_model() {
-        // -R -F escape hatch (review=true, full=true) routes to full gpt-5.4
+        // -R -F escape hatch (review=true, full=true) routes to full gpt-5.5
         // for the-revenger RECON with 1.05M context window. User directive
         // 2026-04-18.
         let mut c =
@@ -515,7 +515,7 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(
             args.contains(&CODEX_FULL_MODEL.to_string()),
-            "-R -F must pin -m gpt-5.4 (full) for the-revenger RECON: {args:?}"
+            "-R -F must pin -m gpt-5.5 (full) for the-revenger RECON: {args:?}"
         );
         assert!(
             !args.contains(&CODEX_MINI_MODEL.to_string()),
@@ -556,10 +556,6 @@ mod tests {
             !args.contains(&CODEX_MINI_MODEL.to_string()),
             "--gpt55 must NOT route to mini: {args:?}"
         );
-        assert!(
-            !args.contains(&CODEX_FULL_MODEL.to_string()),
-            "--gpt55 must NOT route to full 5.4: {args:?}"
-        );
         assert!(args.contains(&"features.fast_mode=true".to_string()));
         assert_eq!(*args.last().unwrap(), "probe-55");
     }
@@ -581,7 +577,7 @@ mod tests {
 
     #[test]
     fn codex_ask_gpt55_short_circuits_review_and_full() {
-        // --gpt55 short-circuits review/full (those route to 5.4 family; explicit
+        // --gpt55 short-circuits review/full (those route to 5.5 family; explicit
         // gpt-5.5 model pin wins over review-lane defaulting).
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, true, false, None);
@@ -589,8 +585,8 @@ mod tests {
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_55_MODEL.to_string()));
         assert!(
-            !args.contains(&CODEX_FULL_MODEL.to_string()),
-            "--gpt55 must short-circuit -R -F (no gpt-5.4 full): {args:?}"
+            !args.contains(&CODEX_MINI_MODEL.to_string()),
+            "--gpt55 must short-circuit -R -F (no mini path): {args:?}"
         );
     }
 
@@ -603,7 +599,7 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_SPARK_MODEL.to_string()));
         assert!(args.contains(&"model_reasoning_effort=low".to_string()));
-        // fast_mode is gpt-5.4 only — must NOT be present on spark path
+        // fast_mode is non-spark Codex lanes only — must NOT be present on spark path
         assert!(!args.contains(&"features.fast_mode=true".to_string()));
         // Yolo sandbox applies to spark too — labrats need all-tool access
         assert!(args.contains(&"--sandbox".to_string()));

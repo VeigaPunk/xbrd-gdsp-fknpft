@@ -1,8 +1,8 @@
 claude:
-  default: fable
+  default: claude-opus-4-7
   effort: xhigh
 codex:
-  default: gpt-5.4
+  default: gpt-5.5
   reasoning_effort: xhigh
   features:
     fast_mode: true

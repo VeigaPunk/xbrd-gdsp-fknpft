@@ -497,7 +497,7 @@ fn ask_codex_output_last_message_flag_reaches_codex_argv() {
 }
 
 /// M12 (-R -F escape hatch plumb) — end-to-end contract: when
-/// `xbreed ask codex --review --full` is invoked, `-m gpt-5.4` (not
+/// `xbreed ask codex --review --full` is invoked, `-m gpt-5.5` (not
 /// `gpt-5.4-mini`) must reach codex argv. Without --full, -R routes to
 /// gpt-5.4-mini default.
 ///
@@ -511,7 +511,7 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
     let home = tmp.path();
     let bin_dir = home.join("bin");
 
-    // Case 1: -R --full → -m gpt-5.4 (full)
+    // Case 1: -R --full → -m gpt-5.5 (full)
     let log_full = home.join("codex_full.log");
     write_stub(&bin_dir, "codex", &log_full);
     let out_full = run_xbreed_ask(
@@ -531,8 +531,8 @@ fn ask_codex_review_full_flag_routes_to_full_model() {
         .expect("missing -m flag in -R -F argv");
     assert_eq!(
         argv_full[m_idx + 1],
-        "gpt-5.4",
-        "-R --full must pin -m gpt-5.4 (full): {argv_full:?}"
+        "gpt-5.5",
+        "-R --full must pin -m gpt-5.5 (full): {argv_full:?}"
     );
 
     // Case 2: -R without --full → -m gpt-5.4-mini (review lane default)
@@ -595,8 +595,8 @@ fn dispatch_codex_full_flag_threads_through() {
         .expect("missing -m flag in -R -F argv");
     assert_eq!(
         argv[m_idx + 1],
-        "gpt-5.4",
-        "-R --full must pin -m gpt-5.4 and thread it through dispatch: {argv:?}"
+        "gpt-5.5",
+        "-R --full must pin -m gpt-5.5 and thread it through dispatch: {argv:?}"
     );
 }
 

@@ -54,12 +54,12 @@ pub enum Commands {
         #[arg(long)]
         spark: bool,
         /// Enter the review lane (codex only). By default routes to
-        /// gpt-5.4-mini. Combine with --full/-F to route to full gpt-5.4
+        /// gpt-5.4-mini. Combine with --full/-F to route to full gpt-5.5
         /// (the-revenger-class RECON work where the 1.05M context window
         /// earns the cost). Mutually exclusive with --spark; --spark wins.
         #[arg(long, short = 'R')]
         review: bool,
-        /// Escape hatch for the review lane: route -R to full gpt-5.4
+        /// Escape hatch for the review lane: route -R to full gpt-5.5
         /// (1.05M context) instead of the default gpt-5.4-mini (400K context).
         /// Reserved for the-revenger RECON tasks stitching codebase-scale
         /// evidence. No effect without --review/-R.
@@ -70,7 +70,7 @@ pub enum Commands {
         /// xbrd-exec bench — enables xask-arm measurement of gpt-5.5 so the
         /// comparison of 5.5 via raw codex exec vs via xbreed wrapper becomes
         /// expressible. Mutually exclusive with --spark (spark wins); orthogonal
-        /// to --review/--full (those route to 5.4 family regardless).
+        /// to --review/--full (those route to 5.5 family).
         #[arg(long = "gpt55")]
         gpt55: bool,
         /// Emit raw JSON from codex exec responses (codex only).
