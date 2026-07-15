@@ -111,7 +111,7 @@ deny_tools: []"#
         writeln!(
             f,
             r#"claude:
-  default: claude-opus-4-7
+  default: claude-opus-4-8
   effort: max
 codex:
   default: gpt-5.5
@@ -123,7 +123,7 @@ gemini:
         )
         .unwrap();
         let m = Models::load(f.path()).unwrap();
-        assert_eq!(m.claude.default, "claude-opus-4-7");
+        assert_eq!(m.claude.default, "claude-opus-4-8");
         assert_eq!(m.codex.default, "gpt-5.5");
         assert_eq!(m.codex.reasoning_effort, "xhigh");
         assert_eq!(m.codex.features.get("fast_mode"), Some(&true));

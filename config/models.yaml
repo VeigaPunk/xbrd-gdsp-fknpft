@@ -1,5 +1,5 @@
 claude:
-  default: claude-opus-4-7
+  default: claude-opus-4-8
   effort: xhigh
 codex:
   default: gpt-5.5
