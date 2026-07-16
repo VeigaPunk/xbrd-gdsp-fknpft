@@ -81,6 +81,7 @@ pub fn build_codex_ask_with_loadout(
     if spark {
         c.arg("-m").arg(CODEX_SPARK_MODEL);
         c.arg("-c").arg("model_reasoning_effort=low");
+        // spark uses a different model family; no context-window override.
     } else if gpt55 {
         // Explicit gpt-5.6-sol lane — short-circuits review/full (those are
         // 5.5-family). fast_mode enabled for parity with mini/full lanes
@@ -88,17 +89,30 @@ pub fn build_codex_ask_with_loadout(
         // entry point for 5.5 xask-arm dispatches.
         c.arg("-m").arg(CODEX_55_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
+        // 400K context window — same cap as the default/review lane.
+        c.arg("-c").arg("model_context_window=400000");
+        c.arg("-c").arg("model_auto_compact_token_limit=360000");
     } else if review && full {
         // -R -F escape hatch: full gpt-5.6-sol (1.05M ctx) for the-revenger RECON
         // where the larger context window earns the cost. User directive 2026-04-18.
+        // model_context_window=1050000 and model_auto_compact_token_limit=945000 are
+        // the supported codex -c params that make this lane materially distinct from
+        // the default/review 400K lane even though both pin the same model name.
         c.arg("-m").arg(CODEX_FULL_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
+        c.arg("-c").arg("model_context_window=1050000");
+        c.arg("-c").arg("model_auto_compact_token_limit=945000");
     } else {
         // Default + review-default lanes both route to mini (400K ctx) + fast_mode.
         // User directive 2026-04-18 — review lane migrated to mini; escape hatch
         // via --full/-F above when RECON-class context is needed.
         c.arg("-m").arg(CODEX_MINI_MODEL);
         c.arg("-c").arg("features.fast_mode=true");
+        // 400K context window — the default/review lane cap. Explicit so the Rust
+        // dispatch layer communicates the ceiling and tests can assert it without
+        // relying on model-name strings (FULL and MINI share the same name).
+        c.arg("-c").arg("model_context_window=400000");
+        c.arg("-c").arg("model_auto_compact_token_limit=360000");
     }
 
     if !loadout.is_empty() {
@@ -252,12 +266,27 @@ pub fn execute_with_timeout(
 ) -> Result<std::process::Output> {
     use std::io::Read;
 
+    // On Unix: put the child in its own process group so that a kill on timeout
+    // reaches the child AND all grandchildren (e.g. a bash wrapper that spawns
+    // `sleep`). Without this, only the direct child is killed; grandchildren get
+    // reparented to PID 1 and continue consuming process slots, file descriptors,
+    // and (for gemini) API quota. Child becomes the group leader → PGID == child PID.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+
     cmd.stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
 
     let mut child = cmd
         .spawn()
         .map_err(|e| anyhow::anyhow!("failed to spawn command: {e}"))?;
+
+    // Capture PID before taking pipes. On Unix this equals PGID after
+    // process_group(0) above (child is the group leader).
+    let child_pid = child.id();
 
     let stdout_pipe = child.stdout.take().expect("stdout piped");
     let stderr_pipe = child.stderr.take().expect("stderr piped");
@@ -296,6 +325,17 @@ pub fn execute_with_timeout(
             })
         }
         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            // On Unix: send SIGKILL to the entire process group (child + grandchildren).
+            // PGID == child_pid because we used process_group(0) at spawn time.
+            // child.kill() after this is a no-op if the group kill already reaped
+            // the leader, but is kept as a cross-platform fallback.
+            #[cfg(unix)]
+            // SAFETY: kill(-pgid, SIGKILL) is async-signal-safe; child_pid fits
+            // in pid_t on all supported platforms (both u32); we ignore ESRCH
+            // (already dead) and EPERM (shouldn't happen — we own this group).
+            unsafe {
+                libc::kill(-(child_pid as libc::pid_t), libc::SIGKILL);
+            }
             child.kill().ok();
             child.wait().ok();
             anyhow::bail!(
@@ -305,9 +345,16 @@ pub fn execute_with_timeout(
             )
         }
         Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+            #[cfg(unix)]
+            unsafe {
+                libc::kill(-(child_pid as libc::pid_t), libc::SIGKILL);
+            }
             child.kill().ok();
             child.wait().ok();
-            anyhow::bail!("xask-timeout: command worker thread disconnected unexpectedly")
+            anyhow::bail!(
+                "xask-timeout: worker thread disconnected unexpectedly \
+                 (child PID {child_pid} killed)"
+            )
         }
     }
 }
@@ -451,10 +498,10 @@ mod tests {
 
     #[test]
     fn codex_ask_default_lane_uses_mini_model() {
-        // Default lane (spark=false, review=false, full=false) = gpt-5.6-sol + fast_mode.
-        // User directive 2026-04-17 — mini is the standing default; 2026-04-18
-        // extended mini to the review lane default, with -R -F as escape hatch
-        // to full 5.4 for the-revenger RECON.
+        // Default lane (spark=false, review=false, full=false) = gpt-5.6-sol + fast_mode
+        // + 400K context window. User directive 2026-04-17 — mini is the standing
+        // default; 2026-04-18 extended mini to the review lane default, with -R -F as
+        // escape hatch for the-revenger RECON (1.05M ctx).
         let mut c = build_codex_ask_with_loadout(
             &Loadout::empty(),
             false,
@@ -487,13 +534,28 @@ mod tests {
         assert!(args.contains(&"danger-full-access".to_string()));
         // json=false: --json must NOT appear in argv
         assert!(!args.contains(&"--json".to_string()));
+        // 400K context window — default/review lane cap. Assert on context-window params
+        // rather than model name (MINI and FULL share "gpt-5.6-sol") to avoid vacuous pass.
+        assert!(
+            args.contains(&"model_context_window=400000".to_string()),
+            "default lane must set 400K context window: {args:?}"
+        );
+        assert!(
+            args.contains(&"model_auto_compact_token_limit=360000".to_string()),
+            "default lane must set 360K compact limit: {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_context_window=1050000".to_string()),
+            "default lane must NOT set full 1.05M context window: {args:?}"
+        );
         assert_eq!(*args.last().unwrap(), "hello");
     }
 
     #[test]
     fn codex_ask_review_default_uses_mini_model() {
-        // Review lane default (review=true, full=false) routes to gpt-5.6-sol
+        // Review lane default (review=true, full=false) routes to gpt-5.6-sol + 400K ctx
         // per user directive 2026-04-18 (migrated from prior full-review defaults).
+        // Keyed on context-window params — MINI and FULL share the same model name.
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, false, false, None);
         c.arg("review this").arg(""); // second arg is a no-op placeholder
@@ -501,47 +563,82 @@ mod tests {
         assert!(args.contains(&"-m".to_string()));
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
         assert!(args.contains(&"features.fast_mode=true".to_string()));
+        assert!(
+            args.contains(&"model_context_window=400000".to_string()),
+            "review lane must set 400K context window (not 1.05M): {args:?}"
+        );
+        assert!(
+            args.contains(&"model_auto_compact_token_limit=360000".to_string()),
+            "review lane must set 360K compact limit: {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_context_window=1050000".to_string()),
+            "review lane (no --full) must NOT set the 1.05M full-context window: {args:?}"
+        );
     }
 
     #[test]
     fn codex_ask_review_full_flag_uses_full_model() {
         // -R -F escape hatch (review=true, full=true) routes to full gpt-5.6-sol
-        // for the-revenger RECON with 1.05M context window. User directive
-        // 2026-04-18.
+        // for the-revenger RECON with 1.05M context window. User directive 2026-04-18.
+        //
+        // Assertions are keyed on context-window params, NOT just model name, because
+        // CODEX_FULL_MODEL and CODEX_MINI_MODEL share the same "gpt-5.6-sol" string —
+        // a pure model-name assertion would pass vacuously on the mini path.
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, false, false, None);
         c.arg("recon this").arg("");
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
-        assert!(
-            args.contains(&CODEX_FULL_MODEL.to_string()),
-            "-R -F must pin -m gpt-5.6-sol (full) for the-revenger RECON: {args:?}"
-        );
-        assert!(
-            !args.contains(&CODEX_MINI_MODEL.to_string()),
-            "-R -F must NOT route to mini: {args:?}"
-        );
+        assert!(args.contains(&CODEX_FULL_MODEL.to_string()));
+        // Full-path dispatch is intentionally paired with fast_mode in this lane.
         assert!(args.contains(&"features.fast_mode=true".to_string()));
+        assert!(
+            !args.contains(&CODEX_SPARK_MODEL.to_string()),
+            "-R -F must not route to spark: {args:?}"
+        );
+        // Context-window params are the MATERIAL distinction — 1.05M vs 400K.
+        assert!(
+            args.contains(&"model_context_window=1050000".to_string()),
+            "-R -F must set model_context_window=1050000 for the-revenger RECON: {args:?}"
+        );
+        assert!(
+            args.contains(&"model_auto_compact_token_limit=945000".to_string()),
+            "-R -F must set model_auto_compact_token_limit=945000: {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_context_window=400000".to_string()),
+            "-R -F must NOT set the 400K default context window: {args:?}"
+        );
     }
 
     #[test]
     fn codex_ask_full_without_review_is_noop() {
-        // --full/-F without --review is a no-op; routes to mini default.
+        // --full/-F without --review is a no-op; routes to mini default (400K ctx).
+        // Keyed on context-window params to distinguish from the -R -F 1.05M lane.
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, false, true, false, false, None);
         c.arg("hello");
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
         assert!(
-            !args.contains(&CODEX_FULL_MODEL.to_string()),
-            "--full without --review must NOT promote to full model: {args:?}"
+            !args.contains(&CODEX_SPARK_MODEL.to_string()),
+            "--full without --review must NOT route to spark: {args:?}"
+        );
+        assert!(
+            args.contains(&"model_context_window=400000".to_string()),
+            "--full without --review must stay at 400K (no-op): {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_context_window=1050000".to_string()),
+            "--full without --review must NOT promote to 1.05M context window: {args:?}"
         );
     }
 
     #[test]
     fn codex_ask_gpt55_lane_uses_55_model_with_fast_mode() {
-        // --gpt55 routes to gpt-5.6-sol with fast_mode enabled. Effort is applied
-        // by dispatch() via -c model_reasoning_effort=<e> (not this function).
+        // --gpt55 routes to gpt-5.6-sol with fast_mode + 400K context window. Effort
+        // is applied by dispatch() via -c model_reasoning_effort=<e> (not here).
         // Added 2026-04-24 for xbrd-exec bench xask-arm measurement.
         let mut c =
             build_codex_ask_with_loadout(&Loadout::empty(), false, false, false, true, false, None);
@@ -553,10 +650,23 @@ mod tests {
             "--gpt55 must pin -m gpt-5.6-sol: {args:?}"
         );
         assert!(
-            !args.contains(&CODEX_MINI_MODEL.to_string()),
-            "--gpt55 must NOT route to mini: {args:?}"
+            !args.contains(&"model_reasoning_effort=low".to_string()),
+            "--gpt55 must not force spark low-effort model override: {args:?}"
+        );
+        assert!(
+            !args.contains(&CODEX_SPARK_MODEL.to_string()),
+            "--gpt55 must not route to spark: {args:?}"
         );
         assert!(args.contains(&"features.fast_mode=true".to_string()));
+        // 400K context window — gpt55 lane stays at the default cap, distinct from -R -F.
+        assert!(
+            args.contains(&"model_context_window=400000".to_string()),
+            "--gpt55 must set 400K context window: {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_context_window=1050000".to_string()),
+            "--gpt55 must NOT promote to 1.05M context window: {args:?}"
+        );
         assert_eq!(*args.last().unwrap(), "probe-55");
     }
 
@@ -585,8 +695,12 @@ mod tests {
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_55_MODEL.to_string()));
         assert!(
-            !args.contains(&CODEX_MINI_MODEL.to_string()),
+            !args.contains(&CODEX_SPARK_MODEL.to_string()),
             "--gpt55 must short-circuit -R -F (no mini path): {args:?}"
+        );
+        assert!(
+            !args.contains(&"model_reasoning_effort=low".to_string()),
+            "gpt55 lane does not force the spark low-effort override"
         );
     }
 
@@ -714,21 +828,25 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let pid_path = tmp.path().to_path_buf();
 
+        // `exec sleep 60` replaces bash with sleep (same PID as $$), so the PID
+        // written to the file IS the process that will be killed. This avoids the
+        // bash-vs-sleep PID ambiguity in the original test and ensures /proc/<pid>
+        // disappears when the process group kill fires.
         let mut cmd = std::process::Command::new("bash");
         cmd.arg("-c")
-            .arg(format!("echo $$ > {}; sleep 60", pid_path.display()));
+            .arg(format!("echo $$ > '{}'; exec sleep 60", pid_path.display()));
 
         let result = super::execute_with_timeout(cmd, std::time::Duration::from_secs(1));
-        assert!(result.is_err(), "expected timeout error");
+        let err = result.expect_err("expected timeout error");
         assert!(
-            result.unwrap_err().to_string().contains("xask-timeout"),
-            "error should carry xask-timeout marker"
+            err.to_string().contains("xask-timeout"),
+            "error must carry xask-timeout marker; got: {err}"
         );
 
-        // Poll up to 500 ms for bash to have written its PID (it does so immediately
-        // at startup, but we race the kill window in the fixed impl).
+        // The PID is written before exec, so the file exists as soon as bash
+        // has started. Poll up to 1 s to cover slow CI environments.
         let mut child_pid: u32 = 0;
-        for _ in 0..10 {
+        for _ in 0..20 {
             if let Ok(s) = std::fs::read_to_string(&pid_path) {
                 if let Ok(p) = s.trim().parse::<u32>() {
                     child_pid = p;
@@ -737,16 +855,20 @@ mod tests {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        assert!(child_pid > 0, "child PID was never written to temp file");
+        assert!(
+            child_pid > 0,
+            "child PID was never written to '{}' — bash did not start within poll window",
+            pid_path.display()
+        );
 
         // Brief settle window for the OS to finalise the kill+wait.
         std::thread::sleep(std::time::Duration::from_millis(200));
 
-        // /proc/<pid> must be absent — child killed and reaped, not a ghost.
+        // /proc/<pid> must be absent — child killed and reaped, not a zombie/ghost.
         let still_alive = std::path::Path::new(&format!("/proc/{child_pid}")).exists();
         assert!(
             !still_alive,
-            "child PID {child_pid} still present in /proc after timeout — ghost leak not fixed"
+            "PID {child_pid} still in /proc after timeout — process group kill did not reap it"
         );
     }
 

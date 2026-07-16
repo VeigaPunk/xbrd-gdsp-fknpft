@@ -35,7 +35,9 @@ fn main() -> anyhow::Result<()> {
             let models_path = PathBuf::from(format!("{home}/.config/xbreed/models.yaml"));
             let (model, effort) = xbreed::config::Models::load(&models_path)
                 .map(|m| (m.claude.default, m.claude.effort))
-                .unwrap_or_else(|_| ("claude-opus-4-9".to_string(), "high".to_string()));
+                // Fallback matches config/models.yaml defaults: opus + xhigh effort.
+                // Prior default was "high" which diverged from the xhigh in models.yaml.
+                .unwrap_or_else(|_| ("opus".to_string(), "xhigh".to_string()));
 
             let status = xbreed::launch::launch_claude(&model, &effort, &settings, &args)?;
             std::process::exit(status.code().unwrap_or(1));

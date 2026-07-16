@@ -97,6 +97,12 @@ pub struct GuardInput {
 
 pub fn evaluate_from_json(input_json: &str, policy: &Policy) -> Result<String> {
     let input: GuardInput = serde_json::from_str(input_json)?;
+    if policy.mode != "deny_list_only" && policy.mode != "allow_list" {
+        anyhow::bail!(
+            "unknown policy mode: '{}' (expected 'deny_list_only' or 'allow_list')",
+            policy.mode
+        );
+    }
     // Fast path: non-Bash tools only need deny_tools + allow_tools check (Vec scan).
     // Skip the expensive RegexSet compile for deny_bash_patterns.
     if input.tool_name != "Bash" {
@@ -298,6 +304,24 @@ mod tests {
         let input2 = r#"{"tool_name":"Read","tool_input":{}}"#;
         let out2 = evaluate_from_json(input2, &p).unwrap();
         assert!(out2.contains(r#""decision":"allow""#));
+    }
+
+    #[test]
+    fn evaluate_from_json_rejects_unknown_mode_for_non_bash() {
+        let p = Policy {
+            version: 1,
+            mode: "broken_mode".to_string(),
+            deny_bash_patterns: vec![],
+            deny_tools: vec![],
+            allow_tools: vec!["Read".into(), "Write".into()],
+        };
+        let input = r#"{"tool_name":"Write","tool_input":{}}"#;
+        let err = evaluate_from_json(input, &p).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("unknown policy mode: 'broken_mode'"),
+            "invalid policy mode should hard-fail evaluate_from_json"
+        );
     }
 
     #[test]

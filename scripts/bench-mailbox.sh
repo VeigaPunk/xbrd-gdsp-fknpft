@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPORT_PATH="$REPO_ROOT/docs/reports/mailbox-bench-baseline.json"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
@@ -29,31 +27,33 @@ run_once() {
 
 read_times() {
   local file=$1
-  python3 - "$file" <<'PY'
-import sys
+  local count
+  local p50_idx
+  local p95_idx
+  local sorted
 
-path = sys.argv[1]
-values = [float(line.strip()) for line in open(path) if line.strip()]
-values.sort()
-if not values:
-    print("0 0")
-    raise SystemExit(0)
-n = len(values)
-p50 = values[int((n - 1) * 0.50)]
-p95 = values[int((n - 1) * 0.95)]
-print(f"{p50:.9f} {p95:.9f}")
-PY
+  count="$(awk 'NF { n++ } END { print n + 0 }' "$file")"
+  if [ "$count" -eq 0 ]; then
+    echo "0 0"
+    return 0
+  fi
+
+  p50_idx=$(( (count - 1) * 50 / 100 + 1 ))
+  p95_idx=$(( (count - 1) * 95 / 100 + 1 ))
+
+  sorted="$(mktemp)"
+  sort -n "$file" > "$sorted"
+  p50="$(sed -n "${p50_idx}p" "$sorted")"
+  p95="$(sed -n "${p95_idx}p" "$sorted")"
+  rm -f "$sorted"
+
+  if [ -z "$p50" ] || [ -z "$p95" ]; then
+    echo "0 0"
+    return 0
+  fi
+
+  printf "%.9f %.9f\n" "$p50" "$p95"
 }
-
-python3 - "$REPO_ROOT" <<'PY'
-import json
-from pathlib import Path
-import sys
-path = Path(sys.argv[1]) / "docs" / "reports" / "mailbox-bench-baseline.json"
-path.parent.mkdir(parents=True, exist_ok=True)
-if not path.exists():
-    path.write_text('{}')
-PY
 
 for count in "${COUNTS[@]}"; do
   times_file="$TMP_ROOT/times-$count.txt"
@@ -62,31 +62,11 @@ for count in "${COUNTS[@]}"; do
     run_dir="$TMP_ROOT/run-$count-$RANDOM"
     mkdir -p "$run_dir"
     time_file="$TMP_ROOT/elapsed-$count-$RANDOM"
-    run_once "$count" "$run_dir" "$time_file"
-    cat "$time_file" >> "$times_file"
-    rm -f "$time_file"
+  run_once "$count" "$run_dir" "$time_file"
+  cat "$time_file" >> "$times_file"
+  rm -f "$time_file"
   done
 
   read p50 p95 < <(read_times "$times_file")
-  python3 - "$REPORT_PATH" "$count" "$p50" "$p95" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-count = sys.argv[2]
-p50 = float(sys.argv[3])
-p95 = float(sys.argv[4])
-report = json.loads(path.read_text())
-report.setdefault("process_wall_ms", {})
-report["process_wall_ms"][f"n={count}"] = {
-    "p50": p50,
-    "p95": p95,
-    "unit": "seconds",
-    "inclusive": "process_start_inclusive",
-}
-path.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
-PY
-
   echo "n=${count}: p50=${p50}s p95=${p95}s"
 done

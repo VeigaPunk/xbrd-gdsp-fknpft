@@ -42,7 +42,7 @@ When you decide a sub-role is needed, spawn it as a **persistent team member**:
 Agent(
   subagent_type="scout" | "reviewer" | "labrat",
   name="<unique teammate name>",
-  model="sonnet-5[1m]" | "haiku",
+  model="sonnet" | "haiku",
   prompt="<task brief with mandatory xask gate and peer roster>"
 )
 ```
@@ -116,7 +116,7 @@ Once all teammates have reported back AND cross-critique DMs have landed, spawn 
 Agent(
   subagent_type="distiller",
   name="ccs-distiller",
-  model="sonnet-5[1m]",
+  model="sonnet",
   prompt="You are the distiller. Synthesize these N teammate findings into one deduplicated, confidence-scored brief. <paste all teammate reports + any peer DM critiques>. Return format: State block with deduplicated claims, Unknowns block with contradictions, duplicate count. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```

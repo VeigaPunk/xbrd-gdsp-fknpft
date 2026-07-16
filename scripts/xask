@@ -208,6 +208,7 @@ gemini_rich_setup() {
   find "$XASK_RICH_ROOT" -maxdepth 1 -name 'xask-rich-*' -mmin +60 -exec rm -rf {} + 2>/dev/null || true
   RICH_TMPDIR=$(mktemp -d "$XASK_RICH_ROOT/xask-rich-$$-XXXXXX")
   mkdir -p "$RICH_TMPDIR/.gemini"
+  XASK_RICH_SETTINGS="$RICH_TMPDIR/.gemini/settings.json"
   if [ -f "$GEMINI_SETTINGS_FILE" ]; then
     cp "$GEMINI_SETTINGS_FILE" "$RICH_TMPDIR/.gemini/settings.json"
   else
@@ -217,13 +218,11 @@ gemini_rich_setup() {
   if [ -f "$HOME/.gemini/oauth_creds.json" ]; then
     cp "$HOME/.gemini/oauth_creds.json" "$RICH_TMPDIR/.gemini/oauth_creds.json"
   fi
-  XASK_RICH_SETTINGS="$RICH_TMPDIR/.gemini/settings.json" python3 -c "
-import json, os
-f = os.environ['XASK_RICH_SETTINGS']
-with open(f) as fh: d = json.load(fh)
-d.setdefault('context', {})['includeDirectoryTree'] = True
-with open(f, 'w') as fh: json.dump(d, fh, indent=2)
-" || { echo "xask: failed to set up rich mode" >&2; rm -rf "$RICH_TMPDIR"; return 1; }
+  if ! printf '%s\n' '{"context":{"includeDirectoryTree":true}}' > "$XASK_RICH_SETTINGS"; then
+    echo "xask: failed to set up rich mode" >&2
+    rm -rf "$RICH_TMPDIR"
+    return 1
+  fi
 }
 gemini_rich_cleanup() {
   [ -n "$RICH_TMPDIR" ] && rm -rf "$RICH_TMPDIR"

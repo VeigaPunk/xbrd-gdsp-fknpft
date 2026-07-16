@@ -11,7 +11,6 @@ if [ "$#" -eq 0 ]; then
   exit 1
 fi
 
-python3 "$HERE/bench-metrics.py" --header
-for f in "$@"; do
-  python3 "$HERE/bench-metrics.py" "$f"
-done
+echo "bench-collect is deprecated: benchmark Python helper scripts were removed" >&2
+echo "Use xbrd-bench (if available) or reintroduce a JSONL parser before running." >&2
+exit 1

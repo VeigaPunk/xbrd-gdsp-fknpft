@@ -2,7 +2,7 @@
 name: critic
 description: Approach-level adversarial reviewer. Challenges design decisions, architectural assumptions, and strategy choices. Distinct from reviewer (code bugs) and sentinel (security).
 axis_family: adversarial-design
-model: sonnet-5[1m]
+model: sonnet
 on_spawn_skill: heuer-planning
 ---
 

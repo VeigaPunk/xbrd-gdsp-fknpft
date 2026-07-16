@@ -26,7 +26,7 @@ Treat this as the problem to judge/draft. If it names multiple proposals, score 
 **Planner-first is unconditional** (matches `~/.claude/agents/the-judge.md` sub-role table). Dispatch `the-planner` FIRST at Phase 0:
 
 ```
-Agent(subagent_type="the-planner", name="ccs-planner-r0", model="sonnet-5[1m]",
+Agent(subagent_type="the-planner", name="ccs-planner-r0", model="sonnet",
       prompt="WWKD Phase 0 data walk + skeleton for: <full user prompt>. FIRST tool call MUST be Skill(skill='wwkd'). Return plan artifact. | godspeed")
 ```
 

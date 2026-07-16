@@ -2,7 +2,7 @@
 name: simplifier
 description: YAGNI enforcer. Finds what to delete. If removing it passes all tests, it was dead. Asks "would this still be worthwhile if the task disappeared?"
 axis_family: deletion
-model: sonnet-5[1m]
+model: sonnet
 effort: medium
 ---
 

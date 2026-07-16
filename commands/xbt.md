@@ -45,7 +45,7 @@ $ARGUMENTS
 **Planner-first is unconditional** (matches `~/.claude/agents/the-judge.md` sub-role table). Spawn `the-planner` as the Phase 0 teammate BEFORE any specialist:
 
 ```
-Agent(subagent_type="the-planner", team_name="<team>", name="ccs-planner-r0", model="sonnet-5[1m]",
+Agent(subagent_type="the-planner", team_name="<team>", name="ccs-planner-r0", model="sonnet",
       prompt="WWKD Phase 0 data walk + skeleton for: <full user prompt>. FIRST tool call MUST be Skill(skill='wwkd'). Deliver plan artifact to team-lead. | godspeed")
 ```
 
@@ -62,7 +62,7 @@ Agent(
   subagent_type="scout" | "reviewer" | "labrat" | "the-planner",
   team_name="<the team you just created>",
   name="<unique teammate name>",
-  model="sonnet-5[1m]",
+  model="sonnet",
   prompt="<task brief with mandatory xask gate and peer roster>"
 )
 ```
@@ -106,7 +106,7 @@ Agent(
   subagent_type="distiller",
   team_name="<team>",
   name="ccs-distiller",
-  model="sonnet-5[1m]",
+  model="sonnet",
   prompt="You are the distiller. Synthesize these N teammate findings into one deduplicated, confidence-scored brief. <paste all teammate reports + peer DM SendMessage cross-critiques>. Return format: State block with deduplicated claims, Unknowns block with contradictions, duplicate count. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```

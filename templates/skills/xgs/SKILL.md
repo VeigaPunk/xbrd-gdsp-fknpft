@@ -85,7 +85,7 @@ Teammates work in parallel. As proposals and cross-critiques arrive:
 Agent(
   subagent_type="distiller",
   name="ccs-distiller",
-  model="sonnet-5[1m]",
+  model="sonnet",
   prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```
