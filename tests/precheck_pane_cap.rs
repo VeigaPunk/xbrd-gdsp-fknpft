@@ -85,9 +85,9 @@ fn large_team_in_normal_window_hits_hard_cap_first() {
             assert_eq!(requested, 40);
             assert_eq!(max, MAX_TEAM_SIZE);
         }
-        other => panic!(
-            "expected HardCapExceeded for 40-pane batch in 46-row window, got {other:?}"
-        ),
+        other => {
+            panic!("expected HardCapExceeded for 40-pane batch in 46-row window, got {other:?}")
+        }
     }
 }
 
@@ -95,7 +95,11 @@ fn large_team_in_normal_window_hits_hard_cap_first() {
 fn geometry_failure_can_apply_when_team_size_within_hard_cap() {
     let result = compute_cap(10, 1, 12);
     match result {
-        CapResult::Fail { panes_in_use, cap, team_size } => {
+        CapResult::Fail {
+            panes_in_use,
+            cap,
+            team_size,
+        } => {
             assert_eq!(panes_in_use, 1);
             assert_eq!(cap, 0);
             assert_eq!(team_size, 12);

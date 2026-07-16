@@ -176,11 +176,14 @@ fn ask_codex_treats_command_like_text_as_literal_prompt() {
         expected_prompt,
         "command-like payload was not preserved as a literal final arg: {argv:?}"
     );
-    assert!(argv
-        .last()
-        .unwrap()
-        .contains("$(id)"), "payload lost command text: {argv:?}");
-    assert!(argv.last().unwrap().contains("whoami"), "payload lost command text: {argv:?}");
+    assert!(
+        argv.last().unwrap().contains("$(id)"),
+        "payload lost command text: {argv:?}"
+    );
+    assert!(
+        argv.last().unwrap().contains("whoami"),
+        "payload lost command text: {argv:?}"
+    );
 }
 
 #[test]

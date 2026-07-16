@@ -51,6 +51,7 @@ fn main() -> anyhow::Result<()> {
             gpt55,
             json,
             output_last_message,
+            read_only,
         } => {
             let loadout = if with.is_empty() {
                 xbreed::loadout::Loadout::empty()
@@ -68,6 +69,7 @@ fn main() -> anyhow::Result<()> {
                 gpt55,
                 json,
                 output_last_message.as_deref(),
+                read_only,
             )?;
             print!("{out}");
             Ok(())

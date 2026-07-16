@@ -42,6 +42,7 @@ use std::process::Command;
 /// NOTE: does NOT append the prompt — caller must append it AFTER any `-c`
 /// flags (effort, etc.) since `codex exec` treats the prompt as a trailing
 /// positional arg.
+#[allow(clippy::too_many_arguments)]
 pub fn build_codex_ask_with_loadout(
     loadout: &Loadout,
     spark: bool,
@@ -50,19 +51,30 @@ pub fn build_codex_ask_with_loadout(
     gpt55: bool,
     json: bool,
     output_last_message: Option<&Path>,
+    read_only: bool,
 ) -> Command {
     let mut c = Command::new("codex");
     c.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("--color")
         .arg("never")
-        .arg("--ephemeral")
-        // Yolo / allow-all-tools: codex defaults to a sandbox; we unlock it
-        // for headless xask dispatch (parity with gemini's --approval-mode yolo
-        // at line ~279). User-locked policy: solo-dev workflow, all-tool
-        // permission across xask-gated subprocesses. See feedback_yolo_routing.md.
-        .arg("--sandbox")
-        .arg("danger-full-access");
+        .arg("--ephemeral");
+
+    // Sandbox policy — the ONLY filesystem-write enforcement lever (approval_policy
+    // below is orthogonal: it suppresses prompts, it does NOT restrict writes).
+    // Default: danger-full-access — headless all-tool dispatch (parity with gemini's
+    // --approval-mode yolo). read_only lane (xask --ro/--read-only) → `read-only`:
+    // blocks writes + network so codex consults can't mutate the repo. SINGLE
+    // emission point — never two --sandbox pairs (codex would flag-conflict). NOTE:
+    // read-only is analysis-safe, not execution-safe (commands still run; a `-o`
+    // output file is a shell-layer write, outside the sandbox). See
+    // feedback_yolo_routing.md; audit 2026-07-15 read-only cooperation lane.
+    let sandbox = if read_only {
+        "read-only"
+    } else {
+        "danger-full-access"
+    };
+    c.arg("--sandbox").arg(sandbox);
 
     // Contamination suppression + approval bypass — always-on for clean headless dispatch
     c.arg("-c").arg("approval_policy=\"never\"");
@@ -324,6 +336,7 @@ pub fn dispatch(
     gpt55: bool,
     json: bool,
     output_last_message: Option<&Path>,
+    read_only: bool,
 ) -> Result<String> {
     let timeout_secs = std::env::var("XASK_TIMEOUT_SECS")
         .ok()
@@ -371,6 +384,7 @@ pub fn dispatch(
                 gpt55,
                 json,
                 output_last_message,
+                read_only,
             );
             if spark {
                 warn_codex_spark_effort(effort);
@@ -463,6 +477,7 @@ mod tests {
             false,
             false,
             None,
+            false,
         );
         c.arg("hello"); // caller appends prompt after -c flags
         assert_eq!(c.get_program().to_string_lossy(), "codex");
@@ -491,11 +506,73 @@ mod tests {
     }
 
     #[test]
+    fn codex_ask_read_only_emits_read_only_sandbox() {
+        // read_only=true → `--sandbox read-only`, and NEVER danger-full-access.
+        // The exclusion assertion is load-bearing: without it the test passes even
+        // if the impl emits both sandbox pairs (which codex would flag-conflict on).
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            false,
+            false,
+            false,
+            false,
+            None,
+            true, // read_only
+        );
+        c.arg("probe");
+        let args = cmd_args(&c);
+        assert!(args.contains(&"--sandbox".to_string()));
+        assert!(
+            args.contains(&"read-only".to_string()),
+            "read_only=true must emit --sandbox read-only: {args:?}"
+        );
+        assert!(
+            !args.contains(&"danger-full-access".to_string()),
+            "read_only=true must NOT emit danger-full-access (single sandbox pair): {args:?}"
+        );
+    }
+
+    #[test]
+    fn codex_ask_default_stays_danger_full_access() {
+        // read_only=false (default) keeps danger-full-access and never read-only.
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            false,
+            false,
+            false,
+            false,
+            None,
+            false, // read_only
+        );
+        c.arg("probe");
+        let args = cmd_args(&c);
+        assert!(args.contains(&"--sandbox".to_string()));
+        assert!(
+            args.contains(&"danger-full-access".to_string()),
+            "default must stay danger-full-access: {args:?}"
+        );
+        assert!(
+            !args.contains(&"read-only".to_string()),
+            "default must NOT emit read-only: {args:?}"
+        );
+    }
+
+    #[test]
     fn codex_ask_review_default_uses_mini_model() {
         // Review lane default (review=true, full=false) routes to gpt-5.4-mini
         // per user directive 2026-04-18 (migrated from full gpt-5.4).
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), false, true, false, false, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            true,
+            false,
+            false,
+            false,
+            None,
+            false,
+        );
         c.arg("review this").arg(""); // second arg is a no-op placeholder
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -508,8 +585,16 @@ mod tests {
         // -R -F escape hatch (review=true, full=true) routes to full gpt-5.4
         // for the-revenger RECON with 1.05M context window. User directive
         // 2026-04-18.
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, false, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            true,
+            true,
+            false,
+            false,
+            None,
+            false,
+        );
         c.arg("recon this").arg("");
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -527,8 +612,16 @@ mod tests {
     #[test]
     fn codex_ask_full_without_review_is_noop() {
         // --full/-F without --review is a no-op; routes to mini default.
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), false, false, true, false, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            false,
+            true,
+            false,
+            false,
+            None,
+            false,
+        );
         c.arg("hello");
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_MINI_MODEL.to_string()));
@@ -543,8 +636,16 @@ mod tests {
         // --gpt55 routes to gpt-5.5 with fast_mode enabled. Effort is applied
         // by dispatch() via -c model_reasoning_effort=<e> (not this function).
         // Added 2026-04-24 for xbrd-exec bench xask-arm measurement.
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), false, false, false, true, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            false,
+            false,
+            true,
+            false,
+            None,
+            false,
+        );
         c.arg("probe-55");
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -568,8 +669,16 @@ mod tests {
     fn codex_ask_spark_short_circuits_gpt55() {
         // --spark wins over --gpt55 (spark is the cheapest lane; explicit short-circuit
         // preserves "labrat probes beat every other lane" semantics).
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), true, false, false, true, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            true,
+            false,
+            false,
+            true,
+            false,
+            None,
+            false,
+        );
         c.arg("probe");
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_SPARK_MODEL.to_string()));
@@ -583,8 +692,16 @@ mod tests {
     fn codex_ask_gpt55_short_circuits_review_and_full() {
         // --gpt55 short-circuits review/full (those route to 5.4 family; explicit
         // gpt-5.5 model pin wins over review-lane defaulting).
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), false, true, true, true, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            false,
+            true,
+            true,
+            true,
+            false,
+            None,
+            false,
+        );
         c.arg("probe");
         let args = cmd_args(&c);
         assert!(args.contains(&CODEX_55_MODEL.to_string()));
@@ -596,8 +713,16 @@ mod tests {
 
     #[test]
     fn codex_ask_spark_adds_model_and_low_effort() {
-        let mut c =
-            build_codex_ask_with_loadout(&Loadout::empty(), true, false, false, false, false, None);
+        let mut c = build_codex_ask_with_loadout(
+            &Loadout::empty(),
+            true,
+            false,
+            false,
+            false,
+            false,
+            None,
+            false,
+        );
         c.arg("probe"); // caller appends prompt
         let args = cmd_args(&c);
         assert!(args.contains(&"-m".to_string()));
@@ -614,7 +739,8 @@ mod tests {
     #[test]
     fn codex_ask_with_loadout_uses_developer_instructions_override() {
         let l = loadout_with("BE FAST");
-        let mut c = build_codex_ask_with_loadout(&l, false, false, false, false, false, None);
+        let mut c =
+            build_codex_ask_with_loadout(&l, false, false, false, false, false, None, false);
         c.arg("hello"); // caller appends prompt after -c flags
         let args = cmd_args(&c);
         assert_eq!(args[0], "exec");
@@ -644,6 +770,7 @@ mod tests {
             false,
             false,
             None,
+            false,
         )
         .unwrap_err();
         assert!(err.to_string().contains("unknown cli"));
@@ -790,6 +917,7 @@ mod tests {
             false,
             false,
             None,
+            false,
         );
 
         std::env::set_var("PATH", &orig_path);

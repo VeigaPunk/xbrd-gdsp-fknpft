@@ -8,10 +8,7 @@ pub enum CapResult {
     /// Spawn is safe — practical cap remains at or above MIN_ROWS.
     Ok,
     /// team_size is above the configured hard ceiling.
-    HardCapExceeded {
-        requested: u32,
-        max: u32,
-    },
+    HardCapExceeded { requested: u32, max: u32 },
     /// Spawn would push the practical cap below MIN_ROWS.
     Fail {
         panes_in_use: u32,

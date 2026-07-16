@@ -78,9 +78,21 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
         /// Write the final assistant message to FILE (codex only).
-        /// Passes -o <FILE> to codex exec; no-op for gemini.
+        /// Passes -o <FILE> to codex exec; no-op for gemini. Cannot be combined
+        /// with --read-only because codex writes this file outside its sandbox.
         #[arg(long = "output-last-message", short = 'o')]
         output_last_message: Option<PathBuf>,
+        /// Run codex under `--sandbox read-only` instead of the default
+        /// danger-full-access (codex only; no-op for gemini). Blocks filesystem
+        /// writes + network so read-only consults can't mutate the repo.
+        /// analysis-safe, not execution-safe. Alias: --ro. Audit 2026-07-15
+        /// read-only cooperation lane.
+        #[arg(
+            long = "read-only",
+            visible_alias = "ro",
+            conflicts_with = "output_last_message"
+        )]
+        read_only: bool,
     },
     /// Initialize a team workspace
     Team {
@@ -148,4 +160,39 @@ pub enum MailboxAction {
         #[arg(long, default_value = "60")]
         digest_older_than: u64,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Cli, Commands};
+    use clap::Parser;
+
+    #[test]
+    fn ask_parses_read_only_and_alias() {
+        for flag in ["--read-only", "--ro"] {
+            let cli = Cli::try_parse_from(["xbreed", "ask", "codex", "review", flag])
+                .expect("read-only flag should parse");
+            assert!(matches!(
+                cli.command,
+                Commands::Ask {
+                    read_only: true,
+                    ..
+                }
+            ));
+        }
+    }
+
+    #[test]
+    fn ask_rejects_read_only_with_output_file() {
+        let result = Cli::try_parse_from([
+            "xbreed",
+            "ask",
+            "codex",
+            "review",
+            "--read-only",
+            "--output-last-message",
+            "result.txt",
+        ]);
+        assert!(result.is_err());
+    }
 }
