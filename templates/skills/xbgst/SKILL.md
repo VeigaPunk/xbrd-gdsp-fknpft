@@ -112,7 +112,7 @@ Teammates work in parallel, invoking xask as their first tool call, then proposi
 Agent(
   subagent_type="distiller",
   name="ccs-distiller",
-  model="sonnet",
+  model="sonnet-5[1m]",
   prompt="You are the distiller. Synthesize these N teammate proposals and peer critiques into one deduplicated, confidence-scored brief. <paste all proposals + DM critiques>. Deduplicate overlapping moves, flag cross-model (codex) vs in-session (claude) contradictions, assign confidence. SendMessage your synthesis to the judge (team lead) when done."
 )
 ```

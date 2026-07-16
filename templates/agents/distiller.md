@@ -2,7 +2,7 @@
 name: distiller
 description: Deduplicates N parallel findings, flags contradictions, assigns confidence scores. Text synthesis with optional tool verification. Sits between workers and the-judge.
 axis_family: synthesis
-model: sonnet
+model: sonnet-5[1m]
 effort: medium
 ---
 
