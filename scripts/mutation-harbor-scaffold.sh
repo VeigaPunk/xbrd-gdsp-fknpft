@@ -2,6 +2,9 @@
 # Scaffold throwaway Harbor tasks under /tmp for mutation-tester.
 # Default: N parallel independent task dirs (never serialize trials).
 # Does not touch git worktrees. Does not mutate REPO.
+#
+# Harbor = laude-institute/harbor (PyPI: harbor, harborframework.com).
+# NOT npm @hapic/harbor, NOT medical “harboring mutations” repos.
 set -euo pipefail
 
 REPO="${REPO:-$PWD}"

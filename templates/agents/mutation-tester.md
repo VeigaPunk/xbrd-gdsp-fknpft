@@ -27,10 +27,21 @@ No clarifying questions. No philosophical reasoning. Act via tool calls. **Paral
 
 ## Isolation: Harbor + /tmp cwd (parallel)
 
+**Correct Harbor** (do not confuse with search noise):
+
+| | Use this | Not this |
+|---|---|---|
+| Project | [laude-institute/harbor](https://github.com/laude-institute/harbor) / [harborframework.com](https://harborframework.com) | npm `@hapic/harbor` (unrelated HTTP client) |
+| PyPI | `harbor` — “sandboxed environments / agents” | medical papers that merely *say* “harboring mutations” |
+| CLI | `harbor run -p tasks/ …` | anything from FareHarbor / port-utility packages |
+
 ### Prerequisites (once)
 
 ```bash
-command -v harbor || echo "install: uv tool install harbor  # or pip install harbor"
+# Official install (Terminal-Bench creators)
+uv tool install harbor
+# or: pip install harbor
+harbor --help   # must show run/datasets — if not, wrong package
 command -v docker >/dev/null
 ```
 
