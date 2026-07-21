@@ -194,9 +194,16 @@ rewrite.
 bash "$REPO"/scripts/install-godspeed-always.sh
 ```
 
+**Reversible:** every write is receipted under
+`~/.agents/godspeed-core/always-on.receipt` with pre-managed backups in
+`always-on-backups/`. Undo anytime:
+
+```bash
+bash "$REPO"/scripts/uninstall-godspeed-always.sh
+```
+
 This upserts a managed block (markers `xbrd-godspeed-always:begin/end`) into
-**AGENTS.md only** — never `CLAUDE.md` (hard ban; the installer refuses and
-nukes any CLAUDE.md it previously wrote).
+**home AGENTS.md only** — never `CLAUDE.md` (hard ban), never the repo roster.
 
 | File | Harness |
 |---|---|

@@ -19,9 +19,9 @@ mailbox), the godspeed directive.
 ## Setup
 
 Gated, agent-executable install: [`docs/SETUP.md`](docs/SETUP.md).
-**Hook-free**, **godspeed forced** via **`AGENTS.md` only** (never `CLAUDE.md`)
-— no `UserPromptSubmit` triggers. Godspeed literally makes everything better;
-the install wires it on by default.
+**Hook-free**, **godspeed forced** via **home `AGENTS.md` only** (never
+`CLAUDE.md`, never mutates the repo roster). Fully reversible:
+`scripts/uninstall-godspeed-always.sh` / `scripts/uninstall-setup.sh`.
 
 Paste this into your CLI:
 
