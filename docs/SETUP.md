@@ -252,6 +252,13 @@ test -f "$S" || echo '{}' > "$S"
 jq '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1"
     | .teammateMode = "auto"
     | del(.hooks)   # strip any prior UserPromptSubmit / auto-hooks if present
+    | del(.worktree)  # worktrees banned in this runtime
+    | .permissions.deny = (
+        ((.permissions.deny // []) + [
+          "EnterWorktree","ExitWorktree",
+          "Bash(git worktree:*)","Bash(git worktree *)"
+        ]) | unique
+      )
    ' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
 ```
 
@@ -328,3 +335,22 @@ You have:
 
 Improve one axis, harm none. Walk stops when nothing improves without a
 tradeoff. Godspeed.
+
+---
+
+## Reverse / uninstall (everything is reversible)
+
+| Scope | Command | Notes |
+|---|---|---|
+| Godspeed always-on only | `bash "$REPO"/scripts/uninstall-godspeed-always.sh` | Restores pre-managed AGENTS content from backups; removes `ALWAYS.md` |
+| Full SETUP teardown | `bash "$REPO"/scripts/uninstall-setup.sh` | Removes **our** skill/agent/command symlinks; keeps bins/skills/gscore by default |
+| Full wipe | `PURGE_SKILLS=1 PURGE_BINS=1 PURGE_DISPATCH=1 PURGE_GSCORE=1 bash "$REPO"/scripts/uninstall-setup.sh` | Also drops `~/.local/bin/{xbreed,xask}`, skill copies, godspeed-core |
+
+Guarantees:
+
+- **Repo `AGENTS.md` roster is never written** by install (SSoT).
+- **No hooks** are installed; nothing to reverse in hook tables.
+- **CLAUDE.md** is never recreated on uninstall (ban).
+- **Backups** of pre-managed home files stay under
+  `~/.agents/godspeed-core/always-on-backups/` until you delete them.
+- Clones under `~/repos` / `$REPO` are **not** deleted by uninstall.

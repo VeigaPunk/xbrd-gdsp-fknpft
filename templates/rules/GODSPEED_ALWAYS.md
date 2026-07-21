@@ -27,3 +27,16 @@ Orchestrators (the-judge / `/xgs` / `/xbgst` / `/xbt`) also use:
 
 `xask` defaults to the godspeed skill. Prefer `xask --gs …` when you want the
 flag explicit. Every delegated prompt carries this posture.
+
+## No worktrees (runtime ban)
+
+Git / harness **worktrees are disabled** for this runtime. They do not help
+xbreed/xask/teammate flow — they only fork disk state and create prunable
+junk.
+
+- Do **not** call `EnterWorktree` / `ExitWorktree`.
+- Do **not** run `git worktree add|remove|prune|…`.
+- Do **not** spawn subagents with `isolation: worktree`.
+- Mutate/test in the **main working tree**; revert with `git checkout -- <file>`
+  or edit-in-place + test + restore. Use `/tmp` scratch files if you need a
+  throwaway copy — never a second worktree.
