@@ -8,10 +8,12 @@ Target layout is Linux/WSL2 with `$HOME` as install root. This guide is
 `UserPromptSubmit` scripts, and never patches lifecycle automation into
 `settings.json` beyond the two team-required knobs below.
 
-**Design rule:** skills, agents, and commands load by discovery (dirs +
-symlinks). Godspeed activates because the skill is installed and you invoke
-it (`godspeed`, `/godspeed`, or “apply godspeed”) — not because a hook
-rewrites your prompt.
+**Godspeed is forced.** After install, every harness turn runs under Godspeed
+standing instructions (`CLAUDE.md` / `AGENTS.md`). That is deliberate: godspeed
+literally makes everything better (axes named, cheap parallel moves, no
+clarifying stalls, Pareto-only keeps). It is **not** an optional suffix and
+**not** a prompt-submit hook — it is always-on policy wired into instruction
+files the models already load.
 
 ---
 
@@ -183,11 +185,45 @@ Gate: output ends with `verify-install: OK`. This installed:
 
 ---
 
-## 7. Claude settings (teams only — no hooks)
+## 7. Force Godspeed (standing instructions — no hooks)
+
+Godspeed is mandatory for every session under this install. Wire it as
+**standing instruction** the harness always loads — not a `UserPromptSubmit`
+rewrite.
+
+```bash
+bash "$REPO"/scripts/install-godspeed-always.sh
+```
+
+This upserts a managed block (markers `xbrd-godspeed-always:begin/end`) into:
+
+| File | Harness |
+|---|---|
+| `~/.claude/CLAUDE.md` | Claude Code (every session) |
+| `~/.codex/AGENTS.md` | Codex |
+| `~/.agents/AGENTS.md` | shared agents root |
+| `~/.grok/AGENTS.md` | Grok Build (if present) |
+| `$REPO/CLAUDE.md` | in-repo sessions |
+
+`xask` already defaults its skill to `godspeed` and appends `| godspeed` to
+delegated prompts — cross-model stays forced too.
+
+Gate:
+
+```bash
+grep -q 'xbrd-godspeed-always:begin' ~/.claude/CLAUDE.md \
+  && grep -q 'Godspeed — always on' ~/.claude/CLAUDE.md \
+  && test -f ~/.agents/godspeed-core/directive.md \
+  && echo GODSPEED-FORCED-OK
+```
+
+---
+
+## 8. Claude settings (teams only — no hooks)
 
 Merge into `~/.claude/settings.json`. **Do not clobber** existing keys.
 **Do not add** `hooks`, `UserPromptSubmit`, or any `~/.claude/scripts/*`
-trigger.
+trigger. Godspeed is already forced by step 7.
 
 Required knobs:
 
@@ -216,17 +252,13 @@ Gate:
 jq -e '
   .env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS == "1"
   and .teammateMode == "auto"
-  and ((.hooks // {}) | length) == 0
 ' ~/.claude/settings.json \
-  && echo SETTINGS-OK-NO-HOOKS
+  && echo SETTINGS-OK
 ```
-
-If the last clause fails because you intentionally keep other hooks, re-run
-the check without the hooks clause — still require the two team keys.
 
 ---
 
-## 8. Restart + smoke test
+## 9. Restart + smoke test
 
 Team env only takes effect on **new** sessions. Restart Claude Code, then:
 
@@ -238,19 +270,19 @@ Expect `XASK-OK` in ~1s (spark lane). If it hangs or errors: `codex login`,
 then retest. Without Codex the system degrades to in-session fallback; with
 it, cross-model is the point.
 
-Inside a fresh Claude session:
+Inside a fresh Claude session you are **already** in godspeed (step 7). Run:
 
-1. Invoke godspeed by skill (not by hook): say `godspeed: tighten README intro`
-   or run `/godspeed` if your harness maps the skill.
-2. Run orchestration: `/xgs pick any toy task, e.g. "tighten the wording of README intro"`
+```text
+/xgs pick any toy task, e.g. "tighten the wording of README intro"
+```
 
-Expect: axes named, teammates with `ccs-` / `cco-` names, round summary,
-Pareto filter. If teammates don't spawn: re-check step 7 and that the session
-is fresh.
+Expect: axes named without being asked, teammates with `ccs-` / `cco-` names,
+round summary, Pareto filter, no clarifying questions. If teammates don't
+spawn: re-check step 8 and that the session is fresh.
 
 ---
 
-## 9. Final verify
+## 10. Final verify
 
 ```bash
 cd "$REPO" && make verify-install
@@ -264,21 +296,21 @@ Optional inventory:
 command -v xbreed && command -v xask
 ls ~/.agents/godspeed-core/
 ls -la ~/.claude/skills/godspeed ~/.claude/agents/the-judge.md
-test ! -e ~/.claude/scripts/godspeed-trigger.sh && echo NO-GODSPEED-HOOK
-jq -e '(.hooks // {}) | length == 0 or true' ~/.claude/settings.json
+grep -q 'xbrd-godspeed-always:begin' ~/.claude/CLAUDE.md && echo GODSPEED-FORCED
+test ! -e ~/.claude/scripts/godspeed-trigger.sh && echo NO-PROMPT-HOOK
 ```
 
 ---
 
-## 10. Done
+## 11. Done
 
 You have:
 
 - binaries on `PATH`
 - godspeed trilogy under `~/.agents/godspeed-core`
 - skills + agents + slash commands linked into Claude (and optionally Grok)
-- team settings **without** prompt-submit hooks
+- **Godspeed forced** via standing instructions (not hooks)
+- team settings without prompt-submit hooks
 
-Godspeed is opt-in via skill / slash / explicit prompt — never forced on every
-submit. Improve one axis, harm none. Walk stops when nothing improves without
-a tradeoff.
+Improve one axis, harm none. Walk stops when nothing improves without a
+tradeoff. Godspeed.
