@@ -18,6 +18,9 @@ mailbox), the godspeed directive.
 
 ## Setup
 
+Gated, agent-executable install: [`docs/SETUP.md`](docs/SETUP.md).
+**Hook-free** — skills/agents/commands only; no `UserPromptSubmit` triggers.
+
 Paste this into your CLI:
 
-    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Done means 'make verify-install' prints OK and /xgs resolves in a fresh session."
+    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Do not install hooks. Done means 'make verify-install' prints OK, /xgs resolves in a fresh session, and ~/.claude/settings.json has no UserPromptSubmit godspeed hook."
