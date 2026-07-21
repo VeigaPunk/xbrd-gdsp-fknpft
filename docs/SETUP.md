@@ -203,11 +203,10 @@ nukes any CLAUDE.md it previously wrote).
 | `~/.codex/AGENTS.md` | Codex |
 | `~/.agents/AGENTS.md` | shared agents root |
 | `~/.grok/AGENTS.md` | Grok Build (if present) |
-| `$REPO/AGENTS.md` | in-repo (merged into existing roster doc) |
+| `~/.agents/godspeed-core/ALWAYS.md` | copy of standing text next to trilogy |
 
-Claude Code still loads agents/skills/commands from their dirs; godspeed is
-forced via the skill install + agent roster + AGENTS.md surfaces, not a
-project CLAUDE.md.
+**Does not** mutate `$REPO/AGENTS.md` (agent roster SSoT). **Does not** create
+`CLAUDE.md`. Claude Code keeps using skills/agents/commands dirs as before.
 
 `xask` already defaults its skill to `godspeed` and appends `| godspeed` to
 delegated prompts — cross-model stays forced too.
@@ -216,11 +215,11 @@ Gate:
 
 ```bash
 grep -q 'xbrd-godspeed-always:begin' ~/.agents/AGENTS.md \
-  && grep -q 'Godspeed — always on' ~/.agents/AGENTS.md \
   && test -f ~/.agents/godspeed-core/directive.md \
+  && test -f ~/.agents/godspeed-core/ALWAYS.md \
   && test ! -e ~/.claude/CLAUDE.md \
-  && test ! -e "$REPO/CLAUDE.md" \
-  && echo GODSPEED-FORCED-OK-NO-CLAUDE-MD
+  && ! grep -q 'xbrd-godspeed-always' "$REPO/AGENTS.md" \
+  && echo GODSPEED-FORCED-OK-ROSTER-CLEAN
 ```
 
 ---
@@ -304,6 +303,7 @@ ls ~/.agents/godspeed-core/
 ls -la ~/.claude/skills/godspeed ~/.claude/agents/the-judge.md
 grep -q 'xbrd-godspeed-always:begin' ~/.agents/AGENTS.md && echo GODSPEED-FORCED
 test ! -e ~/.claude/CLAUDE.md && echo NO-CLAUDE-MD
+! grep -q 'xbrd-godspeed-always' "$REPO/AGENTS.md" && echo REPO-ROSTER-CLEAN
 test ! -e ~/.claude/scripts/godspeed-trigger.sh && echo NO-PROMPT-HOOK
 ```
 

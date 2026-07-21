@@ -25,4 +25,4 @@ the install wires it on by default.
 
 Paste this into your CLI:
 
-    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Force godspeed via standing instructions; do not install UserPromptSubmit hooks. Done means 'make verify-install' prints OK, /xgs resolves, and ~/.agents/AGENTS.md contains the xbrd-godspeed-always block with no CLAUDE.md anywhere."
+    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Force godspeed via standing instructions; do not install UserPromptSubmit hooks. Done means 'make verify-install' prints OK, /xgs resolves, and ~/.agents/AGENTS.md has the godspeed block, repo AGENTS.md roster is clean, no CLAUDE.md."

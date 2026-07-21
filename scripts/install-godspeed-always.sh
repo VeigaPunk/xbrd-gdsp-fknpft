@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Install always-on Godspeed standing instructions into harness roots.
-# Strong no: never create or patch CLAUDE.md (user ban).
+# Install always-on Godspeed standing instructions — home harness roots only.
+# Does NOT mutate the xbreed repo AGENTS.md roster (SSoT — leave it alone).
+# Strong no: never create or patch CLAUDE.md.
 # Hook-free: no UserPromptSubmit, no ~/.claude/scripts triggers.
 set -euo pipefail
 
@@ -21,13 +22,17 @@ ${MARKER_END}"
 
 upsert() {
   local target="$1"
-  # Hard ban: never touch CLAUDE.md
   case "$(basename "$target")" in
     CLAUDE.md|claude.md)
       echo "refused: CLAUDE.md is banned — skip $target" >&2
       return 0
       ;;
   esac
+  # Never write into the git checkout roster
+  if [[ "$target" == "$REPO_ROOT/AGENTS.md" ]]; then
+    echo "refused: will not mutate repo AGENTS.md roster — skip" >&2
+    return 0
+  fi
   mkdir -p "$(dirname "$target")"
   if [[ ! -f "$target" ]]; then
     printf '%s\n' "$block" >"$target"
@@ -49,7 +54,7 @@ upsert() {
   echo "updated $target"
 }
 
-# Codex / agents / Grok — AGENTS.md only (never CLAUDE.md)
+# Home-only surfaces — do not touch the repo tree
 upsert "${HOME}/.codex/AGENTS.md"
 upsert "${HOME}/.agents/AGENTS.md"
 
@@ -57,32 +62,17 @@ if command -v grok >/dev/null 2>&1 || [[ -d "${HOME}/.grok" ]]; then
   upsert "${HOME}/.grok/AGENTS.md"
 fi
 
-# Repo-local AGENTS.md (xbreed ships AGENTS.md — merge managed block)
-upsert "$REPO_ROOT/AGENTS.md"
+# Optional dedicated always-on note next to trilogy (does not replace directive)
+mkdir -p "${HOME}/.agents/godspeed-core"
+cp -f "$SRC" "${HOME}/.agents/godspeed-core/ALWAYS.md"
+echo "wrote ${HOME}/.agents/godspeed-core/ALWAYS.md"
 
-# If a CLAUDE.md exists from an old install, remove our managed block only
-# and delete the file when it is only our block + whitespace.
-for f in \
-  "${HOME}/.claude/CLAUDE.md" \
-  "$REPO_ROOT/CLAUDE.md"
-do
+# Nuke CLAUDE.md leftovers from earlier experiments only
+for f in "${HOME}/.claude/CLAUDE.md" "$REPO_ROOT/CLAUDE.md"; do
   if [[ -f "$f" ]]; then
-    tmp=$(mktemp)
-    awk -v b="$MARKER_BEGIN" -v e="$MARKER_END" '
-      $0 == b { skip=1; next }
-      $0 == e { skip=0; next }
-      !skip { print }
-    ' "$f" >"$tmp"
-    if [[ ! -s "$tmp" ]] || ! grep -q '[^[:space:]]' "$tmp"; then
-      rm -f "$f" "$tmp"
-      echo "nuked empty/stale $f"
-    else
-      # Leave user content, drop our block; still prefer deleting if user said strong no
-      # Strong no: delete CLAUDE.md entirely when it only had our markers left OR always delete xbreed-installed ones
-      rm -f "$f" "$tmp"
-      echo "nuked $f (CLAUDE.md ban)"
-    fi
+    rm -f "$f"
+    echo "nuked $f (CLAUDE.md ban)"
   fi
 done
 
-echo "GODSPEED-ALWAYS-OK (no CLAUDE.md)"
+echo "GODSPEED-ALWAYS-OK (home AGENTS.md only; repo roster untouched)"
