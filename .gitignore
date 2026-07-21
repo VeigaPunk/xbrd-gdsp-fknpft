@@ -26,8 +26,11 @@ data/xbreed.db-wal
 data/xbreed.db-shm
 
 # Ephemeral scratch area — agents land probes, build artifacts, and test scaffolds here.
-# See CLAUDE.md §Scratch / Ephemeral Work.
 /scratch/
+
+# Strong no — never create or commit CLAUDE.md
+CLAUDE.md
+**/CLAUDE.md
 
 # Root-level scratch from prior godspeed iterations (defense-in-depth against recurrence).
 /.tmp/
