@@ -9,11 +9,10 @@ Target layout is Linux/WSL2 with `$HOME` as install root. This guide is
 `settings.json` beyond the two team-required knobs below.
 
 **Godspeed is forced.** After install, every harness turn runs under Godspeed
-standing instructions (`CLAUDE.md` / `AGENTS.md`). That is deliberate: godspeed
+standing instructions in **`AGENTS.md` roots only**. That is deliberate: godspeed
 literally makes everything better (axes named, cheap parallel moves, no
 clarifying stalls, Pareto-only keeps). It is **not** an optional suffix and
-**not** a prompt-submit hook — it is always-on policy wired into instruction
-files the models already load.
+**not** a prompt-submit hook — and **never** `CLAUDE.md` (banned).
 
 ---
 
@@ -195,15 +194,20 @@ rewrite.
 bash "$REPO"/scripts/install-godspeed-always.sh
 ```
 
-This upserts a managed block (markers `xbrd-godspeed-always:begin/end`) into:
+This upserts a managed block (markers `xbrd-godspeed-always:begin/end`) into
+**AGENTS.md only** — never `CLAUDE.md` (hard ban; the installer refuses and
+nukes any CLAUDE.md it previously wrote).
 
 | File | Harness |
 |---|---|
-| `~/.claude/CLAUDE.md` | Claude Code (every session) |
 | `~/.codex/AGENTS.md` | Codex |
 | `~/.agents/AGENTS.md` | shared agents root |
 | `~/.grok/AGENTS.md` | Grok Build (if present) |
-| `$REPO/CLAUDE.md` | in-repo sessions |
+| `$REPO/AGENTS.md` | in-repo (merged into existing roster doc) |
+
+Claude Code still loads agents/skills/commands from their dirs; godspeed is
+forced via the skill install + agent roster + AGENTS.md surfaces, not a
+project CLAUDE.md.
 
 `xask` already defaults its skill to `godspeed` and appends `| godspeed` to
 delegated prompts — cross-model stays forced too.
@@ -211,10 +215,12 @@ delegated prompts — cross-model stays forced too.
 Gate:
 
 ```bash
-grep -q 'xbrd-godspeed-always:begin' ~/.claude/CLAUDE.md \
-  && grep -q 'Godspeed — always on' ~/.claude/CLAUDE.md \
+grep -q 'xbrd-godspeed-always:begin' ~/.agents/AGENTS.md \
+  && grep -q 'Godspeed — always on' ~/.agents/AGENTS.md \
   && test -f ~/.agents/godspeed-core/directive.md \
-  && echo GODSPEED-FORCED-OK
+  && test ! -e ~/.claude/CLAUDE.md \
+  && test ! -e "$REPO/CLAUDE.md" \
+  && echo GODSPEED-FORCED-OK-NO-CLAUDE-MD
 ```
 
 ---
@@ -296,7 +302,8 @@ Optional inventory:
 command -v xbreed && command -v xask
 ls ~/.agents/godspeed-core/
 ls -la ~/.claude/skills/godspeed ~/.claude/agents/the-judge.md
-grep -q 'xbrd-godspeed-always:begin' ~/.claude/CLAUDE.md && echo GODSPEED-FORCED
+grep -q 'xbrd-godspeed-always:begin' ~/.agents/AGENTS.md && echo GODSPEED-FORCED
+test ! -e ~/.claude/CLAUDE.md && echo NO-CLAUDE-MD
 test ! -e ~/.claude/scripts/godspeed-trigger.sh && echo NO-PROMPT-HOOK
 ```
 

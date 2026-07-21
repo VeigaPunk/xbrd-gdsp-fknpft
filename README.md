@@ -19,10 +19,10 @@ mailbox), the godspeed directive.
 ## Setup
 
 Gated, agent-executable install: [`docs/SETUP.md`](docs/SETUP.md).
-**Hook-free**, **godspeed forced** via standing instructions (`CLAUDE.md` /
-`AGENTS.md`) — no `UserPromptSubmit` triggers. Godspeed literally makes
-everything better; the install wires it on by default.
+**Hook-free**, **godspeed forced** via **`AGENTS.md` only** (never `CLAUDE.md`)
+— no `UserPromptSubmit` triggers. Godspeed literally makes everything better;
+the install wires it on by default.
 
 Paste this into your CLI:
 
-    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Force godspeed via standing instructions; do not install UserPromptSubmit hooks. Done means 'make verify-install' prints OK, /xgs resolves, and ~/.claude/CLAUDE.md contains the xbrd-godspeed-always block."
+    claude "git clone https://github.com/VeigaPunk/xbrd-gdsp-fknpft ~/repos/xbrd-gdsp-fknpft && execute ~/repos/xbrd-gdsp-fknpft/docs/SETUP.md top to bottom. Every step has a gate — verify each one, stop on failure. Force godspeed via standing instructions; do not install UserPromptSubmit hooks. Done means 'make verify-install' prints OK, /xgs resolves, and ~/.agents/AGENTS.md contains the xbrd-godspeed-always block with no CLAUDE.md anywhere."
