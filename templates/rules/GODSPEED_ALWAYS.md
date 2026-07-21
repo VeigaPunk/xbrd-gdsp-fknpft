@@ -27,9 +27,3 @@ Orchestrators (the-judge / `/xgs` / `/xbgst` / `/xbt`) also use:
 
 `xask` defaults to the godspeed skill. Prefer `xask --gs …` when you want the
 flag explicit. Every delegated prompt carries this posture.
-
-## What this is not
-
-This is **not** a Claude `UserPromptSubmit` hook and does **not** rewrite the
-user's prompt text. It is standing instruction: if you are running under this
-install, you are already in godspeed.
